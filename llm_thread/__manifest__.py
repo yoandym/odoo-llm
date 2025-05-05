@@ -25,7 +25,7 @@ Use cases include customer support automation, data analysis, training assistanc
 Contact: support@apexive.com
     """,
     "category": "Productivity, Discuss",
-    "version": "16.0.1.1.1",
+    "version": "17.0.1.1.1",
     "depends": ["base", "mail", "web", "llm", "llm_tool", "llm_mail_message_subtypes"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",

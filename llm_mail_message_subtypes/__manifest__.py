@@ -1,6 +1,6 @@
 {
     "name": "LLM Mail Message Subtypes",
-    "version": "16.0.1.0.0",
+    "version": "17.0.1.0.0",
     "category": "Discuss/Tools",
     "summary": "Defines core mail.message subtypes for LLM interactions.",
     "description": """
