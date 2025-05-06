@@ -54,7 +54,7 @@
                 readonly="1"
                 force_save="1"
               />
-                            <field name="existing_model_id" invisible="1" />
+                            <field name="existing_model_id" column_invisible="1" />
                         </tree>
                     </field>
 

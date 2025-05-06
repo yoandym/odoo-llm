@@ -31,9 +31,7 @@ class LLMProvider(models.Model):
         existing_names_lower = [p.name.lower() for p in other_providers if p.name]
         for record in self:
             if record.name and record.name.lower() in existing_names_lower:
-                raise ValidationError(
-                    _("The provider name must be unique (case-insensitive).")
-                )
+                raise ValidationError(_("The provider name must be unique (case-insensitive)."))
 
         return True
 
@@ -52,10 +50,7 @@ class LLMProvider(models.Model):
         record_name = record._name
 
         if not hasattr(record, service_method):
-            raise NotImplementedError(
-                _("Method '%s' not implemented for service '%s' on target '%s'")
-                % (method, self.service, record_name)
-            )
+            raise NotImplementedError(_("Method '%s' not implemented for service '%s' on target '%s'") % (method, self.service, record_name))
 
         return getattr(record, service_method)(*args, **kwargs)
 
@@ -101,9 +96,7 @@ class LLMProvider(models.Model):
         models = self.model_ids
 
         # Filter for default model of requested type
-        default_models = models.filtered(
-            lambda m: m.default and m.model_use == model_use
-        )
+        default_models = models.filtered(lambda m: m.default and m.model_use == model_use)
 
         if not default_models:
             # Fallback to any model of requested type
@@ -137,18 +130,19 @@ class LLMProvider(models.Model):
             return LLMProvider.serialize_datetime(data)
 
         return {
-            key: LLMProvider.serialize_datetime(value)
-            if isinstance(value, datetime)
-            else LLMProvider.serialize_model_data(value)
-            if isinstance(value, dict)
-            else [
-                LLMProvider.serialize_model_data(item)
-                if isinstance(item, dict)
-                else LLMProvider.serialize_datetime(item)
-                for item in value
-            ]
-            if isinstance(value, list)
-            else value
+            key: (
+                LLMProvider.serialize_datetime(value)
+                if isinstance(value, datetime)
+                else (
+                    LLMProvider.serialize_model_data(value)
+                    if isinstance(value, dict)
+                    else (
+                        [LLMProvider.serialize_model_data(item) if isinstance(item, dict) else LLMProvider.serialize_datetime(item) for item in value]
+                        if isinstance(value, list)
+                        else value
+                    )
+                )
+            )
             for key, value in data.items()
         }
 

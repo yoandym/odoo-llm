@@ -58,7 +58,6 @@ class FetchModelsWizard(models.TransientModel):
     provider_id = fields.Many2one(
         "llm.provider",
         required=True,
-        readonly=True,
     )
     line_ids = fields.One2many(
         "llm.fetch.models.line",
@@ -95,11 +94,11 @@ class FetchModelsWizard(models.TransientModel):
         """Fetch models and prepare wizard data"""
         res = super().default_get(fields_list)
 
-        if not self._context.get("active_id"):
+        if not self._context.get("id"):
             return res
 
         # Get provider and validate
-        provider = self.env["llm.provider"].browse(self._context["active_id"])
+        provider = self.env["llm.provider"].browse(self._context["id"])
         if not provider.exists():
             raise UserError(_("Provider not found."))
 
