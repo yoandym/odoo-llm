@@ -40,8 +40,8 @@
                             <field name="requires_user_consent" />
                             <field
                 name="server_action_id"
-                attrs="{'invisible': [('implementation', '!=', 'server_action')],
-                                          'required': [('implementation', '=', 'server_action')]}"
+                invisible="implementation != 'server_action'"
+                required="implementation == 'server_action'"
                 options="{'no_create': True}"
                 domain="[('state', '!=', False)]"
               />
@@ -55,11 +55,11 @@
                             <field name="read_only_hint" />
                             <field
                 name="idempotent_hint"
-                attrs="{'invisible': [('read_only_hint', '=', True)]}"
+                invisible="read_only_hint == True"
               />
                             <field
                 name="destructive_hint"
-                attrs="{'invisible': [('read_only_hint', '=', True)]}"
+                invisible="read_only_hint == True"
               />
                             <field name="open_world_hint" />
                         </group>
