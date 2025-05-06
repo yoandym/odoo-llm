@@ -94,11 +94,11 @@ class FetchModelsWizard(models.TransientModel):
         """Fetch models and prepare wizard data"""
         res = super().default_get(fields_list)
 
-        if not self._context.get("id"):
+        if not self._context.get("active_id"):
             return res
 
         # Get provider and validate
-        provider = self.env["llm.provider"].browse(self._context["id"])
+        provider = self.env["llm.provider"].browse(self._context["active_id"])
         if not provider.exists():
             raise UserError(_("Provider not found."))
 
