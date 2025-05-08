@@ -92,6 +92,19 @@ class LLMKnowledgeCollection(models.Model):
         tracking=True,
     )
 
+    default_parser = fields.Selection(
+        selection="_get_available_parsers",
+        string="Default Parser",
+        default="default",
+        required=True,
+        help="Default parser to use for resources in this collection",
+        tracking=True,
+    )
+
+    @api.model
+    def _get_available_parsers(self):
+        return self.env["llm.resource"]._get_available_parsers()
+
     @api.model
     def _get_available_chunkers(self):
         return self.env["llm.resource"]._get_available_chunkers()
@@ -121,20 +134,47 @@ class LLMKnowledgeCollection(models.Model):
                 collection._initialize_store()
             # Apply default chunk settings to resources if they exist
             if collection.resource_ids:
-                collection._apply_chunk_settings_to_resources(
+                collection._apply_default_settings_to_resources(
                     update_size=True,
                     update_overlap=True,
                     update_chunker=True,
+                    update_parser=True,
                 )
         return collections
 
+    def _handle_resource_ids_change(self, old_resources_by_collection):
+        """Handle changes to resource_ids field.
+
+        Args:
+            old_resources_by_collection: Dictionary mapping collection IDs to their previous resource IDs
+        """
+        for collection in self:
+            old_resource_ids = old_resources_by_collection.get(collection.id, [])
+            current_resource_ids = collection.resource_ids.ids
+
+            # Find resources that were removed from this collection
+            removed_resource_ids = [
+                rid for rid in old_resource_ids if rid not in current_resource_ids
+            ]
+
+            # Handle removed resources
+            collection._handle_removed_resources(removed_resource_ids)
+
+        return True
+
     def write(self, vals):
-        """Extend write to handle embedding model or store changes"""
-        # Check for changes to embedding_model_id or store_id
+        """Override write to handle various field changes and their effects"""
+        # Track embedding model and store changes
         embedding_model_changed = "embedding_model_id" in vals
         store_changed = "store_id" in vals
 
-        # Store old values for reference
+        # Track resources before the write if resource_ids is changing
+        collections_resources = {}
+        if "resource_ids" in vals:
+            for collection in self:
+                collections_resources[collection.id] = collection.resource_ids.ids
+
+        # Track old embedding models and stores for cleanup
         old_embedding_models = {}
         old_stores = {}
         if embedding_model_changed or store_changed:
@@ -175,17 +215,23 @@ class LLMKnowledgeCollection(models.Model):
                         )
                     )
 
-        # Check if chunk settings were updated
+        # Handle changes to chunking settings
         if (
             "default_chunk_size" in vals
             or "default_chunk_overlap" in vals
             or "default_chunker" in vals
+            or "default_parser" in vals
         ):
-            self._apply_chunk_settings_to_resources(
+            self._apply_default_settings_to_resources(
                 update_size="default_chunk_size" in vals,
                 update_overlap="default_chunk_overlap" in vals,
                 update_chunker="default_chunker" in vals,
+                update_parser="default_parser" in vals,
             )
+
+        # Handle resource_ids changes
+        if "resource_ids" in vals:
+            self._handle_resource_ids_change(collections_resources)
 
         return result
 
@@ -365,6 +411,7 @@ class LLMKnowledgeCollection(models.Model):
                             "name": name,
                             "model_id": model_id,
                             "res_id": record_id,
+                            "parser": "json",
                             "collection_ids": [(4, collection.id)],
                         }
                     )
@@ -470,6 +517,34 @@ class LLMKnowledgeCollection(models.Model):
             },
         }
 
+    def action_embed_resources(self, specific_resource_ids=None):
+        """
+        Action handler for embedding resources in the UI.
+        Wraps the embed_resources method and returns a proper action dictionary.
+
+        Args:
+            specific_resource_ids: Optional list of resource IDs to process.
+        """
+        self.ensure_one()
+        result = self.embed_resources(specific_resource_ids=specific_resource_ids)
+
+        # Return a proper action dictionary with the result in context
+        if result and result.get("success"):
+            return True
+        else:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Embedding Failed"),
+                    "message": _(
+                        "Failed to embed resources. Check the logs for details."
+                    ),
+                    "type": "warning",
+                    "sticky": False,
+                },
+            }
+
     def embed_resources(self, specific_resource_ids=None, batch_size=50):
         """
         Embed all chunked resources using the collection's embedding model and store.
@@ -519,9 +594,6 @@ class LLMKnowledgeCollection(models.Model):
                     message += _(" for the specified resource IDs")
                 collection._post_styled_message(message, message_type="info")
                 continue
-            _logger.info(
-                f"Collection '{collection.name}': Starting embedding for {len(chunks_to_process)} chunks from {len(chunks_to_process.mapped('resource_id'))} resources."
-            )
 
             # Map resource ID to the set of its chunk IDs we intend to process
             resource_target_chunks = {}
@@ -687,8 +759,12 @@ class LLMKnowledgeCollection(models.Model):
                 "processed_resources": 0,
             }
 
-    def _apply_chunk_settings_to_resources(
-        self, update_size=True, update_overlap=True, update_chunker=True
+    def _apply_default_settings_to_resources(
+        self,
+        update_size=True,
+        update_overlap=True,
+        update_chunker=True,
+        update_parser=True,
     ):
         """Apply collection chunk settings to all resources in this collection"""
         for collection in self:
@@ -703,5 +779,77 @@ class LLMKnowledgeCollection(models.Model):
                 update_vals["target_chunk_overlap"] = collection.default_chunk_overlap
             if update_chunker:
                 update_vals["chunker"] = collection.default_chunker
+            if update_parser:
+                update_vals["parser"] = collection.default_parser
             if update_vals:
                 collection.resource_ids.write(update_vals)
+
+    # Helper method for resource-collection relationship changes
+    def _handle_removed_resources(self, removed_resource_ids):
+        """Handle cleanup for resources that were removed from this collection.
+
+        Args:
+            removed_resource_ids: List of resource IDs that were removed
+        """
+        self.ensure_one()
+
+        if removed_resource_ids:
+            _logger.info(
+                f"Resources {removed_resource_ids} were removed from collection {self.id}"
+            )
+
+            # Process each removed resource
+            resources = self.env["llm.resource"].browse(removed_resource_ids)
+            for resource in resources:
+                # Handle resource removal (vector cleanup)
+                self._handle_resource_removal(resource)
+
+                # Reset resource state if needed
+                resource._reset_state_if_needed()
+
+        return True
+
+    def _handle_resource_removal(self, resource):
+        """Handle cleanup when a resource is removed from this collection.
+
+        This method:
+        1. Removes vectors from the collection's store
+        2. Posts appropriate messages
+
+        Args:
+            resource: The resource record that was removed
+        """
+        self.ensure_one()
+
+        if self.store_id and self.store_id.collection_exists(self.id):
+            # Get chunks for this resource
+            chunks = resource.chunk_ids
+            if chunks:
+                try:
+                    # Delete vectors using chunk IDs directly
+                    self.delete_vectors(ids=chunks.ids)
+                    _logger.info(
+                        f"Removed vectors for {len(chunks)} chunks from resource {resource.id} in collection {self.id}"
+                    )
+                    self._post_styled_message(
+                        _("Vectors removed for resource %s") % resource.name,
+                        "info",
+                    )
+                    resource._post_styled_message(
+                        _("Vectors removed from collection %s") % self.name,
+                        "info",
+                    )
+                except Exception as e:
+                    _logger.warning(
+                        f"Error removing vectors for resource {resource.id} from collection {self.id}: {str(e)}"
+                    )
+                    self._post_styled_message(
+                        _("Error removing vectors for resource %s") % resource.name,
+                        "warning",
+                    )
+                    resource._post_styled_message(
+                        _("Error removing vectors from collection %s") % self.name,
+                        "warning",
+                    )
+
+        return True

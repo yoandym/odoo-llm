@@ -83,37 +83,50 @@ class LLMResource(models.Model):
 
     @api.depends("res_model", "res_id")
     def _compute_external_url(self):
-        """Compute external URL from related record if available"""
         for resource in self:
             resource.external_url = False
             if not resource.res_model or not resource.res_id:
                 continue
 
-            try:
-                # Get the related record
-                if resource.res_model in self.env:
-                    record = self.env[resource.res_model].browse(resource.res_id)
-                    if not record.exists():
-                        continue
+            resource.external_url = self._get_record_external_url(
+                resource.res_model, resource.res_id
+            )
 
-                    # Case 1: Handle ir.attachment with type 'url'
-                    if resource.res_model == "ir.attachment" and hasattr(
-                        record, "type"
-                    ):
-                        if record.type == "url" and hasattr(record, "url"):
-                            resource.external_url = record.url
+    def _get_record_external_url(self, res_model, res_id):
+        """
+        Get the external URL for a record based on its model and ID.
 
-                    # Case 2: Check if record has an external_url field
-                    elif hasattr(record, "external_url"):
-                        resource.external_url = record.external_url
+        This method can be extended by other modules to support additional models.
 
-            except Exception as e:
-                _logger.warning(
-                    "Error computing external URL for resource %s: %s",
-                    resource.id,
-                    str(e),
-                )
-                continue
+        :param res_model: The model name
+        :param res_id: The record ID
+        :return: The external URL or False
+        """
+        try:
+            # Get the related record
+            if res_model in self.env:
+                record = self.env[res_model].browse(res_id)
+                if not record.exists():
+                    return False
+
+                # Case 1: Handle ir.attachment with type 'url'
+                if res_model == "ir.attachment" and hasattr(record, "type"):
+                    if record.type == "url" and hasattr(record, "url"):
+                        return record.url
+
+                # Case 2: Check if record has an external_url field
+                elif hasattr(record, "external_url"):
+                    return record.external_url
+
+        except Exception as e:
+            _logger.warning(
+                "Error computing external URL for resource model %s, id %s: %s",
+                res_model,
+                res_id,
+                str(e),
+            )
+
+        return False
 
     @api.depends("lock_date")
     def _compute_kanban_state(self):
@@ -164,6 +177,17 @@ class LLMResource(models.Model):
 
         return True
 
+    def action_open_resource(self):
+        """Open the resource in form view."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "llm.resource",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "current",
+        }
+
     @api.model
     def action_mass_process_resources(self):
         """
@@ -185,18 +209,24 @@ class LLMResource(models.Model):
 
         resources = self.browse(active_ids)
         # Process all selected resources
-        resources.process_resource()
+        result = resources.process_resource()
+        if result:
+            return {
+                "type": "ir.actions.client",
+                "tag": "reload",
+            }
 
-        return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "title": _("Resource Processing"),
-                "message": _("%s resources processing started") % len(resources),
-                "sticky": False,
-                "type": "success",
-            },
-        }
+        else:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Processing Failed"),
+                    "message": _("Mass processing resources failed"),
+                    "sticky": False,
+                    "type": "danger",
+                },
+            }
 
     def action_mass_unlock(self):
         """

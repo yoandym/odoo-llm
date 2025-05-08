@@ -7,9 +7,17 @@ from urllib.parse import urljoin, urlparse
 import requests
 from markdownify import markdownify as md
 
-from odoo import api, models
+from odoo import _, api, models
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
+
+# Regex to find meta refresh tags
+# Handles single or double quotes around url and content values
+META_REFRESH_RE = re.compile(
+    r"""<meta[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*content\s*=\s*["']?\d+\s*;\s*url=([^"'>]+)["']?""",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 class LLMResourceHTTPRetriever(models.Model):
@@ -22,26 +30,16 @@ class LLMResourceHTTPRetriever(models.Model):
         retrievers.append(("http", "HTTP Retriever"))
         return retrievers
 
-
-class IrAttachmentExtension(models.Model):
-    _inherit = "ir.attachment"
-
-    def rag_retrieve(self, llm_resource):
+    def retrieve_http(self, retrieval_details, record):
         """
         Implementation for HTTP retrieval when the attachment has an external URL
         """
         self.ensure_one()
-
-        # If the attachment has a URL and the resource uses HTTP retriever, download content
-        if self.type == "url" and self.url:
-            return self._http_retrieve(llm_resource)
+        _logger.info("Retrieving HTTP resource: %s", retrieval_details)
+        if retrieval_details["type"] == "url":
+            return self._http_retrieve(retrieval_details, record)
         else:
-            # Fall back to default behavior
-            return (
-                super().rag_retrieve(llm_resource)
-                if hasattr(super(), "rag_retrieve")
-                else False
-            )
+            return False
 
     def _ensure_full_urls(self, markdown_content, base_url):
         """
@@ -51,27 +49,31 @@ class IrAttachmentExtension(models.Model):
         :param base_url: Base URL to prepend to relative URLs
         :return: Markdown content with full URLs
         """
-        # Regex to find markdown links
+        # Regex to find markdown links: [text](url)
         link_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
 
         def replace_link(match):
             text = match.group(1)
             url = match.group(2)
 
-            # If URL doesn't start with http:// or https://, it's relative
             if not url.startswith(("http://", "https://", "mailto:", "tel:")):
-                full_url = urljoin(base_url, url)
-                return f"[{text}]({full_url})"
+                try:
+                    full_url = urljoin(base_url, url)
+                    return f"[{text}]({full_url})"
+                except ValueError:
+                    _logger.warning(
+                        f"Could not join base URL '{base_url}' with relative URL '{url}'. Keeping relative link."
+                    )
+                    return match.group(0)
             return match.group(0)
 
-        # Replace all markdown links with full URLs
         return re.sub(link_pattern, replace_link, markdown_content)
 
     def _is_text_content_type(self, content_type):
         """
         Check if the content type is a text type that can be processed directly.
 
-        :param content_type: MIME type to check
+        :param content_type: MIME type to check (e.g., 'text/html')
         :return: Boolean indicating if it's a text content type
         """
         text_types = [
@@ -80,130 +82,276 @@ class IrAttachmentExtension(models.Model):
             "text/markdown",
             "application/xhtml+xml",
             "application/xml",
+            "application/json",
+            "application/javascript",
         ]
-        return any(content_type.startswith(t) for t in text_types)
+        main_type = content_type.split(";")[0].strip()
+        return any(main_type.startswith(t) for t in text_types)
 
-    def _http_retrieve(self, llm_resource):
+    # --- Refactored Helper Methods ---
+
+    def _http_fetch_final_response(self, initial_url, headers, max_refreshes=1):
         """
-        Retrieves content from an external URL.
-        For HTML, text, or markdown content, directly updates the llm.resource content.
-        For binary content, downloads and saves it to the attachment.
+        Fetches the final response after handling standard and meta redirects.
 
-        :param llm_resource: The llm.resource record being processed
-        :return: Dictionary with state or Boolean indicating success
+        :param initial_url: The starting URL
+        :param headers: HTTP headers for the request
+        :param max_refreshes: Maximum number of meta refreshes to follow
+        :return: Tuple (final_response, final_url)
+        :raises: requests.exceptions.RequestException on request failures
         """
-        self.ensure_one()
-        url = self.url
+        _logger.info(f"Fetching final response for URL: {initial_url}")
+        response = requests.get(
+            initial_url, timeout=30, headers=headers, allow_redirects=True
+        )
+        response.raise_for_status()
 
-        if not url:
-            llm_resource._post_styled_message(
-                f"No URL found for attachment {self.name}", "error"
+        current_url = response.url
+        if current_url != initial_url:
+            _logger.info(f"Initial URL '{initial_url}' redirected to '{current_url}'.")
+
+        refreshes_followed = 0
+        while refreshes_followed < max_refreshes:
+            content_type_header = response.headers.get("Content-Type", "")
+            content_type = content_type_header.split(";")[0].strip()
+
+            if self._is_text_content_type(content_type):
+                try:
+                    content = response.content
+                    temp_text_content = content.decode(
+                        response.encoding or "utf-8", errors="ignore"
+                    )
+                    meta_match = META_REFRESH_RE.search(temp_text_content)
+
+                    if meta_match:
+                        refresh_target_relative = meta_match.group(1).strip()
+                        refresh_target_absolute = urljoin(
+                            current_url, refresh_target_relative
+                        )
+                        _logger.info(
+                            f"Detected meta refresh. Following from '{current_url}' to '{refresh_target_absolute}'"
+                        )
+
+                        response = requests.get(
+                            refresh_target_absolute,
+                            timeout=30,
+                            headers=headers,
+                            allow_redirects=True,
+                        )
+                        response.raise_for_status()
+
+                        new_current_url = response.url
+                        if new_current_url != refresh_target_absolute:
+                            _logger.info(
+                                f"Meta refresh target '{refresh_target_absolute}' redirected to '{new_current_url}'."
+                            )
+                        current_url = new_current_url
+                        refreshes_followed += 1
+                        continue
+                    else:
+                        break
+                except Exception as e:
+                    _logger.warning(
+                        f"Error during meta refresh check/follow for {current_url}: {e}"
+                    )
+                    break
+            else:
+                break  # Not text content, cannot contain meta refresh
+
+        return response, current_url  # Return the latest response and URL
+
+    def _http_determine_file_details(self, response, final_url):
+        """
+        Determines content type and filename for the fetched content.
+
+        :param response: The final requests.Response object
+        :param final_url: The final URL after all redirects
+        :return: Dictionary {'content_type': str, 'filename': str}
+        """
+        content_type_header = response.headers.get("Content-Type", "")
+        content_type = content_type_header.split(";")[0].strip()
+
+        # Guess mime type if not provided or unclear
+        if not content_type:
+            content_type, _ = mimetypes.guess_type(final_url)
+        if not content_type:
+            _logger.warning(
+                f"Could not determine mime type for {final_url}. Defaulting to octet-stream."
             )
-            return False
-
-        # Log the retrieval attempt
-        _logger.info(f"Retrieving content from URL: {url}")
-
-        # Get the content from the URL
-        headers = {"User-Agent": "Mozilla/5.0 (compatible; Odoo LLM Resource/1.0)"}
-        response = requests.get(url, timeout=30, headers=headers)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-
-        # Get the content
-        content = response.content
-
-        # Determine the mime type
-        content_type = response.headers.get("Content-Type", "")
-        # Extract the main mime type without parameters
-        if ";" in content_type:
-            content_type = content_type.split(";")[0].strip()
-
-        if not content_type:
-            # Try to guess from URL if Content-Type header is missing
-            content_type, _ = mimetypes.guess_type(url)
-
-        if not content_type:
-            # Default to octet-stream if we still can't determine
             content_type = "application/octet-stream"
 
-        # Get filename from the URL or attachment name
-        filename = self.name or urlparse(url).path.split("/")[-1]
-        if not filename:
-            filename = "downloaded_file"
-
-        # Prepare extension based on mime type if not in filename
+        parsed_url = urlparse(final_url)
+        # Use attachment name if available, else try URL path, else default
+        filename = self.name or parsed_url.path.split("/")[-1] or "downloaded_file"
         if "." not in filename:
             ext = mimetypes.guess_extension(content_type)
             if ext:
                 filename += ext
 
-        # Handle based on content type
-        if self._is_text_content_type(content_type):
-            # For text content types, extract the text and update the llm.resource
-            try:
-                text_content = content.decode("utf-8")
-            except UnicodeDecodeError:
-                # Try other common encodings
-                for encoding in ["latin-1", "windows-1252", "iso-8859-1"]:
-                    try:
-                        text_content = content.decode(encoding)
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                else:
-                    raise UnicodeDecodeError(
-                        "Failed to decode content with any supported encoding"
-                    )
+        return {"content_type": content_type, "filename": filename}
 
-            # Convert HTML to markdown if it's HTML content
+    def _http_process_text(self, response, content, final_url):
+        """
+        Decodes text content, converts HTML to Markdown, and ensures absolute URLs.
+
+        :param response: The final requests.Response object
+        :param content: The raw byte content
+        :param final_url: The final URL for resolving relative links
+        :return: Dictionary {'markdown_content': str or None, 'decoded_successfully': bool}
+        """
+        try:
+            # Decode using detected or fallback encodings
+            text_content = content.decode(response.encoding or "utf-8")
+            decoded_successfully = True
+        except UnicodeDecodeError:
+            _logger.warning(f"UTF-8 decoding failed for {final_url}. Trying fallbacks.")
+            text_content = None
+            for encoding in ["latin-1", "windows-1252", "iso-8859-1"]:
+                try:
+                    text_content = content.decode(encoding)
+                    _logger.info(f"Successfully decoded {final_url} using {encoding}.")
+                    decoded_successfully = True
+                    break
+                except UnicodeDecodeError:
+                    continue
+            if text_content is None:
+                _logger.error(
+                    f"Failed to decode content from {final_url} with any supported encoding."
+                )
+                decoded_successfully = False
+
+        if decoded_successfully:
+            content_type_header = response.headers.get("Content-Type", "")
+            content_type = content_type_header.split(";")[0].strip()
+
             if content_type.startswith(("text/html", "application/xhtml+xml")):
-                markdown_content = md(text_content)
+                try:
+                    markdown_content = md(text_content)
+                except Exception as e:
+                    _logger.error(f"Markdownify conversion failed for {final_url}: {e}")
+                    markdown_content = text_content  # Fallback to original text
             else:
-                # For plain text or already markdown, keep as is
                 markdown_content = text_content
 
-            # Ensure all links have full URLs
-            markdown_content = self._ensure_full_urls(markdown_content, url)
-
-            # Update the llm.resource with markdown content
-            llm_resource.write({"content": markdown_content})
-
-            # Store as attachment anyway for reference
-            content_base64 = base64.b64encode(content)
-            self.write(
-                {
-                    "datas": content_base64,
-                    "mimetype": content_type,
-                    "name": filename,
-                    "type": "binary",
-                }
-            )
-
-            # Post success message
-            llm_resource._post_styled_message(
-                f"Successfully retrieved and parsed content from URL: {url} ({len(text_content)} characters)",
-                "success",
-            )
-
-            # Since we've already parsed the content, return parsed state
-            return {"state": "parsed"}
+            markdown_content = self._ensure_full_urls(markdown_content, final_url)
+            return {"markdown_content": markdown_content, "decoded_successfully": True}
         else:
-            # For binary content, save to attachment
-            content_base64 = base64.b64encode(content)
-            self.write(
-                {
-                    "datas": content_base64,
-                    "mimetype": content_type,
-                    "name": filename,
-                    "type": "binary",
-                }
+            return {"markdown_content": None, "decoded_successfully": False}
+
+    def _http_store_content(
+        self,
+        content,
+        content_type,
+        filename,
+        retrieval_details,
+        record,
+    ):
+        """
+        Updates the ir.attachment record with the fetched content.
+
+        :param content: Raw byte content
+        :param content_type: Determined MIME type
+        :param filename: Determined filename
+        """
+
+        target_fields = retrieval_details["target_fields"]
+
+        target_field_type = record._fields[target_fields["content"]].type
+        if target_fields["content"]:
+            if target_field_type == "binary":
+                content = base64.b64encode(content)
+            record.write({target_fields["content"]: content})
+        if target_fields.get("mimetype", None):
+            record.write({target_fields["mimetype"]: content_type})
+        if target_fields.get("filename", None):
+            record.write({target_fields["filename"]: filename})
+        if target_fields.get("type", None):
+            record.write({target_fields["type"]: target_field_type})
+
+    # --- Main Orchestrator Method ---
+
+    def _http_retrieve(self, retrieval_details, record):
+        """
+        Retrieves content from an external URL, handling redirects and meta refreshes.
+        Orchestrates fetching, processing, and storing the content.
+
+        :param retrieval_details: The retrieval details dictionary
+        :return: Dictionary with state or Boolean indicating success
+        """
+        self.ensure_one()
+        _logger.info(f"Retrieving HTTP resource: {record.name}")
+        field = retrieval_details["field"]
+
+        initial_url = record[field]
+
+        if not initial_url:
+            self._post_styled_message(
+                f"No URL found for this resource {record.name}", "error"
+            )
+            return False
+
+        _logger.info(
+            f"Starting HTTP retrieval for {record.name} from initial URL: {initial_url}"
+        )
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; Odoo LLM Resource/1.0)"}
+
+        final_response, final_url = self._http_fetch_final_response(
+            initial_url, headers
+        )
+
+        file_details = self._http_determine_file_details(final_response, final_url)
+        content_type = file_details["content_type"]
+        filename = file_details["filename"]
+
+        content = final_response.content
+
+        if self._is_text_content_type(content_type):
+            processing_result = self._http_process_text(
+                final_response, content, final_url
             )
 
-            # Post success message
-            llm_resource._post_styled_message(
-                f"Successfully retrieved content from URL: {url} ({len(content)} bytes, {content_type})",
-                "success",
-            )
+            if processing_result["decoded_successfully"]:
+                markdown_content = processing_result["markdown_content"]
+                self.write({"content": markdown_content})
+                self._http_store_content(
+                    content, content_type, filename, retrieval_details, record
+                )
+                self._post_styled_message(
+                    f"Successfully retrieved and processed text content from URL: {final_url}({len(markdown_content)} characters) (original: {initial_url})",
+                    "success",
+                )
+                return {"state": "parsed"}
+            else:
+                # Decoding failed, store raw data
+                self.write({"content": ""})  # Clear content
+                self._http_store_content(
+                    content, content_type, filename, retrieval_details, record
+                )  # Store raw
+                self._post_styled_message(
+                    f"Failed to decode text content from URL: {final_url}. Storing raw data.",
+                    "warning",
+                )
+                return {"state": "parsed"}
+        else:
+            target_fields = retrieval_details["target_fields"]
+            target_field_type = None
+            content_key = None
+            target_field_type = record._fields[target_fields["content"]].type
+            content_key = target_fields["content"]
+            if content_key and target_field_type == "binary":
+                self._http_store_content(
+                    content, content_type, filename, retrieval_details, record
+                )
+                self._post_styled_message(
+                    f"Successfully retrieved binary content from URL: {final_url} (original: {initial_url})",
+                    "success",
+                )
+            else:
+                raise UserError(
+                    _(
+                        "Can not store binary data in field %s for model %s from URL: %s (original: %s)"
+                    )
+                    % (content_key, record._name, final_url, initial_url)
+                )
 
-            # Binary content still needs parsing
             return {"state": "retrieved"}
