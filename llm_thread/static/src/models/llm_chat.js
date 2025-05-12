@@ -13,8 +13,8 @@ const THREAD_SEARCH_FIELDS = [
   "write_date",
   "model_id",
   "provider_id",
-  "related_thread_model",
-  "related_thread_id",
+  "model",
+  "res_id",
   "tool_ids",
 ];
 
@@ -116,8 +116,8 @@ registerModel({
           : undefined,
         isServerPinned: true,
         updatedAt: threadData.write_date,
-        relatedThreadModel: threadData.related_thread_model,
-        relatedThreadId: threadData.related_thread_id,
+        relatedThreadModel: threadData.model,
+        relatedThreadId: threadData.res_id,
         selectedToolIds: threadData.tool_ids || [],
       };
 
@@ -251,8 +251,8 @@ registerModel({
         provider_id: defaultModel.llmProvider.id,
       };
       if (relatedThreadModel && relatedThreadId) {
-        threadData.related_thread_model = relatedThreadModel;
-        threadData.related_thread_id = relatedThreadId;
+        threadData.model = relatedThreadModel;
+        threadData.res_id = relatedThreadId;
       }
 
       const threadId = await this.messaging.rpc({

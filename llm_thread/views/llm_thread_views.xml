@@ -29,6 +29,10 @@
                 options="{'no_create': True}"
               />
                         </group>
+                        <group>
+                            <field name="model" readonly="1" />
+                            <field name="res_id" readonly="1" />
+                        </group>
                     </group>
                 </sheet>
                 <div class="oe_chatter">

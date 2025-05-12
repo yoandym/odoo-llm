@@ -68,9 +68,9 @@ class LLMThread(models.Model):
         string="Messages",
         domain=lambda self: [("model", "=", self._name)],
     )
-
-    related_thread_model = fields.Char("Related Thread Model")
-    related_thread_id = fields.Integer("Related Thread ID")
+    # same field names from mail.message model
+    model = fields.Char("Related Document Model")
+    res_id = fields.Many2oneReference("Related Document ID", model_field="model")
 
     is_locked = fields.Boolean(
         string="Locked, Preventing Concurrent Generation",
