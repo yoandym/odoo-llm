@@ -224,7 +224,7 @@ class LLMResourceHTTPRetriever(models.Model):
             content_type_header = response.headers.get("Content-Type", "")
             content_type = content_type_header.split(";")[0].strip()
 
-            if content_type.startswith(("text/html", "application/xhtml+xml")):
+            if "html" in content_type:
                 try:
                     markdown_content = md(text_content)
                 except Exception as e:

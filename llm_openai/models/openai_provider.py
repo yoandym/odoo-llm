@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import uuid
@@ -5,10 +6,21 @@ import uuid
 from openai import OpenAI
 
 from odoo import api, models
+from odoo.exceptions import UserError
 
 from ..utils.openai_message_validator import OpenAIMessageValidator
 
 _logger = logging.getLogger(__name__)
+
+OPENAI_TO_ODOO_STATE_MAPPING = {
+    "validating_files": "validating",
+    "preparing": "preparing",
+    "queued": "queued",
+    "running": "training",
+    "succeeded": "completed",
+    "failed": "failed",
+    "cancelled": "cancelled",
+}
 
 
 class LLMProvider(models.Model):
@@ -378,3 +390,179 @@ class LLMProvider(models.Model):
 
         # Then validate and clean the messages for OpenAI
         return self._validate_and_clean_messages(formatted_messages)
+
+    def openai_upload_file(self, file_tuple, purpose="fine-tune"):
+        """Upload a file to OpenAI"""
+        response = self.client.files.create(file=file_tuple, purpose=purpose)
+        return response
+
+    def openai_create_fine_tuning_job(
+        self, training_file_id, model_name, hyperparameters=None
+    ):
+        """Create an OpenAI fine-tuning job."""
+        self.ensure_one()
+
+        hyperparameters = hyperparameters or {}
+        hyperparams_cleaned = {
+            k: v for k, v in hyperparameters.items() if v is not None
+        }
+
+        response = self.client.fine_tuning.jobs.create(
+            training_file=training_file_id,
+            model=model_name,
+            # Pass None if cleaned dict is empty, otherwise pass the dict
+            hyperparameters=hyperparams_cleaned if hyperparams_cleaned else None,
+        )
+        _logger.info(
+            f"Fine-tuning job created successfully for provider '{self.name}'. Job ID: {response.id}"
+        )
+        return response
+
+    def openai_retrieve_training_job(self, job_id):
+        """Retrieve an OpenAI fine-tuning job."""
+        self.ensure_one()
+        response = self.client.fine_tuning.jobs.retrieve(job_id)
+        return response
+
+    def openai_cancel_training_job(self, job_id):
+        """Cancel an OpenAI fine-tuning job."""
+        self.ensure_one()
+        response = self.client.fine_tuning.jobs.cancel(job_id)
+        return response
+
+    def openai_validate_datasets(self, job):
+        """Validate datasets for training"""
+        if not job.dataset_ids:
+            raise UserError(
+                f"Job '{job.name}': Please select at least one dataset before validating."
+            )
+
+        for dataset in job.dataset_ids:
+            result = dataset.validate_dataset()
+            if not result["valid"]:
+                raise UserError(
+                    f"Validation failed for job '{job.name}':\nDataset '{dataset.name}': {result['message']}"
+                )
+
+        return True
+
+    def openai_start_training_job(self, job):
+        """Start a training job with the provider."""
+        self.ensure_one()
+
+        if not job.dataset_ids:
+            raise UserError(f"Job '{self.name}': No datasets linked for preparation.")
+
+        final_combined_bytes = self._openai_get_combined_content_bytes(job)
+
+        if not final_combined_bytes:
+            raise UserError(
+                f"Job '{job.name}': Combined content from all datasets is empty after processing."
+            )
+
+        # Create a filename for the upload (e.g., based on job name or dataset name)
+        upload_filename = f"{job.name or 'job'}_combined_datasets.jsonl"
+
+        file_obj = io.BytesIO(final_combined_bytes)
+        file_tuple = (upload_filename, file_obj)
+
+        file_upload_response = job.provider_id.upload_file(
+            file_tuple, purpose="fine-tune"
+        )
+        training_file_id = file_upload_response.id
+
+        hyperparameters = job.hyperparameters
+        if isinstance(hyperparameters, str):
+            try:
+                hyperparameters = json.loads(hyperparameters)
+            except (json.JSONDecodeError, ValueError):
+                hyperparameters = {}
+        elif not isinstance(hyperparameters, dict):
+            hyperparameters = {}
+
+        training_job_response = job.provider_id.create_fine_tuning_job(
+            training_file_id=training_file_id,
+            model_name=job.base_model_id.name,
+            hyperparameters=hyperparameters,
+        )
+
+        return {
+            "training_job_id": training_job_response.id,
+        }
+
+    @api.model
+    def _openai_get_combined_content_bytes(self, job):
+        """Get combined content bytes for OpenAI"""
+        all_datasets_bytes = []
+        dataset_names = []
+        for dataset in job.dataset_ids:
+            content_bytes = dataset._get_combined_content_bytes()
+            if content_bytes:
+                all_datasets_bytes.append(content_bytes)
+                dataset_names.append(dataset.name)
+            else:
+                _logger.warning(
+                    f"Dataset '{dataset.name}' for job '{job.name}' resulted in empty content, skipping."
+                )
+
+        if not all_datasets_bytes:
+            raise UserError(
+                f"Job '{job.name}': No valid content found in any linked dataset."
+            )
+
+        final_combined_bytes = b"".join(all_datasets_bytes)
+
+        if not final_combined_bytes:
+            raise UserError(
+                f"Job '{self.name}': Combined content from all datasets is empty after processing."
+            )
+
+        return final_combined_bytes
+
+    def openai_check_training_job_status(self, job):
+        """Check the status of a training job with the provider."""
+        self.ensure_one()
+        response = job.provider_id.retrieve_training_job(job_id=job.external_job_id)
+        state_to_return = OPENAI_TO_ODOO_STATE_MAPPING.get(response.status)
+        model_dump = response.model_dump()
+        if response.status == "succeeded":
+            models_data = job.provider_id.list_models(
+                model_id=response.fine_tuned_model
+            )
+            for model_data in models_data:
+                details = model_data.get("details", {})
+                name = model_data.get("name") or details.get("id")
+
+                if not name:
+                    continue
+
+                # Determine model use and capabilities
+                capabilities = details.get("capabilities", ["chat"])
+                model_use = self.env["llm.fetch.models.wizard"]._determine_model_use(
+                    name, capabilities
+                )
+
+                vals = {
+                    "name": name,
+                    "model_use": model_use,
+                    "details": details,
+                    "provider_id": job.provider_id.id,
+                    "active": True,
+                }
+                model_exists = self.env["llm.model"].search([("name", "=", name)])
+                if not model_exists:
+                    result = self.env["llm.model"].create(vals)
+                else:
+                    result = model_exists
+
+                return {
+                    "state": state_to_return,
+                    "result_model_id": result.id,
+                    "trained_model_name": response.fine_tuned_model,
+                    "response": model_dump,
+                }
+
+        return {
+            "state": state_to_return,
+            "response": model_dump,
+        }
