@@ -6,7 +6,7 @@
         Supports diverse AI models and custom model deployments.
     """,
     "category": "Technical",
-    "version": "16.0.1.1.0",
+    "version": "17.0.1.1.0",
     "depends": ["llm"],
     "external_dependencies": {
         "python": ["replicate"],

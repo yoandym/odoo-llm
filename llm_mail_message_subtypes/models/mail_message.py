@@ -43,7 +43,7 @@ class MailMessageLLMSubtypes(models.Model):
         return ids, id_to_xmlid
 
     # Override message_format to add llm related fields for frontend formatting
-    def message_format(self, format_reply=True):
+    def message_format(self, format_reply=True, msg_vals=None):
         """
         Base message_format override for LLM subtypes. (Optimized)
         """
