@@ -13,7 +13,7 @@ export class LLMChatComposer extends Component {
     useComponentToModel({ fieldName: "component" });
   }
   /**
-   * @returns {ComposerView}
+   * @returns {Composer}
    */
   get composerView() {
     return this.props.record;

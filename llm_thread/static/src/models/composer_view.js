@@ -1,10 +1,9 @@
 /** @odoo-module **/
 
-import { registerPatch } from "@mail/model/model_core";
+import { patch } from "@web/core/utils/patch";
+import { Composer } from "@mail/core/web/composer";
 
-registerPatch({
-  name: "ComposerView",
-  recordMethods: {
+patch(Composer, {
     onKeydownTextareaForLLM(ev) {
       if (!this.exists()) {
         return;
@@ -89,5 +88,4 @@ registerPatch({
 
       this._handleSendShortcuts(ev);
     },
-  },
 });

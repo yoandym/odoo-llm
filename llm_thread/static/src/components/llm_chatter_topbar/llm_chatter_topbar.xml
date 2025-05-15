@@ -2,13 +2,13 @@
 <templates xml:space="preserve">
     <t
     t-name="llm_thread.ChatterTopbar"
-    t-inherit="mail.ChatterTopbar"
+    t-inherit="mail.Chatter"
     t-inherit-mode="extension"
     owl="1"
   >
         <!-- Insert AI button after the Schedule Activity button -->
         <xpath
-      expr="//button[hasclass('o_ChatterTopbar_buttonScheduleActivity')]"
+      expr="//button[hasclass('o-mail-Chatter-logNote')]"
       position="after"
     >
             <!-- AI Chat Button inserted next to Activities -->

@@ -127,9 +127,9 @@
         We rely on is_note=True (set by backend message_format for LLM subtypes)
         to get the desired overall bubble style from the base mail.Message template.
         -->
-        <xpath expr="//div[hasclass('o_Message_content')]" position="replace">
+        <xpath expr="//div[hasclass('o-mail-Message-content')]" position="replace">
             <div
-        class="o_Message_content position-relative text-break"
+        class="o-mail-Message-content position-relative text-break"
         t-att-class="{
                     'opacity-75': messageView.message.isSquashed,
                     'o_Message_content--failed': messageView.message.isFailed,

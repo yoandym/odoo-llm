@@ -7,10 +7,10 @@
     owl="1"
   >
         <!-- Replace the entire content of the Chatter div -->
-        <xpath expr="//div[hasclass('o_Chatter')]" position="replace">
+        <xpath expr="//div[hasclass('o-mail-Chatter')]" position="replace">
             <t t-if="chatter">
                 <div
-          class="o_Chatter position-relative flex-grow-1 flex-column d-flex w-100 bg-view"
+          class="o-mail-Chatter position-relative flex-grow-1 flex-column d-flex w-100 bg-view"
           t-attf-class="{{ className }}"
           t-ref="root"
         >
