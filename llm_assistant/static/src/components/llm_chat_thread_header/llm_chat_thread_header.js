@@ -5,7 +5,6 @@ import { patch } from "@web/core/utils/patch";
 
 patch(
   LLMChatThreadHeader.prototype,
-  "llm_assistant.llm_assistant_dropdown_patch",
   {
     /**
      * Get all available assistants

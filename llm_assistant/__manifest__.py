@@ -35,7 +35,6 @@ Use cases include creating specialized assistants for customer support, data ana
     ],
     "assets": {
         "web.assets_backend": [
-            "llm_assistant/static/src/models/main.js",
             # Models
             "llm_assistant/static/src/models/llm_assistant.js",
             "llm_assistant/static/src/models/llm_chat.js",
