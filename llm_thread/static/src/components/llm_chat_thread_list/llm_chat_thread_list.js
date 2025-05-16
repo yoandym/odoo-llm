@@ -1,13 +1,10 @@
 /** @odoo-module **/
 
-import { registerMessagingComponent } from "@mail/utils/messaging_component";
-import { useModels } from "@mail/component_hooks/use_models";
 
 const { Component, useState } = owl;
 
 export class LLMChatThreadList extends Component {
   setup() {
-    useModels();
     super.setup();
     this.state = useState({
       isLoading: false,
@@ -54,9 +51,7 @@ export class LLMChatThreadList extends Component {
   }
 }
 
-Object.assign(LLMChatThreadList, {
-  props: { record: Object },
-  template: "llm_thread.LLMChatThreadList",
-});
-
-registerMessagingComponent(LLMChatThreadList);
+LLMChatThreadList.template = "llm_thread.LLMChatThreadList";
+LLMChatThreadList.props = {
+  record: { type: Object, optional: true },
+};

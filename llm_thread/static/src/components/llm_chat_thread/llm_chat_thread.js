@@ -1,7 +1,5 @@
 /** @odoo-module **/
 
-import { registerMessagingComponent } from "@mail/utils/messaging_component";
-
 const { Component } = owl;
 
 export class LLMChatThread extends Component {
@@ -25,12 +23,8 @@ export class LLMChatThread extends Component {
   }
 }
 
-Object.assign(LLMChatThread, {
-  props: {
-    record: Object,
-    threadView: Object,
-  },
-  template: "llm_thread.LLMChatThread",
-});
-
-registerMessagingComponent(LLMChatThread);
+LLMChatThread.template = "llm_thread.LLMChatThread";
+LLMChatThread.props = {
+  record: { type: Object, optional: true },
+  threadView: { type: Object, optional: true },
+};

@@ -1,6 +1,4 @@
 /** @odoo-module **/
-import { registerMessagingComponent } from "@mail/utils/messaging_component";
-import { useRefToModel } from "@mail/component_hooks/use_ref_to_model";
 
 const { Component, useState, useRef, onMounted, onWillUnmount, onPatched } =
   owl;
@@ -11,10 +9,8 @@ export class LLMChatThreadHeader extends Component {
    */
   setup() {
     super.setup();
-    useRefToModel({
-      fieldName: "llmChatThreadNameInputRef",
-      refName: "threadNameInput",
-    });
+    // Refs for thread name input
+    this.llmChatThreadNameInputRef = useRef("threadNameInput");
 
     // State for model search dropdown
     this.state = useState({
@@ -280,9 +276,7 @@ export class LLMChatThreadHeader extends Component {
   }
 }
 
-Object.assign(LLMChatThreadHeader, {
-  props: { record: Object },
-  template: "llm_thread.LLMChatThreadHeader",
-});
-
-registerMessagingComponent(LLMChatThreadHeader);
+LLMChatThreadHeader.template = "llm_thread.LLMChatThreadHeader";
+LLMChatThreadHeader.props = {
+  record: { type: Object, optional: true },
+};

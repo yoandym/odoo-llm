@@ -1,25 +1,20 @@
 /** @odoo-module **/
 
-import { attr, many, one } from "@mail/model/model_field";
-import { registerModel } from "@mail/model/model_core";
+import { Record } from "@mail/core/common/record";
 
-registerModel({
-  name: "LLMModel",
-  fields: {
-    id: attr({
-      identifying: true,
-    }),
-    name: attr({
-      required: true,
-    }),
-    llmProvider: one("LLMProvider", {
-      inverse: "llmModels",
-    }),
-    threads: many("Thread", {
-      inverse: "llmModel",
-    }),
-    default: attr({
-      default: false,
-    }),
-  },
-});
+export class LLMModel extends Record {
+  id = Record.attr({ identifying: true });
+  name = Record.attr({required: true});
+
+  llmProvider = Record.one("LLMProvider", {
+    inverse: "llmModels",
+  });
+  threads = Record.many("Thread", {
+    inverse: "llmModel",
+  });
+  default = Record.attr({
+    default: false,
+  });
+}
+
+LLMModel.register();

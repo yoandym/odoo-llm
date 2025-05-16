@@ -1,9 +1,8 @@
 /** @odoo-module **/
 
 import { useEffect, useRef } from "@odoo/owl";
-import { MessageList } from "@mail/components/message_list/message_list";
+import { MessageList } from "@mail/components/message_list/message_list"; // TODO: replace component
 import { Transition } from "@web/core/transition";
-import { registerMessagingComponent } from "@mail/utils/messaging_component";
 
 export class LLMChatMessageList extends MessageList {
   setup() {
@@ -52,10 +51,9 @@ export class LLMChatMessageList extends MessageList {
   }
 }
 
-Object.assign(LLMChatMessageList, {
-  components: { Transition },
-  props: { record: Object, composerView: Object },
-  template: "llm_thread.LLMChatMessageList",
-});
-
-registerMessagingComponent(LLMChatMessageList);
+LLMChatMessageList.template = "llm_thread.LLMChatMessageList";
+LLMChatMessageList.components = { Transition };
+LLMChatMessageList.props = {
+  record: { type: Object, optional: true },
+  composerView: { type: Object, optional: true },
+};

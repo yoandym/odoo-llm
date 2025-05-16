@@ -1,14 +1,13 @@
 /** @odoo-module **/
 
-import { one } from "@mail/model/model_field";
-import { registerPatch } from "@mail/model/model_core";
+import { Record } from "@mail/core/common/record";
+import { patch } from "@web/core/utils/patch";
 
-registerPatch({
-  name: "Messaging",
-  fields: {
-    llmChat: one("LLMChat", {
+import { Messaging } from "@mail/core/common/messaging_service";
+
+patch(Messaging, {
+    llmChat: Record.one("LLMChat", {
       default: {},
       isCausal: true,
     }),
-  },
 });

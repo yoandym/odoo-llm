@@ -1,7 +1,5 @@
 /** @odoo-module **/
 
-import { registerMessagingComponent } from "@mail/utils/messaging_component";
-import { useComponentToModel } from "@mail/component_hooks/use_component_to_model";
 const { Component } = owl;
 
 export class LLMChatComposer extends Component {
@@ -10,7 +8,7 @@ export class LLMChatComposer extends Component {
    */
   setup() {
     super.setup();
-    useComponentToModel({ fieldName: "component" });
+    //useComponentToModel({ fieldName: "component" });  # TODO: remove this line
   }
   /**
    * @returns {Composer}
@@ -56,9 +54,7 @@ export class LLMChatComposer extends Component {
   }
 }
 
-Object.assign(LLMChatComposer, {
-  props: { record: Object },
-  template: "llm_thread.LLMChatComposer",
-});
-
-registerMessagingComponent(LLMChatComposer);
+LLMChatComposer.template = "llm_thread.LLMChatComposer";
+LLMChatComposer.props = {
+  record: { type: Object, optional: true },
+};

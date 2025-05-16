@@ -2,15 +2,32 @@
 
 import { patch } from "@web/core/utils/patch";
 import { Composer } from "@mail/core/common/composer_model";
+import { Record } from "@mail/core/common/record";
 
 patch(Composer, {
-  setup () {
-    super.setup();
-    this.placeholderLLMChat = this.env._t("Ask anything...");
-    this.isSendDisabled = !this.canPostMessage;
-    this.eventSource = null;
-    this.isStreaming = this.eventSource !== null;
+  placeholderLLMChat: Record.attr({
+    default: function () {
+      return this.env._t("Ask anything...");
     },
+  }),
+  isSendDisabled: Record.attr({
+    compute() {
+      return !this.canPostMessage;
+    },
+    default: true,
+  }),
+  eventSource: Record.attr({
+    default: null,
+  }),
+  isStreaming: Record.attr({
+    compute() {
+      return this.eventSource !== null;
+    },
+  }),
+
+  setup() {
+    super.setup();
+  },
 
   stopLLMThreadLoop() {
     // This should close event source
@@ -114,3 +131,4 @@ patch(Composer, {
     return result;
   },
 });
+

@@ -1,6 +1,5 @@
 /** @odoo-module **/
-import { ComposerTextInput } from "@mail/components/composer_text_input/composer_text_input";
-import { registerMessagingComponent } from "@mail/utils/messaging_component";
+import { ComposerTextInput } from "@mail/components/composer_text_input/composer_text_input";  // TODO: replace component
 
 export class LLMChatComposerTextInput extends ComposerTextInput {
   /**
@@ -35,9 +34,8 @@ export class LLMChatComposerTextInput extends ComposerTextInput {
   }
 }
 
-Object.assign(LLMChatComposerTextInput, {
-  props: { record: Object },
-  template: "llm_thread.LLMChatComposerTextInput",
-});
+LLMChatComposerTextInput.template = "llm_thread.LLMChatComposerTextInput";
+LLMChatComposerTextInput.props = {
+  record: { type: Object, optional: true },
+};
 
-registerMessagingComponent(LLMChatComposerTextInput);
