@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { Composer } from "@mail/core/web/composer";
+import { Composer } from "@mail/core/common/composer_model";
 
 patch(Composer, {
     onKeydownTextareaForLLM(ev) {

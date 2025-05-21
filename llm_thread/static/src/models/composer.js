@@ -25,10 +25,6 @@ patch(Composer, {
     },
   }),
 
-  setup() {
-    super.setup();
-  },
-
   stopLLMThreadLoop() {
     // This should close event source
     this._closeEventSource();
@@ -129,6 +125,6 @@ patch(Composer, {
       result.update(this.messaging.models.Message.convertData(message));
     }
     return result;
-  },
+  }
 });
 
