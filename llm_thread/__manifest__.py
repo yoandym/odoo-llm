@@ -4,7 +4,8 @@
     "description": """
 Easy AI Chat for Odoo
 =====================
-A user-friendly module that brings AI-powered chat to your Odoo environment. Integrate with multiple AI providers, manage real-time conversations, and enhance workflows with multimodal support.
+A user-friendly module that brings AI-powered chat to your Odoo environment. Integrate with multiple AI providers, manage real-time conversations,
+and enhance workflows with multimodal support.
 
 Key Features:
 - Multiple AI Providers: OpenAI, Anthropic, Grok, Ollama, DeepSeek, and more
@@ -20,7 +21,8 @@ Getting Started:
 3. Fetch available models with one click
 4. Start chatting from anywhere in Odoo
 
-Use cases include customer support automation, data analysis, training assistance, custom AI workflows, and automated tool execution for your business.
+Use cases include customer support automation, data analysis, training assistance, custom AI workflows, and automated tool execution for your
+business.
 
 Contact: support@apexive.com
     """,
@@ -48,14 +50,10 @@ Contact: support@apexive.com
             "llm_thread/static/src/models/composer_view.js",
             "llm_thread/static/src/models/llm_model.js",
             "llm_thread/static/src/models/llm_provider.js",
-            "llm_thread/static/src/models/thread_view.js",
             "llm_thread/static/src/models/llm_chat_thread_header_view.js",
             "llm_thread/static/src/models/chatter.js",
             "llm_thread/static/src/models/llm_tool.js",
             "llm_thread/static/src/models/message.js",
-            "llm_thread/static/src/models/message_action.js",
-            "llm_thread/static/src/models/message_action_list.js",
-            "llm_thread/static/src/models/message_action_view.js",
             "llm_thread/static/src/models/messaging_notification_handler.js",
             # Components
             "llm_thread/static/src/components/llm_chat/llm_chat.js",
@@ -77,13 +75,9 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.js",
             "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.xml",
             "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.scss",
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.js",
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.xml",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
-            "llm_thread/static/src/components/llm_chatter_topbar/llm_chatter_topbar.xml",
-            "llm_thread/static/src/components/llm_chatter_topbar/llm_chat_topbar.scss",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
             "llm_thread/static/src/components/message/message.xml",
             "llm_thread/static/src/components/message/message.scss",
@@ -91,6 +85,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.js",
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.xml",
             # Client Actions
+            "llm_thread/static/src/llm_message_actions.js",
             "llm_thread/static/src/llm_chat_client_action.js",
             # Styles
             (
