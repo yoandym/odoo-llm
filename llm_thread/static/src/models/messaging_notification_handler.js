@@ -1,56 +1,97 @@
 /** @odoo-module **/
 
-import { patch } from "@web/core/utils/patch";
+import { clear } from "@mail/model/model_field_command";
+import { registry } from "@web/core/registry";
+import { useService } from "@web/core/utils/hooks";
+import { onWillStart, useState } from "@odoo/owl";
 
-patch(MessagingNotificationHandler, {
+/**
+ * Hook for listening to LLM thread deletion notifications from the bus.
+ * In Odoo 17, we use bus_service directly with custom listeners instead of
+ * patching a notification handler.
+ *
+ * @returns {Object} A state object
+ */
+export function useLLMThreadDeleteHandler() {
+  const busService = useService("bus_service");
+  const threadService = useService("mail.thread");
+  const state = useState({});
+
   /**
-   * @override
+   * Handle deletion of multiple LLM threads
    * @private
-   * @param {Object} message
+   * @param {Array} ids - The IDs of the threads to delete
    */
-  _handleNotification(message) {
-    if (message.type === "llm.thread/delete") {
-      return this._handleLLMThreadsDelete(message);
-    }
-    super._handleNotification(message);
-  },
-
-  _handleLLMThreadsDelete(message) {
-    const ids = message.payload.ids;
+  function handleLLMThreadsDelete({ ids }) {
     for (const id of ids) {
-      this._handleLLMThreadDelete(id);
+      handleLLMThreadDelete(id);
     }
-  },
+  }
 
   /**
+   * Handle the deletion of a single LLM thread
    * @private
-   * @param {Number} id
+   * @param {Number} id - The ID of the thread to delete
    */
-  _handleLLMThreadDelete(id) {
-    const thread = this.messaging.models.Thread.findFromIdentifyingData({
-      id,
-      model: "llm.thread",
-    });
-    if (thread) {
+  function handleLLMThreadDelete(id) {
+    // In Odoo 17, we access models from the store (through mail.thread service)
+    const thread = threadService.getThread({ id, model: "llm.thread" });
+
+    if (!thread) return;
+
+    // Check and handle LLM chat relations
+    if (thread.llmChat) {
       const llmChat = thread.llmChat;
-      if (llmChat) {
-        const isActiveThread =
-          llmChat.activeThread && llmChat.activeThread.id === thread.id;
-        if (isActiveThread) {
-          const composer = llmChat.llmChatView?.composer;
-          if (composer && composer.isStreaming) {
-            composer._closeEventSource();
-          }
+      const isActiveThread =
+        llmChat.activeThread && llmChat.activeThread.id === thread.id;
+
+      // Stop any ongoing streaming
+      if (isActiveThread) {
+        const composer = llmChat.llmChatView?.composer;
+        if (composer?.isStreaming && typeof composer._closeEventSource === "function") {
+          composer._closeEventSource();
         }
-        const updatedData = {
-          threads: llmChat.threads.filter((t) => t.id !== thread.id),
-        };
-        if (isActiveThread) {
-          updatedData.activeThread = null;
-        }
-        llmChat.update(updatedData);
       }
-      thread.delete();
+
+      // Update the LLM chat state
+      const updatedData = {
+        threads: (llmChat.threads || []).filter((t) => t.id !== thread.id),
+      };
+
+      if (isActiveThread) {
+        updatedData.activeThread = clear();
+      }
+
+      // Update the chat data
+      llmChat.update?.(updatedData);
     }
+
+    // Delete the thread from the store or call appropriate method
+    thread.delete?.();
+  }
+
+  onWillStart(() => {
+    // Subscribe to "llm.thread/delete" notifications
+    busService.addEventListener("notification", ({ detail: notifications }) => {
+      for (const { type, payload } of notifications) {
+        if (type === "llm.thread/delete") {
+          handleLLMThreadsDelete(payload);
+        }
+      }
+    });
+  });
+
+  return state;
+}
+
+// Register the service for handling LLM thread delete notifications
+registry.category("services").add("llm_thread_delete_handler", {
+  dependencies: ["bus_service", "mail.thread"],
+  start() {
+    // The actual subscription logic happens in the components that use
+    // the useLLMThreadDeleteHandler hook
+    return {
+      name: "llm_thread_delete_handler",
+    };
   },
 });

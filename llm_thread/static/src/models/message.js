@@ -2,6 +2,7 @@
 
 import { Record } from "@mail/core/common/record";
 import { patch } from "@web/core/utils/patch";
+import { Message } from "@mail/core/common/message_model";
 
 /**
  * Helper function to safely parse JSON strings.
