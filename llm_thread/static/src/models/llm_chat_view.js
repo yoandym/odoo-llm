@@ -49,36 +49,13 @@ export class LLMChatView extends Record {
       return this.llmChat.activeThread;
     },
   });
-  threadViewer = Record.one("ThreadViewer", {
-    compute() {
-      if (!this.llmChat.activeThread) {
-        return null;
-      }
-      return {
-        hasThreadView: true,
-        thread: this.llmChat.activeThread,
-        threadCache: this.llmChat.threadCache,
-      };
-    },
-  });
-  threadView = Record.one("ThreadView", {
-    compute() {
-      if (!this.threadViewer) {
-        return null;
-      }
-      return {
-        threadViewer: this.threadViewer,
-        messageListView: {},
-        llmChatThreadHeaderView: {},
-      };
-    },
-  });
+
   composer = Record.one("Composer", {
     compute() {
-      if (!this.threadViewer) {
+      if (!this.thread) {
         return null;
       }
-      return { thread: this.threadViewer.thread };
+      return { thread: this.thread };
     },
   });
 

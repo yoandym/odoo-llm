@@ -21,7 +21,7 @@ patch(LLMChatThreadHeaderView, {
       }
       // This now searches within a collection of LLMAssistant records
       // and returns a record instance, which is correct.
-      const assistants = this.threadView?.thread?.llmChat?.llmAssistants;
+      const assistants = this.thread?.llmChat?.llmAssistants;
       if (!assistants || !Array.isArray(assistants)) {
         return null;
       }
@@ -41,7 +41,7 @@ patch(LLMChatThreadHeaderView, {
    */
   _initializeState() {
     this._super();
-    const currentThread = this.threadView?.thread;
+    const currentThread = this.thread;
     if (!currentThread) {
       this.update({
         selectedAssistantId: null,
@@ -72,15 +72,15 @@ patch(LLMChatThreadHeaderView, {
     const result = await this.messaging.rpc({
       route: "/llm/thread/set_assistant",
       params: {
-        thread_id: this.threadView.thread.id,
+        thread_id: this.thread.id,
         assistant_id: assistantId,
       },
     });
 
     if (result.success) {
       // Refresh the thread to get updated data
-      await this.threadView.thread.llmChat.refreshThread(
-        this.threadView.thread.id
+      await this.thread.llmChat.refreshThread(
+        this.thread.id
       );
       if (assistantId === false) {
         this.update({
@@ -88,16 +88,16 @@ patch(LLMChatThreadHeaderView, {
         });
       } else {
         this.update({
-          selectedModelId: this.threadView.thread.llmModel?.id,
+          selectedModelId: this.thread.llmModel?.id,
           selectedProviderId:
-            this.threadView.thread.llmModel?.llmProvider?.id,
+            this.thread.llmModel?.llmProvider?.id,
         });
       }
     } else {
       // Revert the local state if the server call failed
       this.update({
         selectedAssistantId:
-          this.threadView.thread.llmAssistant?.id || null,
+          this.thread.llmAssistant?.id || null,
       });
 
       // Show error message

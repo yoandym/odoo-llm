@@ -3,10 +3,6 @@
 const { Component } = owl;
 
 export class LLMChatThread extends Component {
-  get threadView() {
-    return this.props.threadView;
-  }
-
   /**
    * @returns {Thread}
    */
@@ -26,5 +22,4 @@ export class LLMChatThread extends Component {
 LLMChatThread.template = "llm_thread.LLMChatThread";
 LLMChatThread.props = {
   record: { type: Object, optional: true },
-  threadView: { type: Object, optional: true },
 };

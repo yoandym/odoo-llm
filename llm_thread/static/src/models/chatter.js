@@ -10,28 +10,13 @@ patch(Chatter.prototype, {
     this.is_chatting_with_llm = false;
     this.llmChatThread = Record.one("Thread", {
       compute() {
-        if (!this.is_chatting_with_llm || !this.llmChatThreadView) {
+        if (!this.is_chatting_with_llm || !this.llmChatThread) {
           return null;
         }
-        return this.llmChatThreadView.thread;
+        return this.llmChatThread.thread;
       },
     });
-    this.llmChatThreadView = Record.one("ThreadView", {
-      compute() {
-        if (!this.is_chatting_with_llm || !this.thread) {
-          return null;
-        }
-        const llmChat = this.messaging.llmChat;
-        if (!llmChat || !llmChat.activeThread || !llmChat.llmChatView) {
-          return null;
-        }
-        return {
-          threadViewer: llmChat.llmChatView.threadViewer,
-          messageListView: {},
-          llmChatThreadHeaderView: {},
-        };
-      },
-    });
+
   },
 
   /**

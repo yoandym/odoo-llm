@@ -12,11 +12,11 @@ export class LLMChatThreadHeaderView extends Record {
       () => {
         this._onThreadViewChange();
       },
-      () => [this.threadView?.thread?.llmChat?.activeThread?.id]
+      () => [this.thread?.llmChat?.activeThread?.id]
     );
   }
 
-  threadView = Record.one("ThreadView", {
+  thread = Record.one("Thread", {
     inverse: "llmChatThreadHeaderView",
   });
   isEditingName = Record.attr({
@@ -36,7 +36,7 @@ export class LLMChatThreadHeaderView extends Record {
       if (!this.selectedProviderId) {
         return null;
       }
-      const providers = this.threadView?.thread?.llmChat?.llmProviders;
+      const providers = this.thread?.llmChat?.llmProviders;
       if (!providers || !Array.isArray(providers)) {
         return null;
       }
@@ -50,7 +50,7 @@ export class LLMChatThreadHeaderView extends Record {
       if (!this.selectedModelId) {
         return null;
       }
-      const models = this.threadView?.thread?.llmChat?.llmModels;
+      const models = this.thread?.llmChat?.llmModels;
       if (!models || !Array.isArray(models)) {
         return null;
       }
@@ -66,7 +66,7 @@ export class LLMChatThreadHeaderView extends Record {
         return [];
       }
       return (
-        this.threadView?.thread?.llmChat?.llmModels?.filter(
+        this.thread?.llmChat?.llmModels?.filter(
           (model) => model?.llmProvider?.id === this.selectedProviderId
         ) || []
       );
@@ -77,7 +77,7 @@ export class LLMChatThreadHeaderView extends Record {
    * @private
    */
   _initializeState() {
-    const currentThread = this.threadView?.thread;
+    const currentThread = this.thread;
     if (!currentThread) {
       this.update({
         selectedProviderId: null,
@@ -119,7 +119,7 @@ export class LLMChatThreadHeaderView extends Record {
       selectedProviderId: provider.id,
     });
 
-    await this.threadView.thread.updateLLMChatThreadSettings({
+    await this.thread.updateLLMChatThreadSettings({
       llmModelId: this.selectedModel.id,
       llmProviderId: provider.id,
     });
@@ -133,7 +133,7 @@ export class LLMChatThreadHeaderView extends Record {
       {
         type: "ir.actions.act_window",
         res_model: "llm.thread",
-        res_id: this.threadView.thread.id,
+        res_id: this.thread.id,
         views: [[false, "form"]],
         target: "new",
         flags: {
@@ -143,7 +143,7 @@ export class LLMChatThreadHeaderView extends Record {
       {
         onClose: () => {
           // Reload thread data when form is closed
-          this.threadView.thread.llmChat.loadThreads();
+          this.thread.llmChat.loadThreads();
         },
       }
     );
@@ -158,7 +158,7 @@ export class LLMChatThreadHeaderView extends Record {
     }
     this.update({
       isEditingName: true,
-      pendingName: this.threadView.thread.name,
+      pendingName: this.thread.name,
     });
   }
 
@@ -166,7 +166,7 @@ export class LLMChatThreadHeaderView extends Record {
    * Save thread name changes to server
    */
   async saveThreadName() {
-    const thread = this.threadView.thread;
+    const thread = this.thread;
     if (!this.pendingName.trim()) {
       this.discardThreadNameEdition();
       return;

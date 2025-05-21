@@ -93,12 +93,8 @@ export class LLMChatThreadHeader extends Component {
     return this.props.record;
   }
 
-  get threadView() {
-    return this.llmChatThreadHeaderView.threadView;
-  }
-
   get thread() {
-    return this.threadView.thread;
+    return this.llmChatThreadHeaderView.thread;
   }
 
   get llmChat() {
@@ -278,5 +274,5 @@ export class LLMChatThreadHeader extends Component {
 
 LLMChatThreadHeader.template = "llm_thread.LLMChatThreadHeader";
 LLMChatThreadHeader.props = {
-  record: { type: Object, optional: true },
+  record: { type: Object },
 };
