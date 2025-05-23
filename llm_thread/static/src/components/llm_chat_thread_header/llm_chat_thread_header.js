@@ -136,7 +136,7 @@ export class LLMChatThreadHeader extends Component {
    * @param {Object} provider
    */
   onSelectProvider(provider) {
-    if (provider.id !== this.llmChatThreadHeaderView.selectedProviderId) {
+    if (provider.id !== this.llmChatThreadHeaderView.state.selectedProviderId) {
       const defaultModel = this.getDefaultModelForProvider(provider.id);
       // It should trigger saveSelectedModel via the underlying model's compute/onchange
       this.llmChatThreadHeaderView.saveSelectedModel(defaultModel?.id);

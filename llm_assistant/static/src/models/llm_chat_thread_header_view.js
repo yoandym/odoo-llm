@@ -3,20 +3,23 @@
 import { patch } from "@web/core/utils/patch";
 import { Record } from "@mail/core/common/record";
 import { LLMChatThreadHeaderView } from "@llm_thread/models/llm_chat_thread_header_view";
+import { useState } from "@odoo/owl";
 
 
-patch(LLMChatThreadHeaderView, {
-  /**
-   * Selected assistant ID
-   */
-  selectedAssistantId: Record.attr(),
+patch(LLMChatThreadHeaderView.prototype, {
+  setup() {
+    super.setup();
+    Object.assign(this.state, {
+      selectedAssistantId: null,
+    });
+  },
 
   /**
    * Selected assistant record
    */
   selectedAssistant: Record.one("LLMAssistant", {
     compute() {
-      if (!this.selectedAssistantId) {
+      if (!this.state.selectedAssistantId) {
         return null;
       }
       // This now searches within a collection of LLMAssistant records
@@ -28,7 +31,7 @@ patch(LLMChatThreadHeaderView, {
       return (
         assistants.find(
           (assistantRecord) =>
-            assistantRecord && assistantRecord.id === this.selectedAssistantId
+            assistantRecord && assistantRecord.id === this.state.selectedAssistantId
         ) || null
       );
     },
@@ -43,15 +46,12 @@ patch(LLMChatThreadHeaderView, {
     this._super();
     const currentThread = this.thread;
     if (!currentThread) {
-      this.update({
-        selectedAssistantId: null,
-      });
+      this.state.selectedAssistantId = null;
       return;
     }
 
-    this.update({
-      selectedAssistantId: currentThread.llmAssistant?.id || null,
-    });
+    this.state.selectedAssistantId =
+      currentThread.llmAssistant?.id || null;
   },
 
   /**
@@ -59,14 +59,12 @@ patch(LLMChatThreadHeaderView, {
    * @param {Number|false} assistantId - ID of the selected assistant or false to clear
    */
   async saveSelectedAssistant(assistantId) {
-    if (assistantId === this.selectedAssistantId) {
+    if (assistantId === this.state.selectedAssistantId) {
       return;
     }
 
     // Update the local state immediately for responsive UI
-    this.update({
-      selectedAssistantId: assistantId || null,
-    });
+    this.state.selectedAssistantId = assistantId || null;
 
     // Call the dedicated endpoint to set the assistant
     const result = await this.messaging.rpc({
@@ -83,22 +81,15 @@ patch(LLMChatThreadHeaderView, {
         this.thread.id
       );
       if (assistantId === false) {
-        this.update({
-          selectedAssistantId: null,
-        });
+        this.state.selectedAssistantId = null;
       } else {
-        this.update({
-          selectedModelId: this.thread.llmModel?.id,
-          selectedProviderId:
-            this.thread.llmModel?.llmProvider?.id,
-        });
+        this.state.selectedModelId = this.thread.llmModel?.id;
+        this.state.selectedProviderId =
+          this.thread.llmModel?.llmProvider?.id;
       }
     } else {
       // Revert the local state if the server call failed
-      this.update({
-        selectedAssistantId:
-          this.thread.llmAssistant?.id || null,
-      });
+      this.state.selectedAssistantId = this.thread.llmAssistant?.id || null;
 
       // Show error message
       this.messaging.notify({

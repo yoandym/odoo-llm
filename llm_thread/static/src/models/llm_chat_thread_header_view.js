@@ -1,12 +1,18 @@
 /** @odoo-module **/
 
 import { Record } from "@mail/core/common/record";
-import { useEffect } from "@odoo/owl";
+import { useEffect, useState } from "@odoo/owl";
 
 export class LLMChatThreadHeaderView extends Record {
   setup() {
     super.setup();
-    this._initializeState();
+
+    this.state = useState({
+      selectedProviderId: null,
+      selectedModelId: null,
+      isEditingName: false,
+      pendingName: "",
+    });
 
     useEffect(
       () => {
@@ -14,26 +20,16 @@ export class LLMChatThreadHeaderView extends Record {
       },
       () => [this.thread?.llmChat?.activeThread?.id]
     );
+
+
   }
 
-  thread = Record.one("Thread", {
-    inverse: "llmChatThreadHeaderView",
-  });
-  isEditingName = Record.attr({
-    default: false,
-  });
-  pendingName = Record.attr({
-    default: "",
-  });
+  thread = Record.one("Thread", { inverse: "llmChatThreadHeaderView", });
   llmChatThreadNameInputRef = Record.attr();
-  selectedProviderId = Record.attr();
-  selectedModelId = Record.attr();
-  _isInitializing = Record.attr({
-    default: false,
-  });
+  _isInitializing = Record.attr({ default: false, });
   selectedProvider = Record.one("LLMProvider", {
     compute() {
-      if (!this.selectedProviderId) {
+      if (!this.state.selectedProviderId) {
         return null;
       }
       const providers = this.thread?.llmChat?.llmProviders;
@@ -41,13 +37,13 @@ export class LLMChatThreadHeaderView extends Record {
         return null;
       }
       return (
-        providers.find((p) => p && p.id === this.selectedProviderId) || null
+        providers.find((p) => p && p.id === this.state.selectedProviderId) || null
       );
     },
   });
   selectedModel = Record.one("LLMModel", {
     compute() {
-      if (!this.selectedModelId) {
+      if (!this.state.selectedModelId) {
         return null;
       }
       const models = this.thread?.llmChat?.llmModels;
@@ -55,19 +51,19 @@ export class LLMChatThreadHeaderView extends Record {
         return null;
       }
       const matchedModel = models.find(
-        (m) => m && m.id === this.selectedModelId
+        (m) => m && m.id === this.state.selectedModelId
       );
       return matchedModel || null;
     },
   });
   modelsAvailableToSelect = Record.many("LLMModel", {
     compute() {
-      if (!this.selectedProviderId) {
+      if (!this.state.selectedProviderId) {
         return [];
       }
       return (
         this.thread?.llmChat?.llmModels?.filter(
-          (model) => model?.llmProvider?.id === this.selectedProviderId
+          (model) => model?.llmProvider?.id === this.state.selectedProviderId
         ) || []
       );
     },
@@ -79,17 +75,13 @@ export class LLMChatThreadHeaderView extends Record {
   _initializeState() {
     const currentThread = this.thread;
     if (!currentThread) {
-      this.update({
-        selectedProviderId: null,
-        selectedModelId: null,
-      });
+      this.state.selectedProviderId = null;
+      this.state.selectedModelId = null;
       return;
     }
 
-    this.update({
-      selectedProviderId: currentThread.llmModel?.llmProvider?.id,
-      selectedModelId: currentThread.llmModel?.id,
-    });
+    this.state.selectedProviderId = currentThread.llmModel?.llmProvider?.id;
+    this.state.selectedModelId = currentThread.llmModel?.id;
   }
 
   /**
@@ -107,17 +99,13 @@ export class LLMChatThreadHeaderView extends Record {
    */
   async saveSelectedModel(selectedModelId) {
     // Skip backend update during initialization
-    if (!selectedModelId || selectedModelId === this.selectedModelId) {
+    if (!selectedModelId || selectedModelId === this.state.selectedModelId) {
       return;
     }
 
-    this.update({
-      selectedModelId,
-    });
+    this.state.selectedModelId = selectedModelId;
     const provider = this.selectedModel.llmProvider;
-    this.update({
-      selectedProviderId: provider.id,
-    });
+    this.state.selectedProviderId = provider.id;
 
     await this.thread.updateLLMChatThreadSettings({
       llmModelId: this.selectedModel.id,
@@ -153,13 +141,11 @@ export class LLMChatThreadHeaderView extends Record {
    * Start editing thread name
    */
   onClickTopbarThreadName() {
-    if (this.isEditingName || this.messaging.device.isSmall) {
+    if (this.state.isEditingName || this.messaging.device.isSmall) {
       return;
     }
-    this.update({
-      isEditingName: true,
-      pendingName: this.thread.name,
-    });
+    this.state.isEditingName = true;
+    this.state.pendingName = this.thread.name;
   }
 
   /**
@@ -180,10 +166,8 @@ export class LLMChatThreadHeaderView extends Record {
 
     try {
       await thread.updateLLMChatThreadSettings({ name: newName });
-      this.update({
-        isEditingName: false,
-        pendingName: "",
-      });
+      this.state.isEditingName = false;
+      this.state.pendingName = "";
     } catch (error) {
       console.error("Error updating thread name:", error);
       this.messaging.notify({
@@ -198,10 +182,8 @@ export class LLMChatThreadHeaderView extends Record {
    * Discard thread name changes
    */
   discardThreadNameEdition() {
-    this.update({
-      isEditingName: false,
-      pendingName: "",
-    });
+    this.state.isEditingName = false;
+    this.state.pendingName = "";
   }
 }
 

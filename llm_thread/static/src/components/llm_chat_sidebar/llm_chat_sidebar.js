@@ -3,9 +3,6 @@
 const { Component } = owl;
 
 export class LLMChatSidebar extends Component {
-  setup() {
-    super.setup();
-  }
 
   /**
    * @returns {LLMChatView}

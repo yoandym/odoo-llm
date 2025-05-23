@@ -1,6 +1,5 @@
 /** @odoo-module **/
 
-import { clear } from "@mail/model/model_field_command";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { onWillStart, useState } from "@odoo/owl";
@@ -59,7 +58,7 @@ export function useLLMThreadDeleteHandler() {
       };
 
       if (isActiveThread) {
-        updatedData.activeThread = clear();
+        updatedData.activeThread = null;
       }
 
       // Update the chat data

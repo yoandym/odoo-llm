@@ -5,19 +5,7 @@ import { Record } from "@mail/core/common/record";
 import { Chatter } from "@mail/core/web/chatter";
 
 patch(Chatter.prototype, {
-  setup() {
-    super.setup();
-    this.is_chatting_with_llm = false;
-    this.llmChatThread = Record.one("Thread", {
-      compute() {
-        if (!this.is_chatting_with_llm || !this.llmChatThread) {
-          return null;
-        }
-        return this.llmChatThread.thread;
-      },
-    });
-
-  },
+    is_chatting_with_llm: Record.attr({ default: false }),
 
   /**
    * @override

@@ -1,12 +1,15 @@
 /** @odoo-module **/
 
 import { Record } from "@mail/core/common/record";
-import { useEffect } from "@odoo/owl";
+import { useEffect, useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
 export class LLMChatView extends Record {
 
-  setup() {
-    super.setup();
+  
+  // TODO: where this goes ?
+/*   setup() {
+    this.messaging = useState(useService("mail.messaging"));
 
     this.update({
       isThreadListVisible: !this.messaging.device.isSmall,
@@ -20,7 +23,7 @@ export class LLMChatView extends Record {
     );
 
   }
-
+ */
   /**
    * @private
    */
