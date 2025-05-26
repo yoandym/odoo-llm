@@ -1,17 +1,22 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { Record } from "@mail/core/common/record";
 import { Chatter } from "@mail/core/web/chatter";
 
 patch(Chatter.prototype, {
-    is_chatting_with_llm: Record.attr({ default: false }),
+
+  setup() {
+    super.setup();
+
+    // add extra elements to state
+    this.state.is_chatting_with_llm = false;
+  },
 
   /**
    * @override
    */
   onClickSendMessage(ev) {
-    if (this.is_chatting_with_llm) {
+    if (this.state.is_chatting_with_llm) {
       this.toggleLLMChat();
     }
     this._super(ev);
@@ -21,7 +26,7 @@ patch(Chatter.prototype, {
    * @override
    */
   onClickLogNote(ev) {
-    if (this.is_chatting_with_llm) {
+    if (this.state.is_chatting_with_llm) {
       this.toggleLLMChat();
     }
     this._super(ev);
@@ -31,7 +36,7 @@ patch(Chatter.prototype, {
    * @override
    */
   onClickScheduleActivity(ev) {
-    if (this.is_chatting_with_llm) {
+    if (this.state.is_chatting_with_llm) {
       this.toggleLLMChat();
     }
     this._super(ev);
@@ -41,7 +46,7 @@ patch(Chatter.prototype, {
    * @override
    */
   onClickButtonAddAttachments(ev) {
-    if (this.is_chatting_with_llm) {
+    if (this.state.is_chatting_with_llm) {
       this.toggleLLMChat();
     }
     this._super(ev);
@@ -51,7 +56,7 @@ patch(Chatter.prototype, {
    * @override
    */
   onClickButtonToggleAttachments(ev) {
-    if (this.is_chatting_with_llm) {
+    if (this.state.is_chatting_with_llm) {
       this.toggleLLMChat();
     }
     this._super(ev);
@@ -61,12 +66,12 @@ patch(Chatter.prototype, {
    * Toggles LLM chat mode, initializing LLMChat and selecting/creating a thread.
    */
   async toggleLLMChat() {
-    if (!this.thread) return;
+    if (!this.state.thread) return;
 
     const messaging = this.messaging;
-    if (this.is_chatting_with_llm === true) {
+    if (this.state.is_chatting_with_llm === true) {
       // Already chatting with LLM
-      this.update({ is_chatting_with_llm: false });
+      this.state.is_chatting_with_llm = false;
     } else {
       let llmChat = messaging.llmChat;
       if (!llmChat) {
@@ -87,7 +92,7 @@ patch(Chatter.prototype, {
         }
 
         await llmChat.selectThread(thread.id);
-        this.update({ is_chatting_with_llm: true });
+        this.state.is_chatting_with_llm = true;
       } catch (error) {
         messaging.notify({
           title: "Failed to Start AI Chat",
