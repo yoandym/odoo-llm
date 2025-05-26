@@ -11,9 +11,7 @@
                     <LLMChatThread record="llmChatView.llmChat.activeThread" />
                 </t>
                 <t t-else="">
-                    <div
-            class="o_LLMChat_noThread d-flex align-items-center justify-content-center h-100"
-          >
+                    <div class="o_LLMChat_noThread d-flex align-items-center justify-content-center h-100">
                         <span>Select a conversation to start chatting</span>
                     </div>
                 </t>
