@@ -14,7 +14,7 @@ function camelToSnakeCase(str) {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
-patch(Thread, {
+patch(Thread.prototype, {
   llmChat: Record.one("LLMChat", {
     inverse: "threads",
   }),

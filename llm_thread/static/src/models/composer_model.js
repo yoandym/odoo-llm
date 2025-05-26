@@ -3,7 +3,7 @@
 import { patch } from "@web/core/utils/patch";
 import { Composer } from "@mail/core/common/composer_model";
 
-patch(Composer, {
+patch(Composer.prototype, {
     onKeydownTextareaForLLM(ev) {
       if (!this.exists()) {
         return;

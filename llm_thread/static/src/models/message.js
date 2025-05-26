@@ -23,7 +23,7 @@ function safeJsonParse(jsonString, defaultValue = undefined) {
   }
 }
 
-patch(Message, {
+patch(Message.prototype, {
   /**
    * @override
    */

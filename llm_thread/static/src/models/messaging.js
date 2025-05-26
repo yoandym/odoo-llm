@@ -5,7 +5,7 @@ import { patch } from "@web/core/utils/patch";
 
 import { Messaging } from "@mail/core/common/messaging_service";
 
-patch(Messaging, {
+patch(Messaging.prototype, {
     llmChat: Record.one("LLMChat", {
       default: {},
       isCausal: true,

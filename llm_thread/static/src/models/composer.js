@@ -4,7 +4,7 @@ import { patch } from "@web/core/utils/patch";
 import { Composer } from "@mail/core/common/composer_model";
 import { Record } from "@mail/core/common/record";
 
-patch(Composer, {
+patch(Composer.prototype, {
   placeholderLLMChat: Record.attr({
     default: function () {
       return this.env._t("Ask anything...");
