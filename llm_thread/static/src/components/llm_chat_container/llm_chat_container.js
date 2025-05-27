@@ -1,10 +1,10 @@
 /** @odoo-module **/
 
-import { useService } from "@web/core/utils/hooks";
 
 import { LLMChat } from "../llm_chat/llm_chat";
 
-const { Component, onWillDestroy } = owl;
+import { useService } from "@web/core/utils/hooks";
+import { Component, onWillDestroy } from "@odoo/owl";
 
 export class LLMChatContainer extends Component {
 
