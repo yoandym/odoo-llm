@@ -21,7 +21,7 @@ const THREAD_SEARCH_FIELDS = [
 export class LLMChat extends Record {
 
   setup() {
-    super.septup();
+    super.setup();
 
     this.messaging = useService("messaging");
     this.notification = useService("notification");
