@@ -27,7 +27,7 @@ patch(Composer.prototype, {
         case "Enter":
           // Prevent sending if the composer is disabled (e.g., empty, uploading, or LLM streaming)
           if (
-            this.composer.isSendDisabled ||
+            this.composer.isSendButtonDisabled ||
             this.composer.thread.state === "streaming"
           ) {
             // Prevent default Enter behavior (like newline)

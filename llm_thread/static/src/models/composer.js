@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { Composer } from "@mail/core/common/composer_model";
+import { Composer } from "@mail/core/common/composer";
 import { Record } from "@mail/core/common/record";
 import { useService } from "@web/core/utils/hooks";
 
@@ -13,27 +13,14 @@ patch(Composer.prototype, {
 
     this.messaging = useService("messaging");
     this.notification = useService("notification");
+
+    Object.assign(this.state, {
+      placeholderLLMChat: this.env._t("Ask anything..."),
+      eventSource: null,
+      is_streaming: this.eventSource !== null,
+    });
   },
 
-  placeholderLLMChat: Record.attr({
-    default: function () {
-      return this.env._t("Ask anything...");
-    },
-  }),
-  isSendDisabled: Record.attr({
-    compute() {
-      return !this.canPostMessage;
-    },
-    default: true,
-  }),
-  eventSource: Record.attr({
-    default: null,
-  }),
-  isStreaming: Record.attr({
-    compute() {
-      return this.eventSource !== null;
-    },
-  }),
 
   stopLLMThreadLoop() {
     // This should close event source

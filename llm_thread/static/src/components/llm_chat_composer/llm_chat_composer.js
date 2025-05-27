@@ -23,14 +23,6 @@ export class LLMChatComposer extends Component {
     return this.props.record;
   }
 
-  /**
-   * @returns {Boolean}
-   */
-  get isDisabled() {
-    // Read the computed disabled state from the model.
-    return this.composerView.composer.isSendDisabled;
-  }
-
   get isStreaming() {
     return this.composerView.composer.isStreaming;
   }
@@ -44,7 +36,7 @@ export class LLMChatComposer extends Component {
    * @private
    */
   _onClickSend() {
-    if (this.isDisabled) {
+    if (this.isSendButtonDisabled) {
       return;
     }
 
