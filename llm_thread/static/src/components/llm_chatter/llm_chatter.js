@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { useService } from "@web/core/utils/hooks";
+import { useState, onWillUnmount } from "@odoo/owl";
 import { Chatter } from "@mail/core/web/chatter";
 
 patch(Chatter.prototype, {

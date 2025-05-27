@@ -10,4 +10,3 @@ import "@llm_thread/models/composer_model";
 import "@llm_thread/models/llm_model";
 import "@llm_thread/models/llm_provider";
 import "@llm_thread/models/llm_chat_thread_header_view";
-import "@llm_thread/models/chatter";

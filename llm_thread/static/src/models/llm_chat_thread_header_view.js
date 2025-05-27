@@ -2,10 +2,14 @@
 
 import { Record } from "@mail/core/common/record";
 import { useEffect, useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
+
 
 export class LLMChatThreadHeaderView extends Record {
   setup() {
     super.setup();
+
+    this.messaging = useService("messaging");
 
     this.state = useState({
       selectedProviderId: null,
@@ -20,7 +24,6 @@ export class LLMChatThreadHeaderView extends Record {
       },
       () => [this.thread?.llmChat?.activeThread?.id]
     );
-
 
   }
 

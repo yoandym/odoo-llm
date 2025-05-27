@@ -1,5 +1,7 @@
 /** @odoo-module **/
 
+import { useService } from "@web/core/utils/hooks";
+
 import { LLMChat } from "../llm_chat/llm_chat";
 
 const { Component, onWillDestroy } = owl;
@@ -17,6 +19,9 @@ export class LLMChatContainer extends Component {
 
   setup() {
     super.setup();
+
+    this.messaging = useService("messaging");
+
     onWillDestroy(() => this._willDestroy());
 
     this.env.services.messaging.modelManager.messagingCreatedPromise.then(

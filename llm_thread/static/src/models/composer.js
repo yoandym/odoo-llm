@@ -3,8 +3,16 @@
 import { patch } from "@web/core/utils/patch";
 import { Composer } from "@mail/core/common/composer_model";
 import { Record } from "@mail/core/common/record";
+import { useService } from "@web/core/utils/hooks";
+
 
 patch(Composer.prototype, {
+
+  setup() {
+    super.setup();
+    this.messaging = useService("messaging");
+  },
+
   placeholderLLMChat: Record.attr({
     default: function () {
       return this.env._t("Ask anything...");

@@ -2,6 +2,7 @@
 
 import { Record } from "@mail/core/common/record";
 import { patch } from "@web/core/utils/patch";
+import { useService } from "@web/core/utils/hooks";
 
 import { Thread } from "@mail/core/common/thread_model";
 
@@ -15,6 +16,12 @@ function camelToSnakeCase(str) {
 }
 
 patch(Thread.prototype, {
+
+  super() {
+    super.setup();
+    this.messaging = useService("messaging");
+  },
+
   llmChat: Record.one("LLMChat", {
     inverse: "threads",
   }),

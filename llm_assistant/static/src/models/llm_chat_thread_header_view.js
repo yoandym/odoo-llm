@@ -3,12 +3,15 @@
 import { patch } from "@web/core/utils/patch";
 import { Record } from "@mail/core/common/record";
 import { LLMChatThreadHeaderView } from "@llm_thread/models/llm_chat_thread_header_view";
-import { useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
 
 patch(LLMChatThreadHeaderView.prototype, {
   setup() {
     super.setup();
+
+    this.messaging = useService("messaging");
+    
     Object.assign(this.state, {
       selectedAssistantId: null,
     });

@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
-
-const { Component, useState } = owl;
+import { Component, useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
 export class LLMChatThreadList extends Component {
 
@@ -12,6 +12,9 @@ export class LLMChatThreadList extends Component {
 
   setup() {
     super.setup();
+
+    this.messaging = useService("messaging");
+    
     this.state = useState({
       isLoading: false,
     });

@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
 import { Record } from "@mail/core/common/record";
+import { useService } from "@web/core/utils/hooks";
 
 
 // Constants for thread fields
@@ -18,6 +19,13 @@ const THREAD_SEARCH_FIELDS = [
 ];
 
 export class LLMChat extends Record {
+
+  setup() {
+    super.septup();
+
+    this.messaging = useService("messaging");
+  }
+
   /**
    * Closes the LLM chat and resets its view state.
    */

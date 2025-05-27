@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
-const { Component } = owl;
+import { Component } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
 export class LLMChatSidebar extends Component {
 
@@ -8,6 +9,12 @@ export class LLMChatSidebar extends Component {
   static props = {
     record: { type: Object, optional: true },
   };
+
+  setup() {
+    super.setup();
+
+    this.messaging = useService("messaging");
+  }
 
   /**
    * @returns {LLMChatView}

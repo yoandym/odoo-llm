@@ -2,6 +2,8 @@
 
 import { patch } from "@web/core/utils/patch";
 import { Record } from "@mail/core/common/record";
+import { useService } from "@web/core/utils/hooks";
+
 import { LLMChat } from "@llm_thread/models/llm_chat";
 
 // Define assistant-related fields to fetch from server
@@ -11,6 +13,14 @@ const ASSISTANT_THREAD_FIELDS = ["assistant_id"];
  * Patch the LLMChat model to add assistants
  */
 patch(LLMChat, {
+
+  setup() {
+    super.setup();
+
+    this.messaging = useService("messaging");
+  },
+
+
   // Use attr instead of many for direct array access
   llmAssistants: Record.many("LLMAssistant"),
   /**

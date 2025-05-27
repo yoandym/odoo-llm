@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
-const { Component, useState, useRef, onMounted, onWillUnmount, onPatched } =
-  owl;
+import { Component, useState, useRef, onWillUnmount, onPatched } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
 export class LLMChatThreadHeader extends Component {
 
@@ -15,6 +15,8 @@ export class LLMChatThreadHeader extends Component {
    */
   setup() {
     super.setup();
+
+    this.messaging = useService("messaging");
 
     // Refs for thread name input
     this.llmChatThreadNameInputRef = useRef("threadNameInput");
