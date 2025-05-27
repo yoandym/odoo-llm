@@ -4,6 +4,12 @@
 const { Component, useState } = owl;
 
 export class LLMChatThreadList extends Component {
+
+  static template = "llm_thread.LLMChatThreadList";
+  static props = {
+    record: { type: Object, optional: true },
+  };
+
   setup() {
     super.setup();
     this.state = useState({
@@ -50,8 +56,3 @@ export class LLMChatThreadList extends Component {
     }
   }
 }
-
-LLMChatThreadList.template = "llm_thread.LLMChatThreadList";
-LLMChatThreadList.props = {
-  record: { type: Object, optional: true },
-};

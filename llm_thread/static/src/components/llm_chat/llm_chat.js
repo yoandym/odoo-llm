@@ -2,9 +2,10 @@
 
 const { Component } = owl;
 export class LLMChat extends Component {
-  // --------------------------------------------------------------------------
-  // Public
-  // --------------------------------------------------------------------------
+  static template = "llm_thread.LLMChat";
+  static props = {
+    record: { type: Object, optional: true },
+  };
 
   /**
    * @returns {LLMChatView}
@@ -13,9 +14,4 @@ export class LLMChat extends Component {
     return this.props.record;
   }
 }
-
-LLMChat.template = "llm_thread.LLMChat";
-LLMChat.props = {
-  record: { type: Object, optional: true },
-};
 

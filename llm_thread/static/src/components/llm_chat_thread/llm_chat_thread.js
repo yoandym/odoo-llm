@@ -3,6 +3,12 @@
 const { Component } = owl;
 
 export class LLMChatThread extends Component {
+
+  static template = "llm_thread.LLMChatThread";
+  static props = {
+    record: { type: Object, optional: true },
+  };
+
   /**
    * @returns {Thread}
    */
@@ -18,8 +24,3 @@ export class LLMChatThread extends Component {
     return this.thread.cache?.orderedMessages || [];
   }
 }
-
-LLMChatThread.template = "llm_thread.LLMChatThread";
-LLMChatThread.props = {
-  record: { type: Object, optional: true },
-};

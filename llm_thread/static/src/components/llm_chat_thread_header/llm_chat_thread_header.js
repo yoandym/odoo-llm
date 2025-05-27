@@ -4,24 +4,35 @@ const { Component, useState, useRef, onMounted, onWillUnmount, onPatched } =
   owl;
 
 export class LLMChatThreadHeader extends Component {
+
+  static template = "llm_thread.LLMChatThreadHeader";
+  static props = {
+    record: { type: Object, optional: true },
+  };
+
   /**
    * @override
    */
   setup() {
     super.setup();
+
     // Refs for thread name input
     this.llmChatThreadNameInputRef = useRef("threadNameInput");
-
-    // State for model search dropdown
-    this.state = useState({
-      modelSearchQuery: "",
-      shouldShowDropdown: false,
-      shouldFocusSearch: false,
-    });
 
     // Refs for dropdown elements
     this.modelDropdownRef = useRef("modelDropdown");
     this.modelSearchInputRef = useRef("modelSearchInput");
+
+
+    this.state = useState({
+      // State for model search dropdown
+      modelSearchQuery: "",
+      shouldShowDropdown: false,
+      shouldFocusSearch: false,
+
+
+    });
+
 
     this.onToolSelectChange = this.onToolSelectChange.bind(this);
 
@@ -271,8 +282,3 @@ export class LLMChatThreadHeader extends Component {
     });
   }
 }
-
-LLMChatThreadHeader.template = "llm_thread.LLMChatThreadHeader";
-LLMChatThreadHeader.props = {
-  record: { type: Object },
-};

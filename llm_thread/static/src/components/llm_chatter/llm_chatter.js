@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
+import { useService } from "@web/core/utils/hooks";
 import { Chatter } from "@mail/core/web/chatter";
 
 patch(Chatter.prototype, {
@@ -8,8 +9,18 @@ patch(Chatter.prototype, {
   setup() {
     super.setup();
 
-    // add extra elements to state
-    this.state.is_chatting_with_llm = false;
+    this.messagingService = useService("messaging");
+    this.notificationService = useService("notification");
+
+    // add extra is_chatting_with_llm to state
+    Object.assign(this.state, {
+      is_chatting_with_llm: false,
+    });
+
+    onWillStart(async () => {
+      await this.messagingService.isReady;
+    });
+
   },
 
   /**
@@ -21,7 +32,7 @@ patch(Chatter.prototype, {
     }
     this._super(ev);
   },
-  
+
   /**
    * @override
    */
@@ -51,7 +62,7 @@ patch(Chatter.prototype, {
     }
     this._super(ev);
   },
-  
+
   /**
    * @override
    */
@@ -68,7 +79,7 @@ patch(Chatter.prototype, {
   async toggleLLMChat() {
     if (!this.state.thread) return;
 
-    const messaging = this.messaging;
+    const messaging = this.messagingService;
     if (this.state.is_chatting_with_llm === true) {
       // Already chatting with LLM
       this.state.is_chatting_with_llm = false;

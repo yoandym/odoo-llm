@@ -3,6 +3,8 @@
 import { Component, onMounted, onWillUnmount, useState } from "@odoo/owl";
 
 export class LLMStreamingIndicator extends Component {
+  static template = "llm_thread.LLMStreamingIndicator";
+
   setup() {
     this.state = useState({ dots: "" });
     let count = 0;
@@ -17,5 +19,3 @@ export class LLMStreamingIndicator extends Component {
     });
   }
 }
-
-LLMStreamingIndicator.template = "llm_thread.LLMStreamingIndicator";

@@ -5,6 +5,16 @@ import { LLMChat } from "../llm_chat/llm_chat";
 const { Component, onWillDestroy } = owl;
 
 export class LLMChatContainer extends Component {
+
+  static template = "llm_thread.LLMChatContainer";
+  static components = { LLMChat };
+  static props = {
+    action: Object,
+    actionId: { type: Number, optional: true },
+    className: String,
+    globalState: { type: Object, optional: true },
+  };
+
   setup() {
     super.setup();
     onWillDestroy(() => this._willDestroy());
@@ -43,12 +53,3 @@ export class LLMChatContainer extends Component {
     }
   }
 }
-
-LLMChatContainer.template = "llm_thread.LLMChatContainer";
-LLMChatContainer.components = { LLMChat };
-LLMChatContainer.props = {
-  action: Object,
-  actionId: { type: Number, optional: 1 },
-  className: String,
-  globalState: { type: Object, optional: 1 },
-};

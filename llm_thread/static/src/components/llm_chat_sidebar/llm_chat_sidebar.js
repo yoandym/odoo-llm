@@ -4,6 +4,11 @@ const { Component } = owl;
 
 export class LLMChatSidebar extends Component {
 
+  static template = "llm_thread.LLMChatSidebar";
+  static props = {
+    record: { type: Object, optional: true },
+  };
+
   /**
    * @returns {LLMChatView}
    */
@@ -29,8 +34,3 @@ export class LLMChatSidebar extends Component {
     this.llmChatView.update({ isThreadListVisible: false });
   }
 }
-
-LLMChatSidebar.template = "llm_thread.LLMChatSidebar";
-LLMChatSidebar.props = {
-  record: { type: Object, optional: true },
-};

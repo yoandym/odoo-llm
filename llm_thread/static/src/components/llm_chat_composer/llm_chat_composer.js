@@ -3,6 +3,12 @@
 const { Component } = owl;
 
 export class LLMChatComposer extends Component {
+
+  static template = "llm_thread.LLMChatComposer";
+  static props = {
+    record: { type: Object, optional: true },
+  };
+
   /**
    * @override
    */
@@ -53,8 +59,3 @@ export class LLMChatComposer extends Component {
     this.composerView.composer.stopLLMThreadLoop();
   }
 }
-
-LLMChatComposer.template = "llm_thread.LLMChatComposer";
-LLMChatComposer.props = {
-  record: { type: Object, optional: true },
-};
