@@ -7,7 +7,7 @@ import { useService } from "@web/core/utils/hooks";
 export class LLMChatView extends Record {
 
    setup() {
-    this.messaging = useService("mail.messaging");
+    this.messaging = useState(useService("mail.messaging"));
 
     this.update({
       isThreadListVisible: !this.messaging.device.isSmall,

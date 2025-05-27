@@ -2,6 +2,7 @@
 
 import { patch } from "@web/core/utils/patch";
 import { Record } from "@mail/core/common/record";
+import { useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
 import { LLMChat } from "@llm_thread/models/llm_chat";
@@ -17,7 +18,7 @@ patch(LLMChat, {
   setup() {
     super.setup();
 
-    this.messaging = useService("messaging");
+    this.messaging = useState(useService("mail.messaging"));
   },
 
 

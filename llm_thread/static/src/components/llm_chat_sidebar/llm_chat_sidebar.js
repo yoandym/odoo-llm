@@ -2,6 +2,7 @@
 
 import { Component } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
+import { useState } from "@odoo/owl";
 
 export class LLMChatSidebar extends Component {
 
@@ -13,7 +14,7 @@ export class LLMChatSidebar extends Component {
   setup() {
     super.setup();
 
-    this.messaging = useService("messaging");
+    this.messaging = useState(useService("mail.messaging"));
   }
 
   /**

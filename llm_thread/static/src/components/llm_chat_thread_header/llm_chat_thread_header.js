@@ -16,8 +16,8 @@ export class LLMChatThreadHeader extends Component {
   setup() {
     super.setup();
 
-    this.messaging = useService("messaging");
-
+    this.messaging = useState(useService("mail.messaging"));
+    
     // Refs for thread name input
     this.llmChatThreadNameInputRef = useRef("threadNameInput");
 

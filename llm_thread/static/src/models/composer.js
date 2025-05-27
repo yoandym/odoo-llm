@@ -2,7 +2,7 @@
 
 import { patch } from "@web/core/utils/patch";
 import { Composer } from "@mail/core/common/composer";
-import { Record } from "@mail/core/common/record";
+import { useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
 
@@ -11,7 +11,7 @@ patch(Composer.prototype, {
   setup() {
     super.setup();
 
-    this.messaging = useService("messaging");
+    this.messaging = useState(useService("mail.messaging")); 
     this.notification = useService("notification");
 
     Object.assign(this.state, {

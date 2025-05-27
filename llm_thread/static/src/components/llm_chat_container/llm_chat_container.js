@@ -4,7 +4,7 @@
 import { LLMChat } from "../llm_chat/llm_chat";
 
 import { useService } from "@web/core/utils/hooks";
-import { Component, onWillDestroy } from "@odoo/owl";
+import { Component, onWillDestroy, useState } from "@odoo/owl";
 
 export class LLMChatContainer extends Component {
 
@@ -20,7 +20,7 @@ export class LLMChatContainer extends Component {
   setup() {
     super.setup();
 
-    this.messaging = useService("messaging");
+    this.messaging = useState(useService("mail.messaging"));
 
     onWillDestroy(() => this._willDestroy());
 

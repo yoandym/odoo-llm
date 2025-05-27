@@ -2,6 +2,7 @@
 
 import { Record } from "@mail/core/common/record";
 import { useService } from "@web/core/utils/hooks";
+import { useState } from "@odoo/owl";
 
 
 // Constants for thread fields
@@ -23,7 +24,7 @@ export class LLMChat extends Record {
   setup() {
     super.setup();
 
-    this.messaging = useService("messaging");
+    this.messaging = useState(useService("mail.messaging"));
     this.notification = useService("notification");
   }
 

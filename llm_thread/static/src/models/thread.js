@@ -3,7 +3,7 @@
 import { Record } from "@mail/core/common/record";
 import { patch } from "@web/core/utils/patch";
 import { useService } from "@web/core/utils/hooks";
-
+import { useState } from "@odoo/owl";
 import { Thread } from "@mail/core/common/thread_model";
 
 /**
@@ -19,7 +19,8 @@ patch(Thread.prototype, {
 
   super() {
     super.setup();
-    this.messaging = useService("messaging");
+
+    this.messaging = useState(useService("mail.messaging"));
   },
 
   llmChat: Record.one("LLMChat", {

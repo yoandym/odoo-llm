@@ -9,7 +9,7 @@ export class LLMChatThreadHeaderView extends Record {
   setup() {
     super.setup();
 
-    this.messaging = useService("messaging");
+    this.messaging = useState(useService("mail.messaging"));
     this.notification = useService("notification");
 
     this.state = useState({
