@@ -11,7 +11,8 @@ patch(LLMChatThreadHeaderView.prototype, {
     super.setup();
 
     this.messaging = useService("messaging");
-    
+    this.notification = useService("notification");
+
     Object.assign(this.state, {
       selectedAssistantId: null,
     });
@@ -95,10 +96,12 @@ patch(LLMChatThreadHeaderView.prototype, {
       this.state.selectedAssistantId = this.thread.llmAssistant?.id || null;
 
       // Show error message
-      this.messaging.notify({
-        type: "warning",
-        message: "Failed to update assistant",
-      });
+      this.notification.add(
+        this.env._t("Failed to update assistant"),
+        {
+          title: this.env._t("Warning"),
+          type: "warning"
+        });
     }
   },
 });

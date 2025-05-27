@@ -10,7 +10,9 @@ patch(Composer.prototype, {
 
   setup() {
     super.setup();
+
     this.messaging = useService("messaging");
+    this.notification = useService("notification");
   },
 
   placeholderLLMChat: Record.attr({
@@ -43,8 +45,9 @@ patch(Composer.prototype, {
 
     const messageBody = this.textInputContent.trim();
     if (!messageBody || !thread) {
-      this.messaging.notify({
-        message: this.env._t("Please enter a message."),
+      this.notification.add(
+        this.env._t("Please enter a message."), {
+        title: this.env._t("Error"),
         type: "danger",
       });
       return;
@@ -72,18 +75,23 @@ patch(Composer.prototype, {
             break;
           case "error":
             this._closeEventSource();
-            this.messaging.notify({ message: data.error, type: "danger" });
+            this.notification.add(data.error, {
+              title: this.env._t("Error"),
+              type: "danger",
+            });
             break;
           case "done": {
             const sameThread =
               this.thread.id === this.thread.llmChat.activeThread.id;
             if (!sameThread) {
-              this.messaging.notify({
-                message:
-                  this.env._t("Generation completed for ") +
-                  this.thread.displayName,
-                type: "success",
-              });
+              this.notification.add(
+                this.env._t("Generation completed for ") +
+                this.thread.displayName,
+                {
+                  title: this.env._t("Success"),
+                  type: "success",
+                }
+              );
             }
             this._closeEventSource();
             break;
@@ -92,18 +100,24 @@ patch(Composer.prototype, {
       };
       eventSource.onerror = (error) => {
         console.error("EventSource failed:", error);
-        this.messaging.notify({
-          message: this.env._t("An unknown error occurred"),
-          type: "danger",
-        });
+        this.notification.add(
+          this.env._t("An unknown error occurred."),
+          {
+            title: this.env._t("Error"),
+            type: "danger",
+          }
+        );
         this._closeEventSource();
       };
     } catch (error) {
       console.error("Error sending LLM message:", error);
-      this.messaging.notify({
-        message: this.env._t("Failed to send message."),
-        type: "danger",
-      });
+      this.notification.add(
+        this.env._t("Failed to send message: "),
+        {
+          title: this.env._t("Error"),
+          type: "danger",
+        }
+      );
     } finally {
       for (const composerView of this.composerViews) {
         composerView.update({ doFocus: true });

@@ -13,8 +13,8 @@ export class LLMChatThreadList extends Component {
   setup() {
     super.setup();
 
-    this.messaging = useService("messaging");
-    
+    this.notification = useService("notification");
+
     this.state = useState({
       isLoading: false,
     });
@@ -49,11 +49,14 @@ export class LLMChatThreadList extends Component {
       });
     } catch (error) {
       console.error("Error selecting thread:", error);
-      this.messaging.notify({
-        title: "Error",
-        message: "Failed to load thread",
-        type: "danger",
-      });
+      this.notification.add(
+        this.env._t("Failed to load thread"),
+        {
+          title: this.env._t("Error"),
+          type: "danger",
+          sticky: true,
+        }
+      );
     } finally {
       this.state.isLoading = false;
     }

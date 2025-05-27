@@ -24,6 +24,7 @@ export class LLMChat extends Record {
     super.septup();
 
     this.messaging = useService("messaging");
+    this.notification = useService("notification");
   }
 
   /**
@@ -241,11 +242,14 @@ export class LLMChat extends Record {
   async createThread({ name, relatedThreadModel, relatedThreadId }) {
     const defaultModel = this.defaultLLMModel;
     if (!defaultModel) {
-      this.messaging.notify({
-        title: "No LLMModel available",
-        message: "Please add a new LLMModel to use this feature",
-        type: "warning",
-      });
+      this.notification.add(
+        this.env._t("Please add a new LLM Model to use this feature."),
+        {
+          title: this.env._t("No LLM Model available"),
+          type: "warning",
+          sticky: true,
+        }
+      );
       // Throw an error instead of returning null to make the failure more explicit
       throw new Error("No LLM model available");
     }
@@ -273,11 +277,14 @@ export class LLMChat extends Record {
     });
 
     if (!threadDetails || !threadDetails[0]) {
-      this.messaging.notify({
-        title: "Error",
-        message: "Failed to create thread",
-        type: "danger",
-      });
+      this.notification.add(
+        this.env._t("Failed to create thread."),
+        {
+          title: this.env._t("Error"),
+          type: "danger",
+          sticky: true,
+        }
+      );
       return null;
     }
 

@@ -10,6 +10,7 @@ export class LLMChatThreadHeaderView extends Record {
     super.setup();
 
     this.messaging = useService("messaging");
+    this.notification = useService("notification");
 
     this.state = useState({
       selectedProviderId: null,
@@ -173,10 +174,14 @@ export class LLMChatThreadHeaderView extends Record {
       this.state.pendingName = "";
     } catch (error) {
       console.error("Error updating thread name:", error);
-      this.messaging.notify({
-        message: this.env._t("Failed to update thread name"),
-        type: "danger",
-      });
+      this.notification.add(
+        this.env._t("Failed to update thread name"),
+        {
+          title: this.env._t("Error"),
+          type: "danger",
+          sticky: true,
+        }
+      );
       this.discardThreadNameEdition();
     }
   }
