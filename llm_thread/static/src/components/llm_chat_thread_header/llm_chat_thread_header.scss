@@ -1,31 +1,160 @@
-.o_ThreadViewTopbar {
-  // Only keep styles that are specific to our use case and not covered by Odoo's classes
-  .o_ThreadViewTopbar_threadName {
-    max-width: 180px; // Limit thread name width on mobile
+// llm_chat_thread_header.scss
 
-    @include media-breakpoint-up(sm) {
-      max-width: none;
+.o_LLMChatThreadHeader {
+    min-height: 56px;
+    background-color: $white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    
+    &_title {
+        h5 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: $o-gray-900;
+            
+            &.cursor-pointer {
+                &:hover {
+                    color: $o-brand-primary;
+                    
+                    .fa-pencil {
+                        opacity: 1 !important;
+                    }
+                }
+            }
+        }
+        
+        input {
+            min-width: 200px;
+            font-weight: 600;
+        }
     }
-  }
-
-  .o_ThreadViewTopbar_threadDescription {
-    display: inline-flex;
-    align-items: center;
-    font-size: 13px;
-    max-width: 200px; // Limit description width
-
-    @include media-breakpoint-down(sm) {
-      font-size: 12px;
-      max-width: 150px; // More constrained on mobile
+    
+    &_controls {
+        .btn {
+            border: 1px solid $o-gray-300;
+            background-color: $white;
+            
+            &:hover:not(:disabled) {
+                background-color: $o-gray-100;
+                border-color: $o-gray-400;
+            }
+            
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+        }
+        
+        .dropdown-toggle {
+            &::after {
+                display: none; // Hide default caret
+            }
+        }
     }
-  }
+    
+    &_dropdown {
+        max-height: 400px;
+        overflow-y: auto;
+        
+        .dropdown-item {
+            &.active {
+                background-color: $o-brand-primary;
+                color: white;
+            }
+        }
+    }
+    
+    // Model dropdown specific
+    .dropdown-menu {
+        .form-control {
+            &:focus {
+                border-color: $o-brand-primary;
+                box-shadow: 0 0 0 0.2rem rgba($o-brand-primary, 0.25);
+            }
+        }
+        
+        .dropdown-item {
+            padding: 0.5rem 1rem;
+            
+            &:hover:not(.active) {
+                background-color: $o-gray-100;
+            }
+        }
+    }
+    
+    // Tools dropdown
+    .form-check {
+        padding: 0.25rem 1rem;
+        margin-bottom: 0;
+        
+        &:hover {
+            background-color: $o-gray-100;
+        }
+        
+        .form-check-input {
+            cursor: pointer;
+            
+            &:checked {
+                background-color: $o-brand-primary;
+                border-color: $o-brand-primary;
+            }
+        }
+        
+        .form-check-label {
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 0;
+        }
+    }
+    
+    // Badge styling
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.4rem;
+        font-weight: normal;
+    }
+}
 
-  .o_ThreadViewTopbar_providerName {
-    color: $info;
-  }
+// Mobile responsive
+@include media-breakpoint-down(md) {
+    .o_LLMChatThreadHeader {
+        padding: 0.5rem !important;
+        
+        &_title {
+            h5 {
+                font-size: 1rem;
+            }
+        }
+        
+        .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+    }
+}
 
-  .o_ThreadViewTopbar_modelName {
-    color: $primary;
-    min-width: 0; // Enable truncation
-  }
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+    .o_LLMChatThreadHeader {
+        background-color: $o-gray-900;
+        border-bottom-color: $o-gray-700;
+        
+        &_title {
+            h5 {
+                color: $o-gray-100;
+            }
+        }
+        
+        &_controls {
+            .btn {
+                background-color: $o-gray-800;
+                border-color: $o-gray-600;
+                color: $o-gray-100;
+                
+                &:hover:not(:disabled) {
+                    background-color: $o-gray-700;
+                    border-color: $o-gray-500;
+                }
+            }
+        }
+    }
 }

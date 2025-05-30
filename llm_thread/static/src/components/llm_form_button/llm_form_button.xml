@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="llm_thread.LLMFormButton" owl="1">
+        <button t-att-class="props.className or 'btn btn-sm btn-secondary'" 
+                t-att-disabled="state.isOpening" 
+                t-on-click="openAIChat">
+            <t t-if="state.isOpening">
+                <i class="fa fa-spinner fa-spin me-1" />
+                Loading...
+            </t>
+            <t t-else="">
+                <i class="fa fa-robot me-1" />
+                <t t-esc="buttonText" />
+            </t>
+        </button>
+    </t>
+</templates>

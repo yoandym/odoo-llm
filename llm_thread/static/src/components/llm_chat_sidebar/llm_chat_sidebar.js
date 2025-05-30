@@ -1,44 +1,91 @@
 /** @odoo-module **/
 
-import { Component } from "@odoo/owl";
+import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
-import { useState } from "@odoo/owl";
+import { _t } from "@web/core/l10n/translation";
+import { LLMChatThreadList } from "../llm_chat_thread_list/llm_chat_thread_list";
 
+/**
+ * LLMChatSidebar Component for Odoo v17
+ * 
+ * Displays the sidebar with thread list and new chat button.
+ * Migrated to use the new llm_chat service instead of messaging models.
+ */
 export class LLMChatSidebar extends Component {
-
   static template = "llm_thread.LLMChatSidebar";
+  static components = { LLMChatThreadList };
   static props = {
-    record: { type: Object, optional: true },
+    isVisible: { type: Boolean, optional: true },
+    onClose: { type: Function, optional: true },
+    onThreadSelect: { type: Function, optional: true }, // Add this prop
   };
 
   setup() {
-    super.setup();
+    // Use services
+    this.llmChatService = useService("llm_chat");
+    this.uiService = useService("ui"); // For device detection
+    this.notificationService = useService("notification");
 
-    this.messaging = useState(useService("mail.messaging"));
+    // Direct access to the llmChat store
+    this.llmChat = this.llmChatService.llmChat;
+
+    // Component state
+    this.state = useState({
+      isCreatingThread: false,
+    });
   }
 
   /**
-   * @returns {LLMChatView}
+   * Check if device is small (mobile)
    */
-  get llmChatView() {
-    return this.props.record;
+  get isMobile() {
+    return this.uiService.isSmall;
+  }
+
+  /**
+   * Get visibility state
+   */
+  get isVisible() {
+    // Use prop if provided, otherwise always visible on desktop
+    return this.props.isVisible !== undefined
+      ? this.props.isVisible
+      : !this.isMobile;
   }
 
   /**
    * Handle backdrop click to close sidebar on mobile
    */
-  _onBackdropClick() {
-    if (this.messaging.device.isSmall) {
-      this.llmChatView.update({ isThreadListVisible: false });
+  onBackdropClick() {
+    if (this.isMobile && this.props.onClose) {
+      this.props.onClose();
     }
   }
 
   /**
    * Handle click on New Chat button
    */
-  async _onClickNewChat() {
-    const llmChat = this.llmChatView.llmChat;
-    await llmChat.createNewThread();
-    this.llmChatView.update({ isThreadListVisible: false });
+  async onClickNewChat() {
+    if (this.state.isCreatingThread) return;
+
+    this.state.isCreatingThread = true;
+    try {
+      await this.llmChat.createNewThread();
+
+      // Close sidebar on mobile after creating thread
+      if (this.isMobile && this.props.onClose) {
+        this.props.onClose();
+      }
+    } catch (error) {
+      console.error("Failed to create new chat:", error);
+      this.notificationService.add(
+        _t("Failed to create new chat"),
+        {
+          title: _t("Error"),
+          type: "danger"
+        }
+      );
+    } finally {
+      this.state.isCreatingThread = false;
+    }
   }
 }

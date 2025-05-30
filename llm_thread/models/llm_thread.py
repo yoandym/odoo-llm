@@ -1,14 +1,12 @@
 import functools
 import json
+import logging
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
-
 from odoo.addons.llm_mail_message_subtypes.const import (
-    LLM_ASSISTANT_SUBTYPE_XMLID,
-    LLM_TOOL_RESULT_SUBTYPE_XMLID,
-    LLM_USER_SUBTYPE_XMLID,
-)
+    LLM_ASSISTANT_SUBTYPE_XMLID, LLM_TOOL_RESULT_SUBTYPE_XMLID,
+    LLM_USER_SUBTYPE_XMLID)
+from odoo.exceptions import UserError
 
 from .llm_thread_utils import LLMThreadUtils
 
@@ -285,6 +283,54 @@ class LLMThread(models.Model):
     def _write_vals_decorated(self, record_in_new_env, vals):
         """Writes values using a new, immediately committed cursor."""
         return record_in_new_env.write(vals)
+
+    def send_message(self, message_content):
+        """Send a user message to the thread and trigger AI response.
+        
+        Args:
+            message_content (str): The message content to send
+            
+        Returns:
+            dict: Success status and message info
+        """
+        import logging
+        _logger = logging.getLogger(__name__)
+        
+        try:
+            self.ensure_one()
+            
+            # Post the user message
+            message = self._post_message(
+                subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
+                body=message_content,
+                author_id=self.env.user.partner_id.id,
+            )
+            
+            # Trigger AI response generation in the background
+            # We don't pass user_message_body since we already posted it
+            try:
+                _logger.info("Starting AI generation for thread %s", self.id)
+                
+                generation_result = list(self.generate(None))  # Convert generator to list to fully execute it
+                _logger.info("AI generation completed for thread %s, result count: %s", self.id, len(generation_result))
+                
+            except Exception as gen_error:
+                # Log the generation error but don't fail the message sending
+                _logger.error("Failed to generate AI response for thread %s: %s", self.id, gen_error)
+            
+            return {
+                'success': True,
+                'message_id': message.id,
+                'message': 'Message sent successfully'
+            }
+            
+        except Exception as e:
+            _logger.error("Failed to send message to thread %s: %s", self.id, e)
+            return {
+                'success': False,
+                'error': str(e),
+                'message': 'Failed to send message'
+            }
 
     @api.ondelete(at_uninstall=False)
     def _unlink_llm_thread(self):

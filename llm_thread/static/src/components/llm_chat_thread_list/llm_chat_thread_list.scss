@@ -1,20 +1,28 @@
-.o_LLMChatThreadList {
-  padding-top: 16px;
-  padding-bottom: 16px;
+// LLMChatThreadList styles - simplified to match Discuss app
+.o_LLMChatSidebar_item {
+    transition: background-color 0.15s ease;
+    cursor: pointer;
 
-  .o_DiscussSidebarCategoryItem {
-    position: relative; // For absolute positioning of border
+    &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
 
     &.o-active {
-      &::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background-color: $primary;
-      }
+        background-color: rgba(0, 0, 0, 0.1);
+        font-weight: 500;
     }
-  }
+}
+
+// Responsive adjustments
+@include media-breakpoint-down(md) {
+    .o_LLMChatSidebar {
+        width: 280px;
+    }
+}
+
+@include media-breakpoint-down(sm) {
+    .o_LLMChatSidebar {
+        width: 85vw;
+        max-width: 320px;
+    }
 }

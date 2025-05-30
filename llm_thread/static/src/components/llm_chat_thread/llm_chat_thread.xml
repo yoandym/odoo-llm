@@ -1,29 +1,37 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
+    <!-- LLMChatThread Template -->
     <t t-name="llm_thread.LLMChatThread" owl="1">
-        <div class="o_LLMChatThread d-flex flex-column h-100">
+        <div t-att-class="containerClass">
             <!-- Header -->
-            <LLMChatThreadHeader record="thread.llmChatThreadHeaderView" />
+            <LLMChatThreadHeader thread="props.thread" onOpenSidebar="props.onOpenSidebar" />
 
-            <!-- Messages -->
-            <div class="o_LLMChatThread_content flex-grow-1 overflow-auto">
-                <t t-if="thread.cache?.isLoading">
-                    <div class="d-flex justify-content-center align-items-center h-100" >
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
+            <!-- Messages Content Area -->
+            <div class="o_LLMChatThread_content flex-grow-1 overflow-auto position-relative" t-ref="content">
+                <!-- Loading Indicator for Initial Load -->
+                <t t-if="state.isLoadingMessages and state.messages.length === 0">
+                    <div class="d-flex justify-content-center align-items-center h-100">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted">Loading conversation...</p>
                         </div>
                     </div>
                 </t>
+
+                <!-- Message List -->
                 <t t-else="">
-                    <!-- Message List -->
-                    <span> Here was the message list component </span> <!-- TODO: replace this line with the actual messages list -->
+                    <LLMChatMessageList t-if="state.streamingMessageId" messages="state.messages" isLoading="state.isLoadingMessages" hasMore="state.hasMoreMessages" streamingMessageId="state.streamingMessageId" onRetryMessage.bind="onRetryMessage" className="'px-3 py-2'" />
+                    <LLMChatMessageList t-else="" messages="state.messages" isLoading="state.isLoadingMessages" hasMore="state.hasMoreMessages" onRetryMessage.bind="onRetryMessage" className="'px-3 py-2'" />
                 </t>
             </div>
 
-            <!-- Chat Composer - Moved outside scrollable area -->
-            <div class="o_LLMChatThread_composer p-3">
-                <LLMChatComposer record="thread.composerView" />
+            <!-- Composer -->
+            <div class="o_LLMChatThread_composer border-top">
+                <LLMChatComposer thread="props.thread" placeholder="_t('Type your message...')" />
             </div>
         </div>
     </t>
+    <!-- End of LLMChatThread Template -->
 </templates>

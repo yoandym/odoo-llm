@@ -1,61 +1,60 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <t
-    t-name="llm_assistant.LLMChatThreadHeader"
-    t-inherit="llm_thread.LLMChatThreadHeader"
-    t-inherit-mode="extension"
-  >
-        <xpath
-      expr="//div[hasclass('o_ThreadDropdowns')]/div[hasclass('dropdown')][1]"
-      position="before"
-    >
-            <!-- LLM Assistant Dropdown -->
+    <t t-name="llm_assistant.LLMChatThreadHeader.extension" t-inherit="llm_thread.LLMChatThreadHeader" t-inherit-mode="extension" owl="1">
+        <xpath expr="//div[hasclass('o_ThreadDropdowns')]" position="inside">
+            <!-- Assistant Dropdown for Extension -->
             <div class="dropdown me-2">
-                <button
-          class="btn btn-light dropdown-toggle d-flex align-items-center gap-2"
-          type="button"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
-          style="max-width: 200px;"
-        >
+                <button class="btn btn-light dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" t-att-disabled="assistantState.isUpdatingAssistant" style="max-width: 200px;">
+                    <i class="fa fa-robot opacity-75" />
                     <div class="text-truncate">
-                        <t t-if="llmChatThreadHeaderView.selectedAssistant">
-                            <t
-                t-esc="llmChatThreadHeaderView.selectedAssistant.name"
-              />
+                        <t t-if="selectedAssistant">
+                            <t t-esc="selectedAssistant.name" />
                         </t>
                         <t t-else="">
                             Select Assistant
                         </t>
                     </div>
+                    <t t-if="assistantState.isUpdatingAssistant">
+                        <i class="fa fa-spinner fa-spin ms-1" />
+                    </t>
                 </button>
-                <ul class="dropdown-menu">
+
+                <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
+                    <!-- No Assistant Option -->
                     <li>
-                        <a
-              class="dropdown-item text-truncate"
-              href="#"
-              t-on-click="onClearAssistant"
-              t-attf-class="{{ !llmChatThreadHeaderView.selectedAssistant ? 'active' : '' }}"
-            >
-                            <i class="fa fa-times me-1" /> No Assistant
+                        <a class="dropdown-item d-flex align-items-center" href="#" t-on-click.prevent="onClearAssistant" t-att-class="{
+                                'active': !selectedAssistant,
+                                'disabled': assistantState.isUpdatingAssistant
+                            }">
+                            <i class="fa fa-times me-2 opacity-75" />
+                            <span>No Assistant</span>
                         </a>
                     </li>
-                    <li><hr class="dropdown-divider" /></li>
-                    <t
-            t-foreach="llmAssistants"
-            t-as="assistant"
-            t-key="assistant.id"
-          >
+
+                    <li>
+                        <hr class="dropdown-divider" />
+                    </li>
+
+                    <!-- Assistant List -->
+                    <t t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
                         <li>
-                            <a
-                class="dropdown-item text-truncate"
-                href="#"
-                t-on-click="() => this.onSelectAssistant(assistant)"
-                t-att-title="assistant.name"
-                t-attf-class="{{ llmChatThreadHeaderView.selectedAssistant and llmChatThreadHeaderView.selectedAssistant.id === assistant.id ? 'active' : '' }}"
-              >
-                                <t t-esc="assistant.name" />
+                            <a class="dropdown-item d-flex align-items-center" href="#" t-on-click.prevent="() => onSelectAssistant(assistant)" t-att-title="assistant.name" t-att-class="{
+                                    'active': selectedAssistant and selectedAssistant.id === assistant.id,
+                                    'disabled': assistantState.isUpdatingAssistant
+                                }">
+                                <i class="fa fa-robot me-2 opacity-75" />
+                                <span class="text-truncate" t-esc="assistant.name" />
                             </a>
+                        </li>
+                    </t>
+
+                    <!-- Empty State -->
+                    <t t-if="!llmAssistants.length">
+                        <li>
+                            <div class="px-3 py-2 text-muted small text-center">
+                                <i class="fa fa-info-circle me-1" />
+                                No assistants available
+                            </div>
                         </li>
                     </t>
                 </ul>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="llm_thread.LLMMessage" owl="1">
+        <div t-att-class="messageClass">
+            <div class="o-mail-Message-core position-relative d-flex flex-shrink-0">
+                <!-- Author side (avatar + info) -->
+                <div class="o-mail-Message-sidebar d-flex flex-shrink-0 align-items-start justify-content-start">
+                    <div class="o-mail-Message-avatarContainer position-relative bg-view cursor-pointer">
+                        <t t-if="avatarSrc">
+                            <img t-att-src="avatarSrc" 
+                                 class="o-mail-Message-avatar w-100 h-100 rounded" 
+                                 t-att-alt="authorName"/>
+                        </t>
+                        <t t-else="">
+                            <t t-if="props.message.isAiMessage">
+                                <div class="o-mail-Message-avatar w-100 h-100 rounded d-flex align-items-center justify-content-center bg-primary">
+                                    <i class="fa fa-robot text-white"/>
+                                </div>
+                            </t>
+                            <t t-else="">
+                                <div class="o-mail-Message-avatar w-100 h-100 rounded d-flex align-items-center justify-content-center bg-secondary">
+                                    <i class="fa fa-user text-white"/>
+                                </div>
+                            </t>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Message content -->
+                <div class="w-100 overflow-hidden">
+                    <div class="o-mail-Message-header d-flex align-items-baseline mb-1 flex-wrap">
+                        <span class="o-mail-Message-author cursor-pointer fw-bold me-1">
+                            <t t-esc="authorName"/>
+                        </span>
+                        <small class="o-mail-Message-date text-muted">
+                            <t t-esc="formattedDate"/>
+                        </small>
+                    </div>
+
+                    <!-- Message body -->
+                    <div class="o-mail-Message-body text-break mb-0 w-100">
+                        <div class="o-mail-Message-content">
+                            <!-- Use Owl's markup for safe HTML rendering -->
+                            <t t-out="messageBody"/>
+                        </div>
+
+                        <!-- Attachments if any -->
+                        <t t-if="props.message.attachments and props.message.attachments.length">
+                            <div class="o-mail-Message-attachments mt-2">
+                                <t t-foreach="props.message.attachments" t-as="attachment" t-key="attachment.id">
+                                    <div class="badge bg-light text-dark me-1">
+                                        <i class="fa fa-paperclip me-1"/>
+                                        <t t-esc="attachment.name"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

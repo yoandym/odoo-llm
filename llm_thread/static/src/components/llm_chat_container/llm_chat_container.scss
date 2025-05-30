@@ -1,13 +1,69 @@
+// llm_chat_container.scss
+
 .o_LLMChatContainer {
   background-color: $o-view-background-color;
 
-  .o_LLMChatContainer_spinner {
-    color: $o-main-text-color;
-    font-size: 1.1em;
+  position: relative;
 
-    .o_LLMChatContainer_spinnerIcon {
-      font-size: 1.3em;
-      color: $o-brand-primary;
+  &_loading,
+  &_error,
+  &_spinner {
+    background: linear-gradient(135deg, $o-view-background-color 0%, darken($o-view-background-color, 2%) 100%);
+  }
+
+  &_spinnerIcon {
+    color: $o-brand-primary;
+    opacity: 0.8;
+
+    &.fa-3x {
+      font-size: 3rem;
     }
+  }
+
+  &_error {
+    .fa-exclamation-triangle {
+      color: $o-warning;
+      opacity: 0.8;
+    }
+
+    .btn-primary {
+      min-width: 120px;
+    }
+  }
+
+  // Animation for smooth transitions
+  >* {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Loading state animations
+.o_LLMChatContainer_loading {
+  .text-center {
+    animation: pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
   }
 }

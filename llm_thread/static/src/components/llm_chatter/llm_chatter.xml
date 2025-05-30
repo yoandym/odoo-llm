@@ -1,63 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <t t-name="llm_thread.Chatter" t-inherit="mail.Chatter" t-inherit-mode="extension" owl="1">
-        <!-- Replace the entire content of the Chatter div -->
-        <xpath expr="//div[hasclass('o-mail-Chatter')]" position="replace">
-            <div t-if="state.thread" class="o-mail-Chatter w-100 h-100 flex-grow-1 d-flex flex-column" t-att-class="{ 'overflow-auto': props.isChatterAside, 'o-chatter-disabled': props.threadId === false }" t-on-scroll="onScrollDebounced" t-ref="root">
-
-                <!-- Conditional content based on is_chatting_with_llm -->
-                <t t-if="state.is_chatting_with_llm">
-                    <!-- AI Chat Mode: Only show LLMChatThread 
-                    <LLMChatThread className="'o_Chatter_thread flex-grow-1'" record="chatter.thread" />
-                    --> // TODO: Move comment line
-                    <div class="test"></div> // TODO: Remove line
-                </t>
-                <t t-else="">
-                    <!-- Normal Mode: Show full original content minus topbar -->
-                    <div class="o-mail-Chatter-content">
-                        <div t-if="state.isSearchOpen" class="o-mail-Chatter-search">
-                            <SearchMessagesPanel
-                                closeSearch.bind="closeSearch"
-                                thread="state.thread"
-                                onClickJump.bind="closeSearch"
-                            />
-                        </div>
-                        <t t-else="">
-                            <t t-if="props.hasActivities and activities.length and !state.isSearchOpen">
-                                <t t-call="mail.ActivityList"/>
-                            </t>
-                            <div t-if="state.isAttachmentBoxOpened" class="o-mail-AttachmentBox position-relative" t-ref="attachment-box">
-                                <div class="d-flex align-items-center">
-                                    <hr class="flex-grow-1"/>
-                                    <span class="p-3 fw-bold">
-                                        Files
-                                    </span>
-                                    <hr class="flex-grow-1"/>
-                                </div>
-                                <div class="d-flex flex-column">
-                                    <AttachmentList
-                                        attachments="attachments"
-                                        unlinkAttachment.bind="unlinkAttachment"
-                                        imagesHeight="100"
-                                    />
-                                    <FileUploader multiUpload="true" fileUploadClass="'o-mail-Chatter-fileUploader'" onUploaded.bind="onUploaded" onClick="(ev) => this.onClickAttachFile(ev)">
-                                        <t t-set-slot="toggler">
-                                            <button class="btn btn-link" type="button" t-att-disabled="!state.thread.hasWriteAccess">
-                                                <i class="fa fa-plus-square"/>
-                                                Attach files
-                                            </button>
-                                        </t>
-                                    </FileUploader>
-                                </div>
-                            </div>
-                            <t t-if="props.hasMessageList">
-                                <Thread t-if="!state.isSearchOpen" thread="state.thread" t-key="state.thread.localId" order="'desc'" scrollRef="rootRef" jumpPresent="state.jumpThreadPresent"
-                                />
-                            </t>
-                        </t>
-                    </div>
-                </t>
-            </div>
-        </xpath>
+    <!-- Simple template for chatter button -->
+    <t t-name="llm_thread.ChatterLLMButton" owl="1">
+        <button t-att-class="props.className or 'btn btn-sm btn-light'" t-att-disabled="state.isOpening" t-on-click="openLLMChat" title="Open AI Chat">
+            <t t-if="state.isOpening">
+                <i class="fa fa-spinner fa-spin" />
+            </t>
+            <t t-else="">
+                <i class="fa fa-robot" />
+            </t>
+            <span class="ms-1">AI Chat</span>
+        </button>
     </t>
 </templates>

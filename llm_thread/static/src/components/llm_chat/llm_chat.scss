@@ -1,13 +1,28 @@
+// llm_chat.scss
 .o_LLMChat {
-  background-color: $white;
-}
+    background-color: $o-view-background-color;
 
-.o_LLMChat_content {
-  overflow: auto; /* Allow scrolling */
-  height: 100%;
-}
+    &_mobileMenuButton {
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
 
-.o_LLMChat_noThread {
-  color: $o-main-color-muted;
-  font-style: italic;
+    &_content {
+        position: relative;
+        overflow: hidden;
+    }
+
+    &_noThread {
+        background: linear-gradient(135deg, $o-view-background-color 0%, darken($o-view-background-color, 3%) 100%);
+
+        i {
+            color: $o-main-color-muted;
+        }
+    }
 }

@@ -40,61 +40,74 @@ Contact: support@apexive.com
     ],
     "assets": {
         "web.assets_backend": [
-            # Models
-            "llm_thread/static/src/models/main.js",
-            "llm_thread/static/src/models/messaging.js",
-            "llm_thread/static/src/models/llm_chat.js",
-            "llm_thread/static/src/models/llm_chat_view.js",
-            "llm_thread/static/src/models/thread.js",
-            "llm_thread/static/src/models/composer.js",
-            "llm_thread/static/src/models/composer_model.js",
-            "llm_thread/static/src/models/llm_model.js",
-            "llm_thread/static/src/models/llm_provider.js",
-            "llm_thread/static/src/models/llm_chat_thread_header_view.js",
-            "llm_thread/static/src/models/llm_tool.js",
-            "llm_thread/static/src/models/message.js",
-            "llm_thread/static/src/models/messaging_notification_handler.js",
+            # Services
+            "llm_thread/static/src/services/llm_chat_service.js",
+            "llm_thread/static/src/services/llm_composer_service.js",
+
             # Components
-            "llm_thread/static/src/components/llm_chat/llm_chat.js",
-            "llm_thread/static/src/components/llm_chat/llm_chat.xml",
-            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.js",
-            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.xml",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.js",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.scss",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.xml",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.js",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.xml",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.scss",
+
+            "llm_thread/static/src/components/llm_chat/llm_chat.js",
+            "llm_thread/static/src/components/llm_chat/llm_chat.xml",
+            "llm_thread/static/src/components/llm_chat/llm_chat.scss",
+
+            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.js",
+            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.xml",
+            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.scss",
+
+            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.js",
+            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.xml",
+            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.scss",
+
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.js",
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.xml",
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.scss",
+
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.js",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.xml",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.scss",
+                        
+            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.js",
+            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.xml",
+            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.scss",
+
+            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.js",
+            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.xml",
+            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.scss",
+
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
+
             "llm_thread/static/src/components/llm_chatter/llm_chatter.js",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
-            "llm_thread/static/src/components/message/message.xml",
-            "llm_thread/static/src/components/message/message.scss",
+            "llm_thread/static/src/components/llm_chatter/llm_chatter.scss",
+            
+            # Form Button Widget
+            "llm_thread/static/src/components/llm_form_button/llm_form_button.js",
+            "llm_thread/static/src/components/llm_form_button/llm_form_button.xml",
+
+            "llm_thread/static/src/components/llm_message/llm_message.js",
+            "llm_thread/static/src/components/llm_message/llm_message.xml",
+            "llm_thread/static/src/components/llm_message/llm_message.scss",
+
             # Streaming indicator component
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.js",
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.xml",
+            "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.scss",
+
             # Client Actions
-            "llm_thread/static/src/llm_message_actions.js",
             "llm_thread/static/src/llm_chat_client_action.js",
-            # Styles
-            (
-                "after",
-                "web/static/src/scss/pre_variables.scss",
-                "llm_thread/static/src/components/llm_chat/llm_chat.scss",
-            ),
-            (
-                "after",
-                "web/static/src/scss/pre_variables.scss",
-                "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.scss",
-            ),
+            "llm_thread/static/src/llm_message_actions.js",
+
+            # SCSS Styles (loaded after Odoo primary variables are available)
+            #  Core Odoo SCSS files, commonly in:
+            # web/static/src/scss/primary_variables.scss
+            # web/static/src/scss/secondary_variables.scss
+            # web/static/src/scss/bootstrap_overridden.scss
+
         ],
     },
     "images": [

@@ -1,0 +1,67 @@
+// llm_chatter.scss
+
+.o-mail-Chatter {
+    // LLM Chat button
+    &-aiButton {
+        &.btn {
+            // Ensure consistent size with other buttons
+            &:not(:first-child) {
+                margin-left: 0.25rem;
+            }
+        }
+    }
+    
+    // LLM content container
+    &-llmContent {
+        position: relative;
+        background-color: $o-view-background-color;
+        
+        // Ensure the LLMChatThread fills the container
+        > div {
+            height: 100%;
+            
+            .o_LLMChatThread {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                
+                &_content {
+                    flex: 1;
+                    min-height: 0;
+                    overflow-y: auto;
+                }
+                
+                &_composer {
+                    flex-shrink: 0;
+                    border-top: 1px solid $o-gray-300;
+                    background-color: $o-gray-100;
+                }
+            }
+        }
+    }
+}
+
+// Animation for mode switching
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.o-mail-Chatter-llmContent {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+// Mobile responsive
+@include media-breakpoint-down(md) {
+    .o-mail-Chatter {
+        &-llmContent {
+            height: 400px !important;
+        }
+    }
+}
