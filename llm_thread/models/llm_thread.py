@@ -10,6 +10,8 @@ from odoo.exceptions import UserError
 
 from .llm_thread_utils import LLMThreadUtils
 
+_logger = logging.getLogger(__name__)
+
 
 def execute_with_new_cursor(func_to_decorate):
     """Decorator to execute a method within a new, immediately committed cursor context.
@@ -89,7 +91,7 @@ class LLMThread(models.Model):
         """Set default title if not provided"""
         for vals in vals_list:
             if not vals.get("name"):
-                vals["name"] = f"Chat with {self.model_id.name}"
+                vals["name"] = f"Chat with {self.model_id.name}"  # type: ignore
         return super().create(vals_list)
 
     def _post_message(self, **kwargs):
@@ -100,8 +102,8 @@ class LLMThread(models.Model):
         author_id = kwargs.get("author_id")
         body = kwargs.get("body", "")
         email_from = LLMThreadUtils.get_email_from(
-            self.provider_id.name,
-            self.model_id.name,
+            self.provider_id.name,  # type: ignore
+            self.model_id.name,  # type: ignore
             subtype_xmlid,
             author_id,
             kwargs.get("tool_name"),
@@ -109,7 +111,7 @@ class LLMThread(models.Model):
         post_vals = LLMThreadUtils.build_post_vals(
             subtype_xmlid, body, author_id, email_from
         )
-        message = self.message_post(**post_vals)
+        message = self.message_post(**post_vals)  # type: ignore
         extra_vals = LLMThreadUtils.build_update_vals(
             subtype_xmlid,
             tool_call_id=kwargs.get("tool_call_id"),
@@ -206,7 +208,7 @@ class LLMThread(models.Model):
             # orchestrate via hooks
             last = self._init_message(user_message_body)
             if user_message_body:
-                yield {"type": "message_create", "message": last.message_format()[0]}
+                yield {"type": "message_create", "message": last.message_format()[0]}  # type: ignore
             while self._should_continue(last):
                 last = yield from self._next_step(last)
             return last
@@ -286,33 +288,29 @@ class LLMThread(models.Model):
 
     def send_message(self, message_content):
         """Send a user message to the thread and trigger AI response.
-        
+
         Args:
             message_content (str): The message content to send
-            
+
         Returns:
             dict: Success status and message info
         """
-        import logging
-        _logger = logging.getLogger(__name__)
-        
+
         try:
             self.ensure_one()
-            
+
             # Post the user message
             message = self._post_message(
                 subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
                 body=message_content,
                 author_id=self.env.user.partner_id.id,
             )
-            
+
             # Trigger AI response generation in the background
             # We don't pass user_message_body since we already posted it
             try:
-                _logger.info("Starting AI generation for thread %s", self.id)
                 
                 generation_result = list(self.generate(None))  # Convert generator to list to fully execute it
-                _logger.info("AI generation completed for thread %s, result count: %s", self.id, len(generation_result))
                 
             except Exception as gen_error:
                 # Log the generation error but don't fail the message sending
