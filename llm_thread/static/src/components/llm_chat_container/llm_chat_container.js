@@ -26,7 +26,7 @@ export class LLMChatContainer extends Component {
     this.userService = useService("user");
 
     // Direct access to the llmChat store
-    this.llmChat = this.llmChatService.llmChat;
+    this.llmChat = this.llmChatService;
 
     // Component state
     this.state = useState({

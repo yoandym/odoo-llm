@@ -32,7 +32,7 @@ export class LLMChatThreadHeader extends Component {
         this.orm = useService("orm");
 
         // Direct access to llmChat store
-        this.llmChat = this.llmChatService.llmChat;
+        this.llmChat = this.llmChatService;
 
         // Refs
         this.threadNameInputRef = useRef("threadNameInput");

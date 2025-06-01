@@ -25,7 +25,7 @@ export class LLMChat extends Component {
     this.notificationService = useService("notification");
 
     // Access the reactive llmChat store
-    this.llmChat = this.llmChatService.llmChat;
+    this.llmChat = this.llmChatService;
 
     // Component state
     this.state = useState({

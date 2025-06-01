@@ -194,7 +194,7 @@ patch(Chatter.prototype, {
         this.updateAIButton(true, true);
 
         try {
-            const llmChat = this.llmChatService.llmChat;
+            const llmChat = this.llmChatService;
 
             // Ensure thread for the current record
             const llmThread = await llmChat.ensureThread({
@@ -500,11 +500,8 @@ patch(Chatter.prototype, {
     async loadMessages() {
         try {
             const messagesContainer = document.getElementById(`llm-messages-${this.state.llmThread.id}`);
-            if (!messagesContainer) return;
-
-            console.log("[LLM] Loading messages for thread:", this.state.llmThread.id);
-
-            const llmChat = this.llmChatService.llmChat;
+            if (!messagesContainer) return; console.log("[LLM] Loading messages for thread:", this.state.llmThread.id);
+            const llmChat = this.llmChatService;
             const messages = await llmChat.getMessages(this.state.llmThread.id);
 
             console.log("[LLM] Loaded messages:", messages);
@@ -697,12 +694,12 @@ patch(Chatter.prototype, {
 
         try {
             // Get initial message count to detect when AI responds
-            const initialMessages = await this.llmChatService.llmChat.getMessages(threadId);
+            const initialMessages = await this.llmChatService.getMessages(threadId);
             const initialCount = initialMessages ? initialMessages.length : 0;
 
             console.log("[LLM] Initial message count:", initialCount);
 
-            const llmChat = this.llmChatService.llmChat;
+            const llmChat = this.llmChatService;
             await llmChat.sendMessage(threadId, message);
 
             // Show user message immediately
@@ -735,7 +732,7 @@ patch(Chatter.prototype, {
         try {
             console.log(`[LLM] Polling attempt ${attempt}/${maxAttempts} for AI response...`);
 
-            const messages = await this.llmChatService.llmChat.getMessages(threadId);
+            const messages = await this.llmChatService.getMessages(threadId);
             const currentCount = messages ? messages.length : 0;
 
             console.log(`[LLM] Current message count: ${currentCount}, initial: ${initialCount}`);

@@ -20,7 +20,7 @@ export class LLMFormButton extends Component {
         this.llmChatService = useService("llm_chat");
         this.actionService = useService("action");
         this.notificationService = useService("notification");
-        
+
         this.state = useState({
             isOpening: false,
         });
@@ -42,7 +42,7 @@ export class LLMFormButton extends Component {
         this.state.isOpening = true;
 
         try {
-            const llmChat = this.llmChatService.llmChat;
+            const llmChat = this.llmChatService;
 
             // Ensure thread exists
             const thread = await llmChat.ensureThread({
