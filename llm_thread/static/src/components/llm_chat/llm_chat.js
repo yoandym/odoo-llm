@@ -19,13 +19,11 @@ export class LLMChat extends Component {
 
   setup() {
     // Use the LLM chat service
-    this.llmChatService = useService("llm_chat");
+    this.llmChat = useService("llm_chat");
+    
     // Use other necessary services
     this.uiService = useService("ui");
     this.notificationService = useService("notification");
-
-    // Access the reactive llmChat store
-    this.llmChat = this.llmChatService;
 
     // Component state
     this.state = useState({
