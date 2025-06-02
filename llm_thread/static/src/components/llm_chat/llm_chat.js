@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, onWillStart, useExternalListener } from "@odoo/owl";
+import { Component, useState, onWillStart } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { LLMChatSidebar } from "../llm_chat_sidebar/llm_chat_sidebar";
@@ -35,9 +35,9 @@ export class LLMChat extends Component {
       activeThreadId: this.llmChat.activeThread?.id || null,
     });
 
-    // Listen for thread changes using a custom event
-    useExternalListener(window, "llm-thread-changed", (ev) => {
-      console.log("LLMChat: Thread changed event received", ev.detail);
+    // Listen for thread selection events from the service
+    this.env.bus.addEventListener("llm_chat:thread_selected", (ev) => {
+      console.log("LLMChat: Thread selected event received", ev.detail);
       this.state.activeThreadId = ev.detail.threadId;
     });
 

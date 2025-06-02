@@ -26,18 +26,17 @@ export class LLMChatThreadList extends Component {
         this.state = useState({
             isLoading: false,
             loadingThreadId: null,
-            serviceRevision: this.llmChat._revision, // Track service revision reactively
         });
 
-        // Watch for service changes and update our reactive state
+        // Watch for service changes to trigger re-renders
         this.env.bus.addEventListener("llm_chat:threads_changed", () => {
-            console.log("ThreadList: Received threads_changed event, updating revision");
-            this.state.serviceRevision = this.llmChat._revision;
+            console.log("ThreadList: Received threads_changed event");
+            // The reactive service will automatically trigger re-renders
         });
 
         this.env.bus.addEventListener("llm_chat:thread_selected", () => {
-            console.log("ThreadList: Received thread_selected event, updating revision");
-            this.state.serviceRevision = this.llmChat._revision;
+            console.log("ThreadList: Received thread_selected event");
+            // The reactive service will automatically trigger re-renders
         });
 
         console.log("ThreadList: Setup complete");
@@ -47,10 +46,8 @@ export class LLMChatThreadList extends Component {
      * Get ordered threads from the service
      */
     get threads() {
-        // Access our reactive service revision to ensure reactivity
-        const revision = this.state.serviceRevision;
         const threads = this.llmChat.orderedThreads;
-        console.log("ThreadList: threads getter called, revision:", revision, "returning:", threads.length, "threads");
+        console.log("ThreadList: threads getter called, returning:", threads.length, "threads");
         console.log("ThreadList: thread IDs:", threads.map(t => t.id));
         return threads;
     }
@@ -59,10 +56,8 @@ export class LLMChatThreadList extends Component {
      * Get the active thread
      */
     get activeThread() {
-        // Access our reactive service revision to ensure reactivity
-        const revision = this.state.serviceRevision;
         const active = this.llmChat.activeThread;
-        console.log("ThreadList: activeThread getter called, revision:", revision, "returning:", active?.id, active?.name);
+        console.log("ThreadList: activeThread getter called, returning:", active?.id, active?.name);
         return active;
     }
 

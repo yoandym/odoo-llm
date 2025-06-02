@@ -23,7 +23,6 @@ export const LLMChatService = {
                 threads: [],
                 llmModels: [],
                 tools: [],
-                _revision: 0, // Add revision counter for forcing updates
 
                 // Methods
                 async initializeLLMChat(actionData, initActiveId, postInitializationPromises = []) {
@@ -197,10 +196,6 @@ export const LLMChatService = {
                         this.activeThread = thread;
                         console.log("Set active thread:", this.activeThread);
 
-                        // Force reactivity update
-                        this._revision++;
-                        console.log("Revision incremented to:", this._revision);
-
                         // Dispatch event for component reactivity
                         env.bus.trigger("llm_chat:thread_selected", {
                             threadId: thread.id,
@@ -307,10 +302,6 @@ export const LLMChatService = {
                     this.threads = [thread, ...this.threads];
                     console.log("Threads after adding:", this.threads.length);
                     console.log("New thread added at index 0:", this.threads[0]);
-
-                    // Force reactivity update
-                    this._revision++;
-                    console.log("Revision incremented to:", this._revision);
 
                     // Dispatch event for component reactivity
                     env.bus.trigger("llm_chat:threads_changed", { threads: this.threads });
