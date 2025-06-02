@@ -128,7 +128,7 @@ export const llmComposerService = {
 
                     case "done":
                         this.stopStreaming(composerState);
-                        const activeThread = llm_chat.llmChat.activeThread;
+                        const activeThread = llm_chat.activeThread;
                         if (activeThread?.id !== composerState.threadId) {
                             notification.add(
                                 _t("Generation completed"),
