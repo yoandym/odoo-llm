@@ -18,6 +18,7 @@ export class LLMChatComposer extends Component {
     thread: { type: Object },
     className: { type: String, optional: true },
     placeholder: { type: String, optional: true },
+    exposeAPI: { type: Function, optional: true }, // Callback to expose API to parent
   };
 
   setup() {
@@ -26,8 +27,8 @@ export class LLMChatComposer extends Component {
     this.llmChatService = useService("llm_chat");
 
     // Refs
-    this.textInputComponent = null;
-
+    this.textInputAPI = null;
+    
     // State
     this.state = useState({
       textContent: "",
@@ -41,6 +42,13 @@ export class LLMChatComposer extends Component {
       this.composerState = this.llmComposerService.createComposerState(
         this.props.thread.id
       );
+
+      // Expose API to parent
+      if (this.props.exposeAPI) {
+        this.props.exposeAPI({
+          focus: () => this.focusTextInput(),
+        });
+      }
     });
 
     // Subscribe to events
@@ -65,7 +73,9 @@ export class LLMChatComposer extends Component {
       if (ev.detail.threadId === this.props.thread.id) {
         this.state.isStreaming = false;
         this.state.isDisabled = false;
-        this.focusTextInput();
+
+        // Focus after streaming stops
+        setTimeout(() => this.focusTextInput(), 100);
       }
     };
 
@@ -167,18 +177,18 @@ export class LLMChatComposer extends Component {
   }
 
   /**
-   * Handle text input component reference
+   * Handle text input API exposure
    */
-  onTextInputRef(textInputComponent) {
-    this.textInputComponent = textInputComponent;
+  onTextInputAPIExposed(api) {
+    this.textInputAPI = api;
   }
 
   /**
    * Focus the text input
    */
   focusTextInput() {
-    if (this.textInputComponent && this.textInputComponent.focus) {
-      this.textInputComponent.focus();
+    if (this.textInputAPI && this.textInputAPI.focus) {
+      this.textInputAPI.focus();
     }
   }
 

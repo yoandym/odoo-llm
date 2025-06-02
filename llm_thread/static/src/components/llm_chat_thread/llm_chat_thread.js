@@ -38,6 +38,10 @@ export class LLMChatThread extends Component {
         // Refs
         this.contentRef = useRef("content");
 
+        // Store composer API
+        this.composerAPI = null;
+
+
         // State
         this.state = useState({
             messages: [],
@@ -104,6 +108,22 @@ export class LLMChatThread extends Component {
     }
 
     /**
+     * Handle composer API exposure
+     */
+    onComposerAPIExposed(api) {
+        this.composerAPI = api;
+    }
+
+    /**
+     * Focus the composer
+     */
+    focusComposer() {
+        if (this.composerAPI && this.composerAPI.focus) {
+            this.composerAPI.focus();
+        }
+    }
+
+    /**
      * Setup event listeners for composer events
      */
     setupEventListeners() {
@@ -131,6 +151,8 @@ export class LLMChatThread extends Component {
             if (ev.detail.threadId === this.currentThreadId) {
                 this.state.streamingMessageId = null;
             }
+            // make life easier for the user by focusing the composer after streaming stops
+            this.focusComposer();
         };
 
         eventBus.addEventListener("message-created", this.messageCreatedHandler);
@@ -393,4 +415,5 @@ export class LLMChatThread extends Component {
     get _t() {
         return _t;
     }
+
 }

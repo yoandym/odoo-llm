@@ -29,7 +29,7 @@
 
             <!-- Composer -->
             <div class="o_LLMChatThread_composer border-top">
-                <LLMChatComposer thread="props.thread" placeholder="_t('Type your message...')" />
+                <LLMChatComposer thread="props.thread" exposeAPI.bind="onComposerAPIExposed" placeholder="_t('Type your message...')" />
             </div>
         </div>
     </t>

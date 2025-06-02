@@ -19,7 +19,7 @@ export class LLMChatComposerTextInput extends Component {
         onKeydown: { type: Function },
         className: { type: String, optional: true },
         maxHeight: { type: Number, optional: true },
-        onRef: { type: Function, optional: true },
+        exposeAPI: { type: Function, optional: true }, // Callback to expose API
     };
     static defaultProps = {
         value: "",
@@ -45,16 +45,20 @@ export class LLMChatComposerTextInput extends Component {
             });
         }
 
-        // Focus on mount
         onMounted(() => {
-            this.focus();
-            // Expose focus method to parent via callback
-            if (this.props.onRef) {
-                const self = this;
-                this.props.onRef({
+            // Expose API to parent via callback
+            if (this.props.exposeAPI) {
+                this.props.exposeAPI({
                     focus: () => this.focus(),
-                    get el() { return self.textareaRef.el; }
+                    blur: () => this.textareaEl?.blur(),
+                    getValue: () => this.props.value,
+                    getSelection: () => this.getSelection(),
                 });
+            }
+
+            // Focus on mount
+            if (!this.props.disabled) {
+                this.focus();
             }
         });
     }
@@ -64,6 +68,21 @@ export class LLMChatComposerTextInput extends Component {
      */
     get textareaEl() {
         return this.textareaRef.el;
+    }
+
+    /**
+     * Focus the textarea
+     */
+    focus() {
+        if (this.textareaEl && !this.props.disabled) {
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                this.textareaEl.focus();
+                // Move cursor to end
+                const length = this.textareaEl.value.length;
+                this.textareaEl.setSelectionRange(length, length);
+            }, 0);
+        }
     }
 
     /**
@@ -125,12 +144,20 @@ export class LLMChatComposerTextInput extends Component {
         this.state.hasSelection = false;
     }
 
-    /**
+/**
      * Focus the textarea
      */
     focus() {
         if (this.textareaEl && !this.props.disabled) {
-            this.textareaEl.focus();
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                if (this.textareaEl && !this.props.disabled) {
+                    this.textareaEl.focus();
+                    // Move cursor to end
+                    const length = this.textareaEl.value.length;
+                    this.textareaEl.setSelectionRange(length, length);
+                }
+            }, 0);
         }
     }
 

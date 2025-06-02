@@ -7,7 +7,7 @@
 
                 <!-- Text Input -->
                 <div class="o_LLMChatComposer_inputWrapper flex-grow-1">
-                    <LLMChatComposerTextInput value="state.textContent" placeholder="placeholder" disabled="state.isDisabled" onValueChange.bind="onTextContentChange" onKeydown.bind="onKeydown" className="'o_LLMChatComposer_input'" onRef.bind="onTextInputRef" />
+                    <LLMChatComposerTextInput value="state.textContent" placeholder="placeholder" disabled="state.isDisabled" onValueChange.bind="onTextContentChange" onKeydown.bind="onKeydown" exposeAPI.bind="onTextInputAPIExposed" className="'o_LLMChatComposer_input'" />
                 </div>
 
                 <!-- Action Buttons -->
