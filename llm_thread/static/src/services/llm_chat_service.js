@@ -236,13 +236,18 @@ export const LLMChatService = {
 
                     if (!defaultModel) {
                         notification.add(
-                            env._t("No LLMModel available"),
+                            env._t("No default LLMModel. Using the first available model"),
                             {
                                 title: env._t("Warning"),
                                 type: "warning",
                             }
                         );
-                        throw new Error("No LLM model available");
+                        // no default, so select the first available model
+                        if (this.llmModels.length > 0) {
+                            defaultModel = this.llmModels[0];
+                        } else {
+                            throw new Error("No LLM model available");
+                        }
                     }
 
                     const threadData = {
@@ -504,28 +509,19 @@ export const LLMChatService = {
                 },
 
                 get defaultLLMModel() {
-                    if (!this.llmModels || !Array.isArray(this.llmModels)) {
-                        console.log("DefaultLLMModel: No models or not array");
+                    if (!this.llmModels || !Array.isArray(this.llmModels) || (!this.llmModels.length > 0)) {
+                        console.log("DefaultLLMModel: No models available");
                         return null;
                     }
 
-                    const activeModel = this.activeThread?.llmModel;
+                    // Find the model with default: true
+                    const defaultModel = this.llmModels.find(m => m && m.default === true);
+                    console.log("Found default model:", defaultModel);
 
-                    if (!activeModel) {
-                        console.log("DefaultLLMModel: No active model, searching for default");
-                        console.log("Available models:", this.llmModels.map(m => ({ id: m.id, name: m.name, default: m.default })));
+                    // Fallback to first model if no default is set
+                    const result = defaultModel || this.llmModels[0];
+                    return result;
 
-                        // Find the model with default: true
-                        const defaultModel = this.llmModels.find(m => m && m.default === true);
-                        console.log("Found default model:", defaultModel);
-
-                        // Fallback to first model if no default is set
-                        const result = defaultModel || (this.llmModels.length > 0 ? this.llmModels[0] : null);
-                        console.log("Returning model:", result);
-                        return result;
-                    }
-
-                    return this.llmModels.find(m => m && m.id === activeModel.id) || null;
                 },
 
                 get threadCache() {
