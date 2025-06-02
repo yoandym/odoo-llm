@@ -248,7 +248,7 @@ export class LLMChatThread extends Component {
         const numericThreadId = typeof actualThreadId === 'string' ? parseInt(actualThreadId, 10) : actualThreadId;
 
         this.state.isLoadingMessages = true;
-        
+
         // Safely get scroll height
         const previousScrollHeight = this.contentRef.el ? this.contentRef.el.scrollHeight : 0;
 
@@ -283,7 +283,7 @@ export class LLMChatThread extends Component {
      * Process raw messages from server
      */
     processMessages(rawMessages) {
-        return rawMessages.map(msg => ({
+        const processed = rawMessages.map(msg => ({
             id: msg.id,
             body: msg.body,
             author: msg.author_id,
@@ -292,6 +292,14 @@ export class LLMChatThread extends Component {
             isStreaming: false,
             attachments: msg.attachment_ids || [],
         }));
+
+        // Sort messages by date ascending (oldest first, newest last)
+        // This ensures consistent chat ordering regardless of server response order
+        return processed.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return dateA - dateB;
+        });
     }
 
     /**
@@ -343,7 +351,7 @@ export class LLMChatThread extends Component {
     shouldAutoScroll() {
         // Safely check if element exists
         if (!this.contentRef || !this.contentRef.el) return false;
-        
+
         const scrollElement = this.contentRef.el;
         const { scrollTop, scrollHeight, clientHeight } = scrollElement;
         const scrollBottom = scrollHeight - scrollTop - clientHeight;
@@ -361,10 +369,10 @@ export class LLMChatThread extends Component {
             console.warn("Cannot scroll - content ref not available");
             return;
         }
-        
+
         const scrollElement = this.contentRef.el;
         const behavior = options.smooth ? "smooth" : "auto";
-        
+
         scrollElement.scrollTo({
             top: scrollElement.scrollHeight,
             behavior,
