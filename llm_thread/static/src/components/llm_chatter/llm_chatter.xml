@@ -40,18 +40,22 @@ record.
     <t t-name="mail.Chatter" t-inherit="mail.Chatter" t-inherit-mode="extension" owl="1">
         <!-- Add AI Chat button after Activities button -->
         <xpath expr="//button[hasclass('o-mail-Chatter-activity')]" position="after">
-            <button class="btn btn-light o-mail-Chatter-aiButton" t-on-click="toggleLLMChat" t-att-disabled="state.isInitializingLLM" title="Toggle AI Chat">
+            <button class="o-mail-Chatter-aiChat btn text-nowrap ms-1" t-att-class="{
+                'btn-primary active': state.isChattingWithLLM,
+                'btn-secondary': !state.isChattingWithLLM,
+                'my-2': !props.compactHeight
+            }" t-on-click="toggleLLMChat" t-att-disabled="state.isInitializingLLM" title="Toggle AI Chat">
                 <t t-if="state.isInitializingLLM">
-                    <i class="fa fa-spinner fa-spin"></i>
-                    <span class="d-none d-md-inline ms-1">Loading...</span>
+                    <i class="fa fa-spinner fa-spin me-1"></i>
+                    <span>Loading...</span>
                 </t>
                 <t t-elif="state.isChattingWithLLM">
-                    <i class="fa fa-robot"></i>
-                    <span class="d-none d-md-inline ms-1">Exit AI</span>
+                    <i class="fa fa-times me-1"></i>
+                    <span>Exit AI</span>
                 </t>
                 <t t-else="">
-                    <i class="fa fa-robot"></i>
-                    <span class="d-none d-md-inline ms-1">AI Chat</span>
+                    <i class="fa fa-robot me-1"></i>
+                    <span>AI Chat</span>
                 </t>
             </button>
         </xpath>
@@ -71,14 +75,15 @@ record.
 
     <!-- Simple template for standalone chatter button -->
     <t t-name="llm_thread.ChatterLLMButton" owl="1">
-        <button t-att-class="props.className or 'btn btn-sm btn-light'" t-att-disabled="state.isOpening" t-on-click="openLLMChat" title="Open AI Chat">
+        <button t-att-class="props.className or 'btn btn-secondary text-nowrap'" t-att-disabled="state.isOpening" t-on-click="openLLMChat" title="Open AI Chat">
             <t t-if="state.isOpening">
-                <i class="fa fa-spinner fa-spin" />
+                <i class="fa fa-spinner fa-spin me-1" />
+                <span>Loading...</span>
             </t>
             <t t-else="">
-                <i class="fa fa-robot" />
+                <i class="fa fa-robot me-1" />
+                <span>AI Chat</span>
             </t>
-            <span class="ms-1">AI Chat</span>
         </button>
     </t>
 

@@ -1,43 +1,149 @@
 // llm_chatter.scss
 
 .o-mail-Chatter {
-    // LLM Chat button
-    &-aiButton {
+
+    // LLM Chat button - updated to match native chatter button styling
+    &-aiChat {
         &.btn {
-            // Ensure consistent size with other buttons
-            &:not(:first-child) {
-                margin-left: 0.25rem;
+
+            // Add proper spacing from Activities button
+            &.ms-1 {
+                margin-left: 0.5rem !important; // Slightly more space than default ms-1
+            }
+
+            // Match the exact styling of Send message and Log note buttons
+            &.text-nowrap {
+                white-space: nowrap;
+            }
+
+            // Ensure proper icon spacing
+            i {
+                font-size: inherit;
+            }
+
+            // Active state styling to match Send message/Log note active states
+            &.active {
+                box-shadow: $btn-active-box-shadow;
+            }
+
+            // Disabled state
+            &:disabled {
+                opacity: $btn-disabled-opacity;
+                cursor: not-allowed;
+            }
+
+            // Hover states to match other buttons
+            &.btn-secondary:hover:not(:disabled) {
+                background-color: darken($secondary, 7.5%);
+                border-color: darken($secondary, 10%);
+            }
+
+            &.btn-primary:hover:not(:disabled) {
+                background-color: darken($primary, 7.5%);
+                border-color: darken($primary, 10%);
             }
         }
     }
-    
+
     // LLM content container
     &-llmContent {
         position: relative;
         background-color: $o-view-background-color;
-        
+        border-top: 1px solid $border-color;
+
         // Ensure the LLMChatThread fills the container
-        > div {
+        >div {
             height: 100%;
-            
+
             .o_LLMChatThread {
                 height: 100%;
                 display: flex;
                 flex-direction: column;
-                
+
                 &_content {
                     flex: 1;
                     min-height: 0;
                     overflow-y: auto;
                 }
-                
+
                 &_composer {
                     flex-shrink: 0;
-                    border-top: 1px solid $o-gray-300;
-                    background-color: $o-gray-100;
+                    border-top: 1px solid $border-color;
+                    background-color: $o-view-background-color;
                 }
             }
         }
+    }
+}
+
+// LLM Chat Interface styling improvements
+.llm-chat-interface {
+    background-color: $o-view-background-color;
+
+    .llm-messages {
+        .alert {
+            margin-bottom: 1rem;
+            border-radius: $border-radius-sm;
+            border: 1px solid rgba($info, 0.2);
+            background-color: rgba($info, 0.05);
+
+            .fa-info-circle {
+                color: $info;
+            }
+        }
+
+        // Loading state styling
+        .text-muted {
+            color: $text-muted !important;
+
+            .fa-spinner {
+                color: $primary;
+            }
+        }
+    }
+
+    // Input styling to match Odoo forms
+    .llm-input {
+        border: 1px solid $input-border-color;
+        border-radius: $input-border-radius;
+        font-size: $input-font-size;
+        line-height: $input-line-height;
+
+        &:focus {
+            border-color: $primary;
+            box-shadow: 0 0 0 0.2rem rgba($primary, 0.25);
+            outline: 0;
+        }
+
+        &:disabled {
+            background-color: $input-disabled-bg;
+            opacity: 1;
+        }
+    }
+
+    // Send button styling
+    .llm-send-btn {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: 0;
+
+        &:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .fa-paper-plane {
+            font-size: 0.875rem;
+        }
+
+        .fa-spinner {
+            font-size: 0.875rem;
+        }
+    }
+
+    // Bottom composer border
+    .border-top {
+        border-color: $border-color !important;
     }
 }
 
@@ -47,6 +153,7 @@
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
