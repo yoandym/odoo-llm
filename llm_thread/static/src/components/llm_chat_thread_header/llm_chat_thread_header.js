@@ -36,8 +36,6 @@ export class LLMChatThreadHeader extends Component {
 
         // Refs
         this.threadNameInputRef = useRef("threadNameInput");
-        this.modelSearchInputRef = useRef("modelSearchInput");
-        this.modelDropdownRef = useRef("modelDropdown");
 
         // State
         this.state = useState({
@@ -56,15 +54,6 @@ export class LLMChatThreadHeader extends Component {
 
             // UI state
             isSaving: false,
-        });
-
-        // Bootstrap dropdown event handling
-        onMounted(() => {
-            this.setupDropdownListeners();
-        });
-
-        onWillUnmount(() => {
-            this.cleanupDropdownListeners();
         });
     }
 
@@ -354,60 +343,6 @@ export class LLMChatThreadHeader extends Component {
         this.env.bus.trigger("open-thread-settings", {
             thread: this.props.thread,
         });
-    }
-
-    // --------------------------------------------------------------------------
-    // Dropdown Management
-    // --------------------------------------------------------------------------
-
-    /**
-     * Setup Bootstrap dropdown listeners
-     */
-    setupDropdownListeners() {
-        if (this.modelDropdownRef.el) {
-            this.modelDropdownRef.el.addEventListener(
-                "shown.bs.dropdown",
-                this.onModelDropdownShown.bind(this)
-            );
-            this.modelDropdownRef.el.addEventListener(
-                "hidden.bs.dropdown",
-                this.onModelDropdownHidden.bind(this)
-            );
-        }
-    }
-
-    /**
-     * Cleanup dropdown listeners
-     */
-    cleanupDropdownListeners() {
-        if (this.modelDropdownRef.el) {
-            this.modelDropdownRef.el.removeEventListener(
-                "shown.bs.dropdown",
-                this.onModelDropdownShown.bind(this)
-            );
-            this.modelDropdownRef.el.removeEventListener(
-                "hidden.bs.dropdown",
-                this.onModelDropdownHidden.bind(this)
-            );
-        }
-    }
-
-    /**
-     * Handle model dropdown shown
-     */
-    onModelDropdownShown() {
-        // Focus search input
-        setTimeout(() => {
-            this.modelSearchInputRef.el?.focus();
-        }, 100);
-    }
-
-    /**
-     * Handle model dropdown hidden
-     */
-    onModelDropdownHidden() {
-        // Clear search
-        this.state.modelSearchQuery = "";
     }
 
     /**

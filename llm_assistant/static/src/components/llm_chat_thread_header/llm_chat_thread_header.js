@@ -4,6 +4,8 @@ import { LLMChatThreadHeader } from "@llm_thread/components/llm_chat_thread_head
 import { useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
+import { Dropdown } from "@web/core/dropdown/dropdown";
+import { DropdownItem } from "@web/core/dropdown/dropdown_item";
 
 
 /**
@@ -189,4 +191,6 @@ export class LLMChatThreadHeaderWithAssistant extends LLMChatThreadHeader {
 // Register the component
 LLMChatThreadHeaderWithAssistant.components = {
     ...LLMChatThreadHeader.components,
+    Dropdown,
+    DropdownItem,
 };
