@@ -35,14 +35,17 @@ Use cases include creating specialized assistants for customer support, data ana
     ],
     "assets": {
         "web.assets_backend": [
-            # Models
-            "llm_assistant/static/src/models/llm_assistant.js",
-            "llm_assistant/static/src/models/llm_chat.js",
-            "llm_assistant/static/src/models/thread.js",
-            "llm_assistant/static/src/models/llm_chat_thread_header_view.js",
+            # Services (load first)
+            'llm_assistant/static/src/services/llm_assistant_service.js',
+            'llm_assistant/static/src/services/llm_chat_service_extension.js',
+
             # Components
-            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
-            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
+            'llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js',
+            'llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml',
+            'llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss',
+
+            # Patches (load after components)
+            'llm_assistant/static/src/patches/llm_chat_thread_patch.js',
         ],
     },
     "license": "LGPL-3",

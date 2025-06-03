@@ -63,20 +63,51 @@
         }
     }
     
-    // Model dropdown specific
-    .dropdown-menu {
-        .form-control {
-            &:focus {
-                border-color: $o-brand-primary;
-                box-shadow: 0 0 0 0.2rem rgba($o-brand-primary, 0.25);
+    // Unified dropdown styling for all dropdowns
+    .dropdown {
+        .dropdown-toggle {
+            // Ensure consistent styling with Odoo Dropdown component
+            border: 1px solid $o-gray-300;
+            background-color: $white;
+            
+            &:hover:not(:disabled) {
+                background-color: $o-gray-100;
+                border-color: $o-gray-400;
+            }
+            
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            
+            // Hide Bootstrap's default caret
+            &::after {
+                display: none;
             }
         }
         
-        .dropdown-item {
-            padding: 0.5rem 1rem;
+        .dropdown-menu {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border: 1px solid $o-gray-300;
             
-            &:hover:not(.active) {
-                background-color: $o-gray-100;
+            .form-control {
+                &:focus {
+                    border-color: $o-brand-primary;
+                    box-shadow: 0 0 0 0.2rem rgba($o-brand-primary, 0.25);
+                }
+            }
+            
+            .dropdown-item {
+                padding: 0.5rem 1rem;
+                
+                &:hover:not(.active) {
+                    background-color: $o-gray-100;
+                }
+                
+                &.active {
+                    background-color: $o-brand-primary;
+                    color: white;
+                }
             }
         }
     }
@@ -153,6 +184,42 @@
                 &:hover:not(:disabled) {
                     background-color: $o-gray-700;
                     border-color: $o-gray-500;
+                }
+            }
+        }
+        
+        // Dark mode for dropdowns
+        .dropdown {
+            .dropdown-toggle {
+                background-color: $o-gray-800;
+                border-color: $o-gray-600;
+                color: $o-gray-100;
+                
+                &:hover:not(:disabled) {
+                    background-color: $o-gray-700;
+                    border-color: $o-gray-500;
+                }
+            }
+            
+            .dropdown-menu {
+                background-color: $o-gray-800;
+                border-color: $o-gray-600;
+                
+                .dropdown-item {
+                    color: $o-gray-100;
+                    
+                    &:hover:not(.active) {
+                        background-color: $o-gray-700;
+                    }
+                    
+                    &.active {
+                        background-color: $o-brand-primary;
+                        color: white;
+                    }
+                }
+                
+                .dropdown-divider {
+                    border-color: $o-gray-600;
                 }
             }
         }

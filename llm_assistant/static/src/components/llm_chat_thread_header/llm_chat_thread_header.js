@@ -1,96 +1,192 @@
 /** @odoo-module **/
 
-import { patch } from "@web/core/utils/patch";
-import { LLMChatThreadHeader as OriginalLLMChatThreadHeader } from "@llm_thread/components/llm_chat_thread_header/llm_chat_thread_header";
+import { LLMChatThreadHeader } from "@llm_thread/components/llm_chat_thread_header/llm_chat_thread_header";
+import { useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
+import { _t } from "@web/core/l10n/translation";
 
-patch(OriginalLLMChatThreadHeader.prototype, {
+
+/**
+ * Extended LLMChatThreadHeader for Assistant functionality
+ * Migrated to Odoo v17 patterns
+ */
+export class LLMChatThreadHeaderWithAssistant extends LLMChatThreadHeader {
+    
     setup() {
         super.setup();
         
-        // Add assistant service
+        // Additional services
         this.llmAssistantService = useService("llm_assistant");
         
-        // Add assistant state
-        this.assistantState = useState({
-            isUpdatingAssistant: false,
-            selectedAssistantId: this.props.thread?.llmAssistant?.id || null,
-        });
-    },
+        // Extended state for assistant functionality
+        this.state = Object.assign(this.state || {}, useState({
+            selectedAssistantId: this.props.thread?.assistantId || null,
+            assistants: [],
+            isLoadingAssistants: false,
+        }));
+        
+        // Load assistants on component mount
+        this.loadAssistants();
+    }
+    
+    // --------------------------------------------------------------------------
+    // Getters
+    // --------------------------------------------------------------------------
     
     /**
      * Get all available assistants
      */
     get llmAssistants() {
-        return this.llmChat.llmAssistants || [];
-    },
+        return this.state.assistants;
+    }
     
     /**
-     * Get the currently selected assistant
+     * Get currently selected assistant
      */
     get selectedAssistant() {
-        if (!this.assistantState.selectedAssistantId) {
+        if (!this.state.selectedAssistantId) {
             return null;
         }
-        return this.llmAssistants.find(a => a.id === this.assistantState.selectedAssistantId) || null;
-    },
+        return this.state.assistants.find(a => a.id === this.state.selectedAssistantId) || null;
+    }
+    
+    // --------------------------------------------------------------------------
+    // Assistant Management
+    // --------------------------------------------------------------------------
+    
+    /**
+     * Load available assistants
+     */
+    async loadAssistants() {
+        this.state.isLoadingAssistants = true;
+        try {
+            const assistants = await this.llmAssistantService.loadAssistants();
+            this.state.assistants = assistants;
+            
+            // Update selected assistant if thread has one
+            if (this.props.thread?.assistantId) {
+                this.state.selectedAssistantId = this.props.thread.assistantId;
+            }
+        } catch (error) {
+            console.error("Failed to load assistants:", error);
+            this.notificationService.add(
+                _t("Failed to load assistants"),
+                { type: "danger" }
+            );
+        } finally {
+            this.state.isLoadingAssistants = false;
+        }
+    }
     
     /**
      * Handle assistant selection
+     * @param {Object} assistant - The selected assistant
      */
     async onSelectAssistant(assistant) {
-        if (this.assistantState.isUpdatingAssistant || 
-            this.assistantState.selectedAssistantId === assistant.id) {
-            return;
-        }
-
-        this.assistantState.isUpdatingAssistant = true;
-        const previousAssistantId = this.assistantState.selectedAssistantId;
+        if (assistant.id === this.state.selectedAssistantId) return;
         
-        // Update local state immediately
-        this.assistantState.selectedAssistantId = assistant.id;
-
+        const previousAssistantId = this.state.selectedAssistantId;
+        this.state.selectedAssistantId = assistant.id;
+        
         try {
-            const success = await this.llmChat.updateThreadAssistant(
-                this.props.thread.id,
+            // Update thread with selected assistant
+            await this.llmAssistantService.setThreadAssistant(
+                this.props.thread.id, 
                 assistant.id
             );
             
-            if (!success) {
-                // Revert on failure
-                this.assistantState.selectedAssistantId = previousAssistantId;
-            }
-        } finally {
-            this.assistantState.isUpdatingAssistant = false;
+            // Update thread settings
+            await this.updateThreadSettings({
+                assistant_id: assistant.id,
+            });
+            
+            // Notify of successful update
+            this.notificationService.add(
+                _t("Assistant updated successfully"),
+                { type: "success" }
+            );
+            
+        } catch (error) {
+            // Revert on error
+            this.state.selectedAssistantId = previousAssistantId;
+            
+            console.error("Failed to update assistant:", error);
+            this.notificationService.add(
+                _t("Failed to update assistant"),
+                { type: "danger" }
+            );
         }
-    },
+    }
     
     /**
      * Clear the selected assistant
      */
     async onClearAssistant() {
-        if (this.assistantState.isUpdatingAssistant || 
-            !this.assistantState.selectedAssistantId) {
-            return;
-        }
-
-        this.assistantState.isUpdatingAssistant = true;
-        const previousAssistantId = this.assistantState.selectedAssistantId;
+        const previousAssistantId = this.state.selectedAssistantId;
+        this.state.selectedAssistantId = null;
         
-        // Update local state immediately
-        this.assistantState.selectedAssistantId = null;
-
         try {
-            const success = await this.llmChat.updateThreadAssistant(
-                this.props.thread.id,
+            // Clear assistant from thread
+            await this.llmAssistantService.setThreadAssistant(
+                this.props.thread.id, 
                 false
             );
             
-            if (!success) {
-                // Revert on failure
-                this.assistantState.selectedAssistantId = previousAssistantId;
-            }
-        } finally {
-            this.assistantState.isUpdatingAssistant = false;
+            // Update thread settings
+            await this.updateThreadSettings({
+                assistant_id: false,
+            });
+            
+            // Notify of successful update
+            this.notificationService.add(
+                _t("Assistant cleared successfully"),
+                { type: "success" }
+            );
+            
+        } catch (error) {
+            // Revert on error
+            this.state.selectedAssistantId = previousAssistantId;
+            
+            console.error("Failed to clear assistant:", error);
+            this.notificationService.add(
+                _t("Failed to clear assistant"),
+                { type: "danger" }
+            );
         }
-    },
-});
+    }
+    
+    /**
+     * Override updateThreadSettings to handle assistant updates
+     * @override
+     */
+    async updateThreadSettings(values) {
+        // If assistant_id is being updated, ensure we have the latest assistant data
+        if ('assistant_id' in values && values.assistant_id) {
+            const assistant = this.state.assistants.find(a => a.id === values.assistant_id);
+            if (assistant && assistant.promptId) {
+                // Fetch evaluated values for this thread-assistant combination
+                try {
+                    const evaluatedValues = await this.llmAssistantService.getAssistantValuesForThread(
+                        this.props.thread.id,
+                        assistant.id
+                    );
+                    
+                    // Update assistant data with evaluated values
+                    if (evaluatedValues) {
+                        Object.assign(assistant, evaluatedValues);
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch assistant values:", error);
+                }
+            }
+        }
+        
+        // Call parent implementation
+        return super.updateThreadSettings(values);
+    }
+}
+
+// Register the component
+LLMChatThreadHeaderWithAssistant.components = {
+    ...LLMChatThreadHeader.components,
+};

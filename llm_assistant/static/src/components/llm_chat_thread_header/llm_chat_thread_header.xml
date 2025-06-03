@@ -1,64 +1,220 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <t t-name="llm_assistant.LLMChatThreadHeader.extension" t-inherit="llm_thread.LLMChatThreadHeader" t-inherit-mode="extension" owl="1">
-        <xpath expr="//div[hasclass('o_ThreadDropdowns')]" position="inside">
-            <!-- Assistant Dropdown for Extension -->
-            <div class="dropdown me-2">
-                <button class="btn btn-light dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" t-att-disabled="assistantState.isUpdatingAssistant" style="max-width: 200px;">
-                    <i class="fa fa-robot opacity-75" />
-                    <div class="text-truncate">
-                        <t t-if="selectedAssistant">
-                            <t t-esc="selectedAssistant.name" />
-                        </t>
-                        <t t-else="">
-                            Select Assistant
-                        </t>
-                    </div>
-                    <t t-if="assistantState.isUpdatingAssistant">
-                        <i class="fa fa-spinner fa-spin ms-1" />
-                    </t>
-                </button>
-
-                <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
-                    <!-- No Assistant Option -->
-                    <li>
-                        <a class="dropdown-item d-flex align-items-center" href="#" t-on-click.prevent="onClearAssistant" t-att-class="{
-                                'active': !selectedAssistant,
-                                'disabled': assistantState.isUpdatingAssistant
-                            }">
-                            <i class="fa fa-times me-2 opacity-75" />
-                            <span>No Assistant</span>
-                        </a>
-                    </li>
-
-                    <li>
-                        <hr class="dropdown-divider" />
-                    </li>
-
-                    <!-- Assistant List -->
-                    <t t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
+    <!-- Extend the base LLMChatThreadHeader template -->
+    <t t-name="llm_thread.LLMChatThreadHeader" t-inherit="llm_thread.LLMChatThreadHeader" t-inherit-mode="extension">
+        <!-- Replace the entire controls div with our extended version -->
+        <xpath expr="//div[hasclass('o_LLMChatThreadHeader_controls')]" position="replace">
+            <div t-if="!isMobile" class="o_LLMChatThreadHeader_controls d-flex align-items-center gap-2">
+                <!-- LLM Assistant Dropdown (NEW) -->
+                <div class="dropdown">
+                    <button 
+                        class="btn btn-light btn-sm dropdown-toggle" 
+                        type="button" 
+                        data-bs-toggle="dropdown" 
+                        aria-expanded="false" 
+                        style="max-width: 200px;"
+                        t-att-disabled="state.isLoadingAssistants">
+                        
+                        <span class="text-truncate">
+                            <!-- Loading spinner -->
+                            <i t-if="state.isLoadingAssistants" class="fa fa-spinner fa-spin me-1"/>
+                            
+                            <!-- Assistant name or placeholder -->
+                            <t t-if="selectedAssistant">
+                                <t t-esc="selectedAssistant.name"/>
+                            </t>
+                            <t t-else="">Select Assistant</t>
+                        </span>
+                        <i class="fa fa-caret-down ms-1" />
+                    </button>
+                    
+                    <ul class="dropdown-menu" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Clear assistant option -->
                         <li>
-                            <a class="dropdown-item d-flex align-items-center" href="#" t-on-click.prevent="() => onSelectAssistant(assistant)" t-att-title="assistant.name" t-att-class="{
-                                    'active': selectedAssistant and selectedAssistant.id === assistant.id,
-                                    'disabled': assistantState.isUpdatingAssistant
-                                }">
-                                <i class="fa fa-robot me-2 opacity-75" />
-                                <span class="text-truncate" t-esc="assistant.name" />
+                            <a 
+                                class="dropdown-item d-flex align-items-center" 
+                                href="#" 
+                                t-on-click.prevent="() => this.onClearAssistant()"
+                                t-attf-class="{{ !selectedAssistant ? 'active' : '' }}">
+                                <i class="fa fa-times me-2 text-muted"/>
+                                <span>No Assistant</span>
                             </a>
                         </li>
-                    </t>
-
-                    <!-- Empty State -->
-                    <t t-if="!llmAssistants.length">
-                        <li>
-                            <div class="px-3 py-2 text-muted small text-center">
-                                <i class="fa fa-info-circle me-1" />
-                                No assistants available
-                            </div>
+                        
+                        <!-- Divider -->
+                        <li><hr class="dropdown-divider"/></li>
+                        
+                        <!-- Loading state -->
+                        <li t-if="state.isLoadingAssistants" class="px-3 py-2 text-center">
+                            <i class="fa fa-spinner fa-spin me-1"/>
+                            <span class="text-muted">Loading assistants...</span>
                         </li>
+                        
+                        <!-- No assistants message -->
+                        <li t-elif="!llmAssistants.length" class="px-3 py-2">
+                            <span class="text-muted">No assistants available</span>
+                        </li>
+                        
+                        <!-- Assistant list -->
+                        <t t-else="" t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
+                            <li>
+                                <a 
+                                    class="dropdown-item d-flex align-items-center justify-content-between" 
+                                    href="#" 
+                                    t-on-click.prevent="() => this.onSelectAssistant(assistant)"
+                                    t-att-title="assistant.name"
+                                    t-attf-class="{{ selectedAssistant and selectedAssistant.id === assistant.id ? 'active' : '' }}">
+                                    
+                                    <!-- Assistant name -->
+                                    <span class="text-truncate me-2">
+                                        <t t-esc="assistant.name"/>
+                                    </span>
+                                    
+                                    <!-- Prompt indicator -->
+                                    <t t-if="assistant.promptId">
+                                        <i class="fa fa-file-text-o text-muted" 
+                                           t-att-title="assistant.llmPrompt ? assistant.llmPrompt.name : 'Has prompt'"/>
+                                    </t>
+                                </a>
+                            </li>
+                        </t>
+                    </ul>
+                </div>
+                
+                <!-- Provider Dropdown (from base) -->
+                <Dropdown 
+                    togglerClass="'btn btn-light btn-sm'"
+                    menuClass="'o_LLMChatThreadHeader_dropdown'"
+                >
+                    <t t-set-slot="toggler">
+                        <span class="text-truncate" style="max-width: 150px;">
+                            <t t-if="selectedProvider" t-esc="selectedProvider.name" />
+                            <t t-else="">Select Provider</t>
+                        </span>
+                        <i class="fa fa-caret-down ms-1" />
                     </t>
-                </ul>
+                    
+                    <t t-foreach="llmProviders" t-as="provider" t-key="provider.id">
+                        <DropdownItem
+                            onSelected="() => onSelectProvider(provider)"
+                            class="{ 'active': state.selectedProviderId === provider.id }"
+                        >
+                            <t t-esc="provider.name" />
+                        </DropdownItem>
+                    </t>
+                </Dropdown>
+
+                <!-- Model Dropdown with Search (from base) -->
+                <div class="dropdown" t-ref="modelDropdown">
+                    <button
+                        class="btn btn-light btn-sm dropdown-toggle"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        data-bs-auto-close="outside"
+                        t-att-disabled="!state.selectedProviderId"
+                        style="max-width: 200px;"
+                    >
+                        <span class="text-truncate">
+                            <t t-if="selectedModel" t-esc="selectedModel.name" />
+                            <t t-else="">Select Model</t>
+                        </span>
+                    </button>
+                    
+                    <div class="dropdown-menu p-0" style="min-width: 250px;">
+                        <!-- Search Input -->
+                        <div class="p-2 border-bottom">
+                            <input
+                                t-ref="modelSearchInput"
+                                type="text"
+                                class="form-control form-control-sm"
+                                placeholder="Search models..."
+                                t-att-value="state.modelSearchQuery"
+                                t-on-input="onModelSearchInput"
+                                t-on-click="preventDropdownClose"
+                            />
+                        </div>
+                        
+                        <!-- Model List -->
+                        <div style="max-height: 250px; overflow-y: auto;">
+                            <t t-if="filteredModels.length">
+                                <t t-foreach="filteredModels" t-as="model" t-key="model.id">
+                                    <a
+                                        href="#"
+                                        class="dropdown-item"
+                                        t-att-class="{ 'active': state.selectedModelId === model.id }"
+                                        t-on-click.prevent="() => onSelectModel(model)"
+                                    >
+                                        <t t-esc="model.name" />
+                                    </a>
+                                </t>
+                            </t>
+                            <t t-else="">
+                                <div class="dropdown-item text-muted">
+                                    No models found
+                                    <t t-if="state.modelSearchQuery">
+                                        for "<t t-esc="state.modelSearchQuery" />"
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tools Dropdown (from base) -->
+                <div class="dropdown">
+                    <button
+                        class="btn btn-light btn-sm dropdown-toggle"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        data-bs-auto-close="outside"
+                    >
+                        Tools
+                        <t t-if="selectedToolsCount > 0">
+                            <span class="badge bg-secondary ms-1">
+                                <t t-esc="selectedToolsCount" />
+                            </span>
+                        </t>
+                    </button>
+                    
+                    <div class="dropdown-menu p-2" style="min-width: 200px;">
+                        <h6 class="dropdown-header px-0">Available Tools</h6>
+                        <div style="max-height: 250px; overflow-y: auto;">
+                            <t t-if="availableTools.length">
+                                <t t-foreach="availableTools" t-as="tool" t-key="tool.id">
+                                    <div class="form-check">
+                                        <input
+                                            type="checkbox"
+                                            class="form-check-input"
+                                            t-att-id="'tool-' + tool.id"
+                                            t-att-checked="isToolSelected(tool.id)"
+                                            t-on-change="(ev) => onToggleTool(tool, ev.target.checked)"
+                                        />
+                                        <label 
+                                            class="form-check-label"
+                                            t-att-for="'tool-' + tool.id"
+                                        >
+                                            <t t-esc="tool.name" />
+                                        </label>
+                                    </div>
+                                </t>
+                            </t>
+                            <t t-else="">
+                                <div class="text-muted small">No tools available</div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </xpath>
+        
+        <!-- Mobile view: Add assistant info after the title -->
+        <xpath expr="//div[hasclass('o_LLMChatThreadHeader_title')]" position="inside">
+            <t t-if="selectedAssistant and isMobile" groups="base.group_user">
+                <div class="text-truncate small text-muted mt-1">
+                    <i class="fa fa-robot me-1"/>
+                    <span t-esc="selectedAssistant.name"/>
+                </div>
+            </t>
         </xpath>
     </t>
 </templates>
