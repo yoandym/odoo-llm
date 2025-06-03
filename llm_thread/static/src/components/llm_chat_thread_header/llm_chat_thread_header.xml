@@ -74,7 +74,7 @@
                     
                     <t t-foreach="llmProviders" t-as="provider" t-key="provider.id">
                         <DropdownItem
-                            onSelected="() => onSelectProvider(provider)"
+                            onSelected="onSelectProvider.bind(this, provider)"
                             class="{ 'active': state.selectedProviderId === provider.id }"
                         >
                             <t t-esc="provider.name" />
@@ -97,7 +97,7 @@
                     
                     <t t-foreach="filteredModels" t-as="model" t-key="model.id">
                         <DropdownItem
-                            onSelected="() => onSelectModel(model)"
+                            onSelected="onSelectModel.bind(this, model)"
                             class="{ 'active': state.selectedModelId === model.id }"
                         >
                             <t t-esc="model.name" />
