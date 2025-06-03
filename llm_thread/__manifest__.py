@@ -68,7 +68,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.js",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.xml",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.scss",
-                        
+
             "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.js",
             "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.xml",
             "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.scss",
@@ -81,10 +81,11 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
 
+            "llm_thread/static/src/components/llm_chatter/llm_chatter_interface.js",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.js",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.scss",
-            
+
             # Form Button Widget
             "llm_thread/static/src/components/llm_form_button/llm_form_button.js",
             "llm_thread/static/src/components/llm_form_button/llm_form_button.xml",

@@ -1,6 +1,75 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <!-- Simple template for chatter button -->
+
+    <!-- LLM Chat Interface Component Template -->
+    <t t-name="llm_thread.LLMChatterInterface" owl="1">
+        <div class="h-100 d-flex flex-column llm-chat-interface">
+            <!-- Header Component -->
+            <LLMChatThreadHeader thread="props.thread" onOpenSidebar="() => {}" t-if="props.thread" />
+
+            <!-- Messages Area -->
+            <div class="flex-grow-1 overflow-auto p-3" style="max-height: 400px;">
+                <div class="llm-messages" t-ref="messagesContainer">
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle me-2"></i>
+                        Welcome! This is your AI assistant for this record. 
+                        You can ask questions, get help, or request actions related to this <t t-esc="props.modelName || 'record'"/>
+record.
+                    </div>
+                    <div class="text-muted text-center" t-if="state.isLoadingMessages">
+                        <small>
+                            <i class="fa fa-spinner fa-spin me-1"></i>Loading previous messages...</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Composer -->
+            <div class="p-3 border-top">
+                <div class="input-group">
+                    <input type="text" class="form-control llm-input" placeholder="Type your message here..." t-ref="messageInput" t-on-keydown="onKeyDown" t-att-disabled="state.isSending"/>
+                    <button class="btn btn-primary llm-send-btn" type="button" t-on-click="sendMessage" t-att-disabled="state.isSending">
+                        <i t-if="state.isSending" class="fa fa-spinner fa-spin"></i>
+                        <i t-else="" class="fa fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </t>
+
+    <!-- Extend Chatter template to add AI Chat button -->
+    <t t-name="mail.Chatter" t-inherit="mail.Chatter" t-inherit-mode="extension" owl="1">
+        <!-- Add AI Chat button after Activities button -->
+        <xpath expr="//button[hasclass('o-mail-Chatter-activity')]" position="after">
+            <button class="btn btn-light o-mail-Chatter-aiButton" t-on-click="toggleLLMChat" t-att-disabled="state.isInitializingLLM" title="Toggle AI Chat">
+                <t t-if="state.isInitializingLLM">
+                    <i class="fa fa-spinner fa-spin"></i>
+                    <span class="d-none d-md-inline ms-1">Loading...</span>
+                </t>
+                <t t-elif="state.isChattingWithLLM">
+                    <i class="fa fa-robot"></i>
+                    <span class="d-none d-md-inline ms-1">Exit AI</span>
+                </t>
+                <t t-else="">
+                    <i class="fa fa-robot"></i>
+                    <span class="d-none d-md-inline ms-1">AI Chat</span>
+                </t>
+            </button>
+        </xpath>
+
+        <!-- Add LLM content area -->
+        <xpath expr="//div[hasclass('o-mail-Chatter-content')]" position="after">
+            <div t-if="state.isChattingWithLLM" class="o-mail-Chatter-content o-mail-Chatter-llmContent" style="height: 600px; display: flex; flex-direction: column; min-height: 0;">
+                <LLMChatterInterface thread="state.llmThread" modelName="props.threadModel" onSendMessage="(message) => this.sendLLMMessage(message)" t-if="state.llmThread" />
+            </div>
+        </xpath>
+
+        <!-- Hide normal content when in LLM mode -->
+        <xpath expr="//div[hasclass('o-mail-Chatter-content') and not(hasclass('o-mail-Chatter-llmContent'))]" position="attributes">
+            <attribute name="t-att-style">state.isChattingWithLLM ? 'display: none;' : ''</attribute>
+        </xpath>
+    </t>
+
+    <!-- Simple template for standalone chatter button -->
     <t t-name="llm_thread.ChatterLLMButton" owl="1">
         <button t-att-class="props.className or 'btn btn-sm btn-light'" t-att-disabled="state.isOpening" t-on-click="openLLMChat" title="Open AI Chat">
             <t t-if="state.isOpening">
@@ -12,4 +81,5 @@
             <span class="ms-1">AI Chat</span>
         </button>
     </t>
+
 </templates>
