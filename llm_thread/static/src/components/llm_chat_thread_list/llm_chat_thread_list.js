@@ -26,13 +26,12 @@ export class LLMChatThreadList extends Component {
         this.state = useState({
             isLoading: false,
             loadingThreadId: null,
+            threads: this.llmChat.orderedThreads,
         });
 
         // Watch for service changes to trigger re-renders
-        this.env.bus.addEventListener("llm_chat:threads_changed", () => {
-            console.log("ThreadList: Received threads_changed event");
-            // The reactive service will automatically trigger re-renders
-        });
+        this.env.bus.addEventListener("llm_chat:threads_changed", this._onThreadsChanged.bind(this));
+
 
         this.env.bus.addEventListener("llm_chat:thread_selected", () => {
             console.log("ThreadList: Received thread_selected event");
@@ -43,13 +42,10 @@ export class LLMChatThreadList extends Component {
     }
 
     /**
-     * Get ordered threads from the service
+     * react to changes in threads
      */
-    get threads() {
-        const threads = this.llmChat.orderedThreads;
-        console.log("ThreadList: threads getter called, returning:", threads.length, "threads");
-        console.log("ThreadList: thread IDs:", threads.map(t => t.id));
-        return threads;
+    _onThreadsChanged(event) {
+        this.state.threads = this.llmChat.orderedThreads;
     }
 
     /**
@@ -65,7 +61,7 @@ export class LLMChatThreadList extends Component {
      * Check if there are no threads
      */
     get hasNoThreads() {
-        return this.threads.length === 0;
+        return this.state.threads.length === 0;
     }
 
     /**

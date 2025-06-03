@@ -17,7 +17,7 @@ export class LLMChatSidebar extends Component {
   static props = {
     isVisible: { type: Boolean, optional: true },
     onClose: { type: Function, optional: true },
-    onThreadSelect: { type: Function, optional: true }, // Add this prop
+    onThreadSelect: { type: Function, optional: true },
   };
 
   setup() {
@@ -72,8 +72,9 @@ export class LLMChatSidebar extends Component {
 
     this.state.isCreatingThread = true;
     try {
-      console.log("Sidebar: Creating new thread...");
-      await this.llmChat.createNewThread();
+      const name = _t("New Chat %s", new Date().toLocaleString());
+      const thread = await this.llmChat.createThread({name});
+      await this.llmChat.selectThread(thread.id);
 
       // Notify parent component about thread selection
       if (this.props.onThreadSelect && this.llmChat.activeThread) {

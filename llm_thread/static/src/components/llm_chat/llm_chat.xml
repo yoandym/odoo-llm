@@ -27,7 +27,7 @@
                             <p class="text-muted">
                                 Select a conversation from the sidebar or create a new chat to get started
                             </p>
-                            <button class="btn btn-primary mt-3" t-on-click="() => llmChat.createNewThread()">
+                            <button class="btn btn-primary mt-3" t-on-click="() => onCreateNewThread()">
                                 <i class="fa fa-plus me-2" />
                                 Start New Chat
                             </button>

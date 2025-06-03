@@ -20,7 +20,7 @@ export class LLMChat extends Component {
   setup() {
     // Use the LLM chat service
     this.llmChat = useService("llm_chat");
-    
+
     // Use other necessary services
     this.uiService = useService("ui");
     this.notificationService = useService("notification");
@@ -161,7 +161,9 @@ export class LLMChat extends Component {
   }
 
   async onCreateNewThread() {
-    await this.llmChat.createNewThread();
+    const name = _t("New Chat %s", new Date().toLocaleString()); 
+    const thread = await this.llmChat.createThread({name});
+    await this.selectThread(thread.id);
   }
 
   async onRefreshThread(threadId) {
