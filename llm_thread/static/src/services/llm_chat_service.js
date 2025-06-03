@@ -14,6 +14,43 @@ export const LLMChatService = {
 
     start(env, { rpc, user, action, notification, orm }) {
         // Create a reactive store for the LLM chat state
+        /**
+         * LLM Chat Service Store - A reactive store for managing LLM chat threads, models, and tools
+         * 
+         * @namespace llmChat
+         * @description Manages the state and operations for LLM chat functionality including threads, models, and tools.
+         * 
+         * @property {Object|null} llmChatView - Current chat view configuration with action ID
+         * @property {boolean} isInitThreadHandled - Flag to track if initial thread handling is complete
+         * @property {string|number|null} initActiveId - Initial active thread identifier
+         * @property {Object|null} activeThread - Currently selected thread object
+         * @property {Array<Object>} threads - Array of available chat threads
+         * @property {Array<Object>} llmModels - Array of available LLM models with provider information
+         * @property {Array<Object>} tools - Array of available LLM tools
+         * 
+         * @method initializeLLMChat - Initializes the LLM chat system with action data and optional promises
+         * @method close - Closes the current chat view
+         * @method openInitThread - Opens the initial thread based on initActiveId
+         * @method openThread - Opens a specific thread and triggers action if needed
+         * @method threadToActiveId - Converts thread object to active ID string format
+         * @method loadThreads - Loads threads from server with optional additional fields
+         * @method _mapThreadDataFromServer - Maps server thread data to client format
+         * @method refreshThread - Refreshes a specific thread's data from server
+         * @method selectThread - Selects and activates a thread by ID
+         * @method open - Opens the chat view with empty configuration
+         * @method loadLLMModels - Loads available LLM models from server
+         * @method createThread - Creates a new thread with specified parameters
+         * @method ensureThread - Ensures a thread exists, creating one if needed
+         * @method loadTools - Loads available LLM tools from server
+         * @method getMessages - Retrieves messages for a specific thread
+         * @method sendMessage - Sends a message to a thread via RPC call
+         * 
+         * @computed activeId - Returns active thread ID in string format
+         * @computed orderedThreads - Returns threads sorted by update date (newest first)
+         * @computed llmProviders - Returns unique providers from available models
+         * @computed defaultLLMModel - Returns the default LLM model or first available
+         * @computed threadCache - Returns cached thread data for active thread
+         */
         const store = reactive({
             llmChat: {
                 llmChatView: null,
@@ -114,9 +151,6 @@ export const LLMChatService = {
 
                     this.threads = result.map(thread => this._mapThreadDataFromServer(thread));
 
-                    // Dispatch event for component reactivity when threads are loaded
-                    env.bus.trigger("llm_chat:threads_changed", { threads: this.threads });
-                    console.log("Dispatched llm_chat:threads_changed event after loading threads");
                 },
 
                 _mapThreadDataFromServer(threadData) {
@@ -249,7 +283,7 @@ export const LLMChatService = {
                             throw new Error("No LLM model available");
                         }
                     }
-
+                    
                     const threadData = {
                         name,
                         model_id: defaultModel.id,
@@ -340,7 +374,7 @@ export const LLMChatService = {
                         }
 
                         try {
-                            const name = `AI Chat for ${relatedThreadModel} ${relatedThreadId}`;
+                            const name = _t("New Chat for %s %s", {relatedThreadModel, relatedThreadId});
                             return await this.createThread({
                                 name,
                                 relatedThreadModel,
@@ -356,25 +390,11 @@ export const LLMChatService = {
                     }
 
                     try {
-                        const name = `New Chat ${new Date().toLocaleString()}`;
+                        const name = _t("New Chat %s", new Date().toLocaleString());
                         return await this.createThread({ name });
                     } catch (error) {
                         console.error("Failed to create default thread:", error);
                         return null;
-                    }
-                },
-
-                async createNewThread() {
-                    try {
-                        const name = `New Chat ${new Date().toLocaleString()}`;
-                        const thread = await this.createThread({ name });
-                        if (thread) {
-                            console.log("Created new thread:", thread);
-                            await this.selectThread(thread.id);
-                            console.log("Selected thread:", this.activeThread);
-                        }
-                    } catch (error) {
-                        console.error("Failed to create new thread:", error);
                     }
                 },
 
@@ -508,6 +528,7 @@ export const LLMChatService = {
                     return [...new Map(providers.map(p => [p.id, p])).values()];
                 },
 
+                
                 get defaultLLMModel() {
                     if (!this.llmModels || !Array.isArray(this.llmModels) || (!this.llmModels.length > 0)) {
                         console.log("DefaultLLMModel: No models available");
