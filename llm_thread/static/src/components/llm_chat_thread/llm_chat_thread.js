@@ -309,8 +309,9 @@ export class LLMChatThread extends Component {
             id: msg.id,
             body: msg.body,
             author: msg.author_id,
+            email_from: msg.email_from,
             date: msg.date,
-            isAiMessage: msg.message_type === "llm_response",
+            isAiMessage: msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_assistant" || msg.message_type === "llm_response",
             isStreaming: false,
             attachments: msg.attachment_ids || [],
         }));
@@ -356,6 +357,7 @@ export class LLMChatThread extends Component {
             Object.assign(this.state.messages[messageIndex], {
                 body: messageData.body,
                 date: messageData.date,
+                email_from: messageData.email_from,
             });
 
             // Auto-scroll during streaming

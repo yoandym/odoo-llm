@@ -85,9 +85,20 @@ export class LLMMessage extends Component {
      * Get author name
      */
     get authorName() {
-        if (this.props.message.author) {
+        // First try to get from author field
+        if (this.props.message.author && this.props.message.author[1]) {
             return this.props.message.author[1];
         }
+        
+        // Fallback to extracting from email_from
+        if (this.props.message.email_from) {
+            // Extract name from email format "Name" <email@domain> or Name <email@domain>
+            const match = this.props.message.email_from.match(/^"?([^"<]+?)"?\s*</);
+            if (match) {
+                return match[1].trim();
+            }
+        }
+        
         return this.props.message.isAiMessage ? _t("AI Assistant") : _t("Unknown");
     }
 
@@ -95,7 +106,7 @@ export class LLMMessage extends Component {
      * Get avatar URL or icon
      */
     get avatarSrc() {
-        if (this.props.message.author) {
+        if (this.props.message.author && this.props.message.author[0]) {
             return `/web/image/res.partner/${this.props.message.author[0]}/avatar_128`;
         }
         return null;

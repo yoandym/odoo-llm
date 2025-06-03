@@ -39,6 +39,8 @@ class MailMessage(models.Model):
                 "tool_call_definition",
                 "tool_call_result",
                 "user_vote",
+                "email_from",
+                "author_id",
             ]
         )
         return fields_list

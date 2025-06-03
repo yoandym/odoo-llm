@@ -16,7 +16,7 @@ class MailMessageLLMSubtypes(models.Model):
 
     def _get_llm_message_format_fields(self):
         """Returns fields needed by this module for formatting for frontend."""
-        return ["subtype_id"]
+        return ["subtype_id", "email_from", "author_id"]
 
     @api.model
     def _get_llm_subtype_data(self):
