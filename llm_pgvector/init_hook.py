@@ -5,11 +5,14 @@ from psycopg2.errors import UndefinedObject
 _logger = logging.getLogger(__name__)
 
 
-def pre_init_hook(cr):
+def pre_init_hook(env):
     """
     Initialize pgvector extension in PostgreSQL before module installation
     """
     _logger.info("Checking and installing pgvector extension...")
+
+    # Get the cursor from the environment (Odoo 17 convention)
+    cr = env.cr
 
     # Try to check for the vector extension
     try:
