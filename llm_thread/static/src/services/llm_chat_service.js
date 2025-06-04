@@ -2,6 +2,7 @@
 
 import { registry } from "@web/core/registry";
 import { reactive } from "@odoo/owl";
+import { _t } from "@web/core/l10n/translation";
 
 /**
  * LLM Chat Service for Odoo v17
@@ -117,7 +118,7 @@ export const LLMChatService = {
 
                     if (!this.llmChatView) {
                         await action.doAction("llm_thread.action_llm_chat", {
-                            name: env._t("Chat"),
+                            name: _t("Chat"),
                             active_id: this.threadToActiveId(thread),
                             clearBreadcrumbs: false,
                         });
@@ -266,13 +267,13 @@ export const LLMChatService = {
                 },
 
                 async createThread({ name, relatedThreadModel, relatedThreadId }) {
-                    const defaultModel = this.defaultLLMModel;
+                    let defaultModel = this.defaultLLMModel;
 
                     if (!defaultModel) {
                         notification.add(
-                            env._t("No default LLMModel. Using the first available model"),
+                            _t("No default LLMModel. Using the first available model"),
                             {
-                                title: env._t("Warning"),
+                                title: _t("Warning"),
                                 type: "warning",
                             }
                         );
@@ -312,9 +313,9 @@ export const LLMChatService = {
 
                     if (!threadDetails || !threadDetails[0]) {
                         notification.add(
-                            env._t("Failed to create thread"),
+                            _t("Failed to create thread"),
                             {
-                                title: env._t("Error"),
+                                title: _t("Error"),
                                 type: "danger",
                             }
                         );
