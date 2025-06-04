@@ -1,6 +1,6 @@
 {
     "name": "LLM Tool",
-    "version": "17.0.1.0.1",
+    "version": "17.0.1.0.2",
     "category": "Technical",
     "summary": "Function calling and tool execution for LLM models to interact with Odoo",
     "description": """

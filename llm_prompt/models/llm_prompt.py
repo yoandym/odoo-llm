@@ -1,10 +1,13 @@
 import json
+import logging
 import re
 
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 from .arguments_schema import validate_arguments_schema
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMPrompt(models.Model):
@@ -114,6 +117,13 @@ class LLMPrompt(models.Model):
         string="Last Used",
         readonly=True,
         help="When this prompt was last used",
+    )
+
+    input_schema_json = fields.Json(
+        string="Input Schema JSON",
+        compute="_compute_input_schema_json",
+        help="JSON schema for input fields",
+        store=True,
     )
 
     _sql_constraints = [
@@ -287,6 +297,9 @@ class LLMPrompt(models.Model):
         try:
             schema = json.loads(self.arguments_json or "{}")
         except json.JSONDecodeError:
+            _logger.warning(
+                "Skipping: Invalid JSON in arguments schema: %s", self.arguments_json
+            )
             # If schema is invalid, skip validation
             return
 
@@ -397,3 +410,89 @@ class LLMPrompt(models.Model):
             "res_id": wizard.id,
             "target": "new",
         }
+
+    def get_formatted_system_prompt(self, default_values=None):
+        """Generate a formatted system prompt based on the prompt template"""
+        self.ensure_one()
+
+        try:
+            # Get the argument values from default_values
+            arg_values = json.loads(default_values or "{}")
+
+            # Get messages from the prompt template
+            messages = self.get_messages(arg_values)
+
+            # Find the system message
+            system_message = next(
+                (msg for msg in messages if msg.get("role") == "system"), None
+            )
+            if system_message and "content" in system_message:
+                if (
+                    isinstance(system_message["content"], dict)
+                    and "text" in system_message["content"]
+                ):
+                    return system_message["content"]["text"]
+                elif isinstance(system_message["content"], str):
+                    return system_message["content"]
+
+            # If no system message found, return the first message content
+            if messages and "content" in messages[0]:
+                if (
+                    isinstance(messages[0]["content"], dict)
+                    and "text" in messages[0]["content"]
+                ):
+                    return messages[0]["content"]["text"]
+                elif isinstance(messages[0]["content"], str):
+                    return messages[0]["content"]
+
+        except Exception as e:
+            _logger.error("Error generating system prompt from template: %s", str(e))
+            return _("Error generating system prompt preview: %s") % str(e)
+
+    @api.depends("template_ids", "arguments_json")
+    def _compute_input_schema_json(self):
+        """
+        Compute a proper JSON schema for input fields based on the first template and arguments_json.
+        This is used for media generation models to provide a customized input form.
+        """
+        for prompt in self:
+            try:
+                # Get arguments from arguments_json
+                arguments = json.loads(prompt.arguments_json or "{}")
+
+                prompt.input_schema_json = self._generate_json_schema(arguments)
+            except Exception as e:
+                _logger.error("Error computing input schema JSON: %s", str(e))
+                prompt.input_schema_json = {}
+
+    def _generate_json_schema(self, input_json):
+        # Initialize dictionaries and lists for schema components
+        properties = {}
+        required = []
+
+        # Process each property from the input dictionary
+        for prop_name, prop_details in input_json.items():
+            # Create a copy of prop_details to avoid modifying the original
+            prop_schema = dict(prop_details)
+
+            # Check if the property is required and add to the required list if true
+            if prop_schema.get("required", False):
+                required.append(prop_name)
+                # Remove the required key from the property schema
+                prop_schema.pop("required", None)
+
+            # Add the property schema to the properties dictionary
+            properties[prop_name] = prop_schema
+
+        # Construct the full JSON schema
+        schema = {
+            "type": "object",
+            "properties": properties,
+        }
+
+        # Only add required array if there are required fields
+        if required:
+            schema["required"] = required
+
+        # Return the schema as a Python dictionary
+        return schema

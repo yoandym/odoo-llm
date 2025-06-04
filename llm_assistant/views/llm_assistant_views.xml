@@ -69,14 +69,11 @@
                             <group>
                                 <field
                   name="default_values"
-                  widget="ace"
-                  options="{'mode': 'text'}"
-                  placeholder="{
-  &quot;role&quot;: &quot;Customer Support Assistant&quot;,
-  &quot;goal&quot;: &quot;Help customers solve their problems efficiently&quot;,
-  &quot;background&quot;: &quot;You are a support assistant for our product.&quot;,
-  &quot;instructions&quot;: &quot;Always be polite and helpful.&quot;
-}"
+                  widget="json_editor"
+                />
+                                <field
+                  name="has_dynamic_defaults"
+                  help="Enable if your default values contain Python expressions that should be evaluated"
                 />
                             </group>
                             <div

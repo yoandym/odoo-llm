@@ -7,12 +7,13 @@
     """,
     "category": "Technical",
     "version": "17.0.1.1.0",
-    "depends": ["llm"],
+    "depends": ["llm", "llm_generate"],
     "external_dependencies": {
         "python": ["replicate"],
     },
     "data": [
         "data/llm_publisher.xml",
+        "views/replicate_model_views.xml",
     ],
     "images": [
         "static/description/banner.jpeg",

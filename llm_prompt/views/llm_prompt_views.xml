@@ -53,7 +53,10 @@
                                 <field name="undefined_arguments" readonly="1" class="oe_inline" />
                             </div>
                             <group>
-                                <field name="arguments_json" widget="ace" options="{'mode': 'text'}" placeholder="{
+                                <field
+                  name="arguments_json"
+                  widget="json_editor"
+                  placeholder="{
   'system_prompt': {
     'type': 'string',
     'description': 'The system instructions for the LLM',
@@ -65,7 +68,13 @@
     'description': 'The user input to process',
     'required': true
   }
-}" />
+}"
+                />
+                <field
+                  name="input_schema_json"
+                  readonly="1"
+                  widget="json_editor"
+                />
                             </group>
                             <div class="alert alert-info" role="alert">
                                 <p>
@@ -97,10 +106,10 @@
                         </page>
                         <page string="Testing" name="testing">
                             <group>
-                                <field name="example_args" widget="ace" options="{'mode': 'text'}" placeholder="{
-  'system_prompt': 'You are a helpful data analysis assistant.',
-  'user_input': 'Please analyze this dataset...'
-}" />
+                                <field
+                  name="example_args"
+                  widget="json_editor"
+                />
                             </group>
                             <div class="alert alert-info" role="alert">
                                 <p

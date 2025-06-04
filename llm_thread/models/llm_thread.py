@@ -2,6 +2,10 @@ import functools
 import json
 import logging
 
+import emoji
+import markdown2
+
+
 from odoo import _, api, fields, models
 from odoo.addons.llm_mail_message_subtypes.const import (
     LLM_ASSISTANT_SUBTYPE_XMLID, LLM_TOOL_RESULT_SUBTYPE_XMLID,
@@ -101,24 +105,17 @@ class LLMThread(models.Model):
         subtype_xmlid = kwargs.get("subtype_xmlid")
         author_id = kwargs.get("author_id")
         body = kwargs.get("body", "")
-        email_from = LLMThreadUtils.get_email_from(
-            self.provider_id.name,  # type: ignore
-            self.model_id.name,  # type: ignore
+        email_from = self.get_email_from(
+            self.provider_id.name,
+            self.model_id.name,
             subtype_xmlid,
             author_id,
             kwargs.get("tool_name"),
         )
-        post_vals = LLMThreadUtils.build_post_vals(
-            subtype_xmlid, body, author_id, email_from
-        )
-        message = self.message_post(**post_vals)  # type: ignore
-        extra_vals = LLMThreadUtils.build_update_vals(
-            subtype_xmlid,
-            tool_call_id=kwargs.get("tool_call_id"),
-            tool_calls=kwargs.get("tool_calls"),
-            tool_call_definition=kwargs.get("tool_call_definition"),
-            tool_call_result=kwargs.get("tool_call_result"),
-        )
+        post_vals = self.build_post_vals(subtype_xmlid, body, author_id, email_from)
+        message = self.message_post(**post_vals)
+        extra_vals = self.build_update_vals(**kwargs)
+        
         if extra_vals:
             message.write(extra_vals)
         return message
@@ -162,13 +159,14 @@ class LLMThread(models.Model):
             raise UserError("No message found to process.")
         return last_message
 
-    def _init_message(self, user_message_body):
+    def _init_message(self, user_message_body, **kwargs):
         """Initialize first message: user input or history."""
         if user_message_body:
             return self._post_message(
                 subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
                 body=user_message_body,
                 author_id=self.env.user.partner_id.id,
+                **kwargs,
             )
         return self._get_last_message_from_history()
 
@@ -196,7 +194,7 @@ class LLMThread(models.Model):
             return self._process_tool_calls(last_message)
         return last_message
 
-    def generate(self, user_message_body):
+    def generate(self, user_message_body, **kwargs):
         self.ensure_one()
         if self.is_locked:
             raise UserError(
@@ -206,7 +204,7 @@ class LLMThread(models.Model):
 
         try:
             # orchestrate via hooks
-            last = self._init_message(user_message_body)
+            last = self._init_message(user_message_body, **kwargs)
             if user_message_body:
                 yield {"type": "message_create", "message": last.message_format()[0]}  # type: ignore
             while self._should_continue(last):
@@ -226,10 +224,32 @@ class LLMThread(models.Model):
             )
         return last_tool_msg
 
-    def _get_system_prompt(self):
-        """Hook: return a system prompt for chat. Override in other modules. If needed"""
+    def _get_prepend_messages(self):
+        """Hook: return a list of formatted messages to prepend to the conversation.
+        Override in other modules if needed.
+
+        Returns:
+            list: List of message dictionaries in the format:
+                [{"role": "system", "content": "..."},
+                 {"role": "user", "content": "..."},
+                 ...]
+        """
         self.ensure_one()
-        return None
+        return []
+
+    def get_related_record(self):
+        """Get the related record if this thread is connected to a model.
+
+        Returns:
+            recordset: The related record if it exists, otherwise False
+        """
+        self.ensure_one()
+        if self.model and self.res_id:
+            try:
+                return self.env[self.model].browse(self.res_id).exists()
+            except Exception as e:
+                _logger.error("Error getting related record: %s", str(e))
+        return False
 
     def _get_assistant_response(self):
         self.ensure_one()
@@ -239,7 +259,7 @@ class LLMThread(models.Model):
             "messages": message_history_rs,
             "tools": tool_rs,
             "stream": True,
-            "system_prompt": self._get_system_prompt(),
+            "prepend_messages": self._get_prepend_messages(),
         }
         stream_response = self.model_id.chat(**chat_kwargs)
         assistant_msg = yield from self.env["mail.message"].create_message_from_stream(
@@ -336,3 +356,78 @@ class LLMThread(models.Model):
         self.env["bus.bus"]._sendone(
             self.env.user.partner_id, "llm.thread/delete", {"ids": unlink_ids}
         )
+
+    @api.model
+    def get_email_from(
+        self,
+        provider_name,
+        provider_model_name,
+        subtype_xmlid,
+        author_id,
+        tool_name=None,
+    ):
+        if not author_id:
+            if subtype_xmlid == LLM_TOOL_RESULT_SUBTYPE_XMLID:
+                name = tool_name or "Tool"
+                return f"{name} <tool@{provider_name.lower().replace(' ', '')}.ai>"
+            elif subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID:
+                model = provider_model_name or "Assistant"
+                provider = provider_name.lower().replace(" ", "")
+                return f"{model} <ai@{provider}.ai>"
+        return None
+
+    @api.model
+    def build_post_vals(self, subtype_xmlid, body, author_id, email_from):
+        return {
+            "body": markdown2.markdown(emoji.demojize(body)),
+            "message_type": "comment",
+            "subtype_xmlid": subtype_xmlid,
+            "author_id": author_id,
+            "email_from": email_from or None,
+            "partner_ids": [],
+        }
+
+    @api.model
+    def build_update_vals(
+        self,
+        subtype_xmlid,
+        tool_call_id=None,
+        tool_calls=None,
+        tool_call_definition=None,
+        tool_call_result=None,
+        **kwargs,
+    ):
+        if subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID and tool_calls:
+            return {"tool_calls": tool_calls}
+        if subtype_xmlid == LLM_TOOL_RESULT_SUBTYPE_XMLID:
+            vals = {
+                "tool_call_id": tool_call_id,
+                "tool_call_definition": tool_call_definition,
+                "tool_call_result": tool_call_result,
+            }
+            return {k: v for k, v in vals.items() if v is not None}
+
+    @api.model
+    def get_thread_from_context(self):
+        """
+        Try to get the llm.thread from the context.
+        This is useful when the template is used in a thread context.
+
+        Returns:
+            llm.thread recordset or False
+        """
+        _logger.info("Attempting to get thread from context")
+
+        # Check if we have a thread_id in the context
+        thread_id = self.env.context.get("thread_id", False)
+        if thread_id:
+            _logger.info("Found thread_id in context: %s", thread_id)
+            thread = self.env["llm.thread"].browse(thread_id).exists()
+            if thread:
+                _logger.info("Thread exists: %s", thread.name)
+                return thread
+            else:
+                _logger.warning("Thread with ID %s not found", thread_id)
+                return False
+
+        return False

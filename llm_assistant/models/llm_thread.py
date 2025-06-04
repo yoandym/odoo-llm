@@ -1,4 +1,8 @@
+import logging
+
 from odoo import api, fields, models
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMThread(models.Model):
@@ -69,18 +73,114 @@ class LLMThread(models.Model):
             "target": "current",
         }
 
-    # override to include assistant's system prompt
-    def _get_system_prompt(self):
-        """Hook: return a system prompt for chat. Override in other modules. If needed"""
+    # override to include assistant's messages
+    def _get_prepend_messages(self):
+        """Hook: return a list of formatted messages to prepend to the conversation.
+        Override in other modules if needed.
+
+        Returns:
+            list: List of message dictionaries in the format:
+                [{"role": "system", "content": "..."},
+                 {"role": "user", "content": "..."},
+                 ...]
+        """
         self.ensure_one()
-        system_prompt = super()._get_system_prompt()
-        assistant_system_prompt = None
+        # Get base messages from parent class
+        messages = super()._get_prepend_messages()
+
+        # Get messages from assistant if available
         if self.assistant_id:
-            assistant_system_prompt = self.assistant_id.get_formatted_system_prompt()
+            # Use the new get_messages method which returns a list of messages
+            assistant_messages = self.assistant_id.get_messages(thread=self)
 
-        if assistant_system_prompt and system_prompt:
-            system_prompt = f"{assistant_system_prompt}\n\n{system_prompt}"
-        elif assistant_system_prompt:
-            system_prompt = assistant_system_prompt
+            if assistant_messages:
+                # Use the helper method from llm_prompt to merge the messages
+                messages = self.merge_message_lists(assistant_messages, messages)
+                _logger.info(
+                    "Added %d messages from assistant", len(assistant_messages)
+                )
+            else:
+                # Fallback to the old method if get_messages returns empty
+                # This ensures backward compatibility
+                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(
+                    thread=self
+                )
+                if assistant_system_prompt:
+                    # Create a system message with the assistant's prompt
+                    assistant_message = {
+                        "role": "system",
+                        "content": assistant_system_prompt,
+                    }
 
-        return system_prompt
+                    # Add it to existing messages or create a new list
+                    if messages:
+                        # Check if there's already a system message
+                        has_system_message = False
+                        for msg in messages:
+                            if msg.get("role") == "system":
+                                # Append to existing system message
+                                msg["content"] = (
+                                    f"{assistant_system_prompt}\n\n{msg['content']}"
+                                )
+                                has_system_message = True
+                                break
+
+                        # If no system message found, add the new one at the beginning
+                        if not has_system_message:
+                            messages.insert(0, assistant_message)
+                    else:
+                        # No existing messages, create a new list with just the system message
+                        messages = [assistant_message]
+
+                    _logger.info(
+                        "Added system message from assistant: %s",
+                        assistant_system_prompt,
+                    )
+
+        return messages
+
+    @api.model
+    def get_thread_by_id(self, thread_id):
+        """Get a thread record by its ID
+
+        Args:
+            thread_id (int): ID of the thread
+
+        Returns:
+            tuple: (thread, error_response)
+                  If successful, error_response will be None
+                  If error, thread will be None
+        """
+        thread = self.browse(int(thread_id))
+        if not thread.exists():
+            return None, {"success": False, "error": "Thread not found"}
+        return thread, None
+
+    @api.model
+    def get_thread_and_assistant(self, thread_id, assistant_id=False):
+        """Get thread and assistant records by their IDs
+
+        Args:
+            thread_id (int): ID of the thread
+            assistant_id (int, optional): ID of the assistant, or False to clear
+
+        Returns:
+            tuple: (thread, assistant, error_response)
+                  If successful, error_response will be None
+                  If error, thread and/or assistant will be None
+        """
+        # Get thread
+        thread, error = self.get_thread_by_id(thread_id)
+        if error:
+            return None, None, error
+
+        # If no assistant_id, return just the thread
+        if not assistant_id:
+            return thread, None, None
+
+        # Get assistant from the assistant model
+        assistant, error = self.env["llm.assistant"].get_assistant_by_id(assistant_id)
+        if error:
+            return thread, None, error
+
+        return thread, assistant, None

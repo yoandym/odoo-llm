@@ -3,6 +3,7 @@ PyMuPDF
 anthropic
 chromadb-client
 emoji
+jinja2
 llama_index
 markdown2
 markdownify

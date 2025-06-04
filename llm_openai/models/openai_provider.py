@@ -141,6 +141,7 @@ class LLMProvider(models.Model):
         tools=None,
         tool_choice="auto",
         system_prompt=None,
+        prepend_messages=None,
     ):
         """Send chat messages using OpenAI with tools support"""
         model = self.get_model(model, "chat")
@@ -152,6 +153,7 @@ class LLMProvider(models.Model):
             stream,
             tools=tools,
             system_prompt=system_prompt,
+            prepend_messages=prepend_messages,
             tool_choice=tool_choice,
         )
 

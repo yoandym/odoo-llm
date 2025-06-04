@@ -126,9 +126,6 @@ class LLMProvider(models.Model):
         Returns:
             dict: Processed dictionary with datetime objects converted to ISO strings
         """
-        if not isinstance(data, dict):
-            return LLMProvider.serialize_datetime(data)
-
         return {
             key: (
                 LLMProvider.serialize_datetime(value)

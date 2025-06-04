@@ -1,8 +1,11 @@
 import json
+import logging
 
 from odoo import _, api, http, registry
 from odoo.exceptions import MissingError
 from odoo.http import Response, request
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMThreadController(http.Controller):
@@ -33,7 +36,7 @@ class LLMThreadController(http.Controller):
         except Exception:
             return False
 
-    def _llm_thread_generate(self, dbname, env, thread_id, user_message_body):
+    def _llm_thread_generate(self, dbname, env, thread_id, user_message_body, **kwargs):
         """Generate LLM responses with streaming and safe yielding."""
         with registry(dbname).cursor() as cr:
             env = api.Environment(cr, env.uid, env.context)
@@ -46,7 +49,7 @@ class LLMThreadController(http.Controller):
 
             client_connected = True
             try:
-                for response in llmThread.generate(user_message_body):
+                for response in llmThread.generate(user_message_body, **kwargs):
                     json_data = json.dumps(response, default=str)
                     success = yield from self._safe_yield(
                         f"data: {json_data}\n\n".encode()
@@ -63,6 +66,9 @@ class LLMThreadController(http.Controller):
                 return
 
             except Exception as e:
+                _logger.exception(
+                    f"Error in llm_thread_generate for thread {thread_id}: {e}"
+                )
                 if llmThread.exists() and llmThread._read_is_locked_decorated():
                     llmThread._unlock()
 

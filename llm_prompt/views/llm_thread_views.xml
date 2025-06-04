@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Inherit Thread Form View to add prompt_id field -->
+    <record id="llm_thread_view_form_inherit_prompt" model="ir.ui.view">
+        <field name="name">llm.thread.view.form.inherit.prompt</field>
+        <field name="model">llm.thread</field>
+        <field name="inherit_id" ref="llm_thread.llm_thread_view_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='model_id']" position="after">
+                <field name="prompt_id" options="{'no_create': False}" />
+            </xpath>
+        </field>
+    </record>
+</odoo>

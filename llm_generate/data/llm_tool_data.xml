@@ -1,0 +1,24 @@
+<odoo>
+    <record id="llm_tool_generate" model="llm.tool">
+        <field name="name">odoo_generate</field>
+        <field name="implementation">odoo_generate</field>
+        <field
+      name="description"
+    ><![CDATA[
+Generate an image using a specified image generation model. This tool allows you to create images based on text prompts.
+
+Parameters:
+    model_id: The ID of the llm.model to use for generation (must have model_use='image_generation')
+    inputs: A dictionary containing parameters according to the model's input_schema (e.g., {"prompt": "A detailed description"})
+
+Returns:
+    A dictionary containing:
+    - success: Boolean indicating if the generation was successful
+    - image_urls: List of URLs to the generated images
+    - markdown: Ready-to-use markdown for displaying the images in chat
+]]></field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+        <field name="requires_user_consent" eval="False" />
+    </record>
+</odoo>

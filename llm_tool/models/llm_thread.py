@@ -27,7 +27,14 @@ class LLMProvider(models.Model):
         return False
 
     def _prepare_chat_params(
-        self, model, messages, stream, tools, system_prompt, **kwargs
+        self,
+        model,
+        messages,
+        stream,
+        tools,
+        system_prompt=None,
+        prepend_messages=None,
+        **kwargs,
     ):
         """Generic method to prepare chat parameters for API call."""
         params = {
@@ -35,12 +42,17 @@ class LLMProvider(models.Model):
             "stream": stream,
         }
 
-        _logger.info(f"Preparing chat parameters: {kwargs}")
-
         messages = messages or []
-        system_prompt = system_prompt or None
 
-        if messages or system_prompt:
+        # Handle prepend_messages parameter (new approach)
+        if prepend_messages and isinstance(prepend_messages, list):
+            # Format the messages from the thread
+            formatted_messages = self.format_messages(messages)
+            # Prepend the additional messages
+            params["messages"] = prepend_messages + formatted_messages
+        else:
+            # Legacy approach using system_prompt
+            system_prompt = system_prompt or None
             formatted_messages = self.format_messages(messages, system_prompt)
             params["messages"] = formatted_messages
 
@@ -69,17 +81,43 @@ class LLMProvider(models.Model):
                     has_system_message = False
                     for msg in params["messages"]:
                         if msg.get("role") == "system":
-                            existing_content = msg.get("content", "")
-                            separator = "\n\n" if existing_content else ""
-                            msg["content"] = (
-                                f"{existing_content}{separator}{consent_instruction}"
-                            )
+                            content = msg.get("content")
+
+                            # Handle different content formats
+                            if (
+                                isinstance(content, list)
+                                and len(content) > 0
+                                and isinstance(content[0], dict)
+                            ):
+                                # Content is a list of objects format
+                                if all(item.get("type") == "text" for item in content):
+                                    # Append to the text of the first item
+                                    existing_text = content[0].get("text", "")
+                                    separator = "\n\n" if existing_text else ""
+                                    content[0]["text"] = (
+                                        f"{existing_text}{separator}{consent_instruction}"
+                                    )
+                            else:
+                                # Content is a string
+                                existing_content = content or ""
+                                separator = "\n\n" if existing_content else ""
+                                msg["content"] = (
+                                    f"{existing_content}{separator}{consent_instruction}"
+                                )
+
                             has_system_message = True
                             break
 
                     if not has_system_message:
+                        # Insert a new system message using the list format for content
                         params["messages"].insert(
-                            0, {"role": "system", "content": consent_instruction}
+                            0,
+                            {
+                                "role": "system",
+                                "content": [
+                                    {"type": "text", "text": consent_instruction}
+                                ],
+                            },
                         )
 
         return params
