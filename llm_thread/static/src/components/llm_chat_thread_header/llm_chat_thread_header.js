@@ -25,11 +25,23 @@ export class LLMChatThreadHeader extends Component {
     };
 
     setup() {
-        // Services
-        this.llmChatService = useService("llm_chat");
-        this.notificationService = useService("notification");
-        this.uiService = useService("ui");
-        this.orm = useService("orm");
+        console.log("🔵 BASE LLMChatThreadHeader setup() called", {
+            thread: this.props.thread,
+            timestamp: new Date().toISOString()
+        });
+
+        try {
+            // Services
+            console.log("🔵 Getting services...");
+            this.llmChatService = useService("llm_chat");
+            this.notificationService = useService("notification");
+            this.uiService = useService("ui");
+            this.orm = useService("orm");
+            console.log("🔵 Services acquired successfully");
+        } catch (error) {
+            console.error("🔴 Error getting services:", error);
+            throw error;
+        }
 
         // Direct access to llmChat store
         this.llmChat = this.llmChatService;

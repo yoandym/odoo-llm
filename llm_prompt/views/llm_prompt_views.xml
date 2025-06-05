@@ -47,7 +47,7 @@
                             </field>
                         </page>
                         <page string="Arguments" name="arguments">
-                            <div class="alert alert-warning" role="alert" attrs="{'invisible': [('undefined_arguments', '=', False)]}">
+                            <div class="alert alert-warning" role="alert" invisible="not undefined_arguments">
                                 <strong
                 >Warning:</strong> The following arguments are used in templates but not defined in the schema:
                                 <field name="undefined_arguments" readonly="1" class="oe_inline" />

@@ -5,14 +5,12 @@ import logging
 import emoji
 import markdown2
 
-
 from odoo import _, api, fields, models
+
 from odoo.addons.llm_mail_message_subtypes.const import (
     LLM_ASSISTANT_SUBTYPE_XMLID, LLM_TOOL_RESULT_SUBTYPE_XMLID,
     LLM_USER_SUBTYPE_XMLID)
 from odoo.exceptions import UserError
-
-from .llm_thread_utils import LLMThreadUtils
 
 _logger = logging.getLogger(__name__)
 
