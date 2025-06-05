@@ -167,7 +167,7 @@ export const LLMChatService = {
                         updatedAt: threadData.write_date,
                         relatedThreadModel: threadData.model,
                         relatedThreadId: threadData.res_id,
-                        selectedToolIds: threadData.tool_ids || [],
+                        tool_ids: threadData.tool_ids || [],
                     };
 
                     if (threadData.model_id && threadData.provider_id) {
