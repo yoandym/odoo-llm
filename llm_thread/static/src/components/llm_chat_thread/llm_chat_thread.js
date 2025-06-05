@@ -11,7 +11,7 @@ import { LLMChatComposer } from "../llm_chat_composer/llm_chat_composer";
  * LLMChatThread Component for Odoo v17
  * 
  * This component displays a complete chat thread including:
- * - Thread header with settings
+ * - Thread header with settings (name, provider, model, tools)
  * - Message list with streaming support
  * - Message composer
  */

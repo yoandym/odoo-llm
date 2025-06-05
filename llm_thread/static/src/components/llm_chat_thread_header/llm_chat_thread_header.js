@@ -11,8 +11,10 @@ import { DropdownItem } from "@web/core/dropdown/dropdown_item";
  * Displays the header for an LLM chat thread with:
  * - Editable thread name
  * - LLM Provider selection
- * - LLM Model selection with search
+ * - LLM Model selection with search (consistent with the selected provider)
  * - Tool selection
+ *  - Show all available tools but checks only the ones related to the current thread
+ *  - On tools selection updates the current thread related tools.
  * - Mobile responsive design
  */
 export class LLMChatThreadHeader extends Component {
@@ -30,18 +32,11 @@ export class LLMChatThreadHeader extends Component {
             timestamp: new Date().toISOString()
         });
 
-        try {
-            // Services
-            console.log("🔵 Getting services...");
-            this.llmChatService = useService("llm_chat");
-            this.notificationService = useService("notification");
-            this.uiService = useService("ui");
-            this.orm = useService("orm");
-            console.log("🔵 Services acquired successfully");
-        } catch (error) {
-            console.error("🔴 Error getting services:", error);
-            throw error;
-        }
+        // Services
+        this.llmChatService = useService("llm_chat");
+        this.notificationService = useService("notification");
+        this.uiService = useService("ui");
+        this.orm = useService("orm");
 
         // Direct access to llmChat store
         this.llmChat = this.llmChatService;
