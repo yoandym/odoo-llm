@@ -33,8 +33,10 @@
     ],
     "assets": {
         "web.assets_backend": [
+            # Services (load first)
             "llm_prompt/static/src/services/llm_prompt_service.js",
-            # "llm_prompt/static/src/services/llm_chat_service_patch.js",
+
+            # Component patches
             "llm_prompt/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
             "llm_prompt/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
         ],

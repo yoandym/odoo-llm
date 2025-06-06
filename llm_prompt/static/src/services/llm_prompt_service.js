@@ -20,7 +20,28 @@ export const LLMPromptService = {
             isLoaded: false,
         });
 
-        return {
+        // Set up event listeners for bus-based integration
+        env.bus.addEventListener("llm_chat:initializing", (event) => {
+            console.log("LLM Prompt Service: Chat initializing, adding prompt loading promise");
+            const promptLoadPromise = service.initialize();
+            event.detail.promises.push(promptLoadPromise);
+        });
+        
+        env.bus.addEventListener("llm_chat:map_thread_data", (event) => {
+            const { threadData, mappedData } = event.detail;
+            
+            // Add prompt information to mapped data
+            if (threadData.prompt_id) {
+                if (Array.isArray(threadData.prompt_id)) {
+                    mappedData.promptId = threadData.prompt_id[0];
+                    mappedData.promptName = threadData.prompt_id[1];
+                } else {
+                    mappedData.promptId = threadData.prompt_id;
+                }
+            }
+        });
+
+        const service = {
             // Store access
             get prompts() {
                 return store.prompts;
@@ -117,6 +138,8 @@ export const LLMPromptService = {
                 return this.loadPrompts();
             },
         };
+
+        return service;
     },
 };
 

@@ -11,43 +11,29 @@ console.log("[LLM_PROMPT] Patch file loaded, re-enabling patch for testing");
 
 patch(LLMChatThreadHeader.prototype, {
   setup() {
-    console.log("[LLM_PROMPT] Starting setup patch");
     super.setup();
-    console.log("[LLM_PROMPT] Super setup completed, calling _setupPromptFeatures");
     this._setupPromptFeatures();
-    console.log("[LLM_PROMPT] Setup patch completed");
   },
 
   _setupPromptFeatures() {
-    console.log("[LLM_PROMPT] _setupPromptFeatures starting");
     try {
       // Add prompt service
-      console.log("[LLM_PROMPT] Getting llm_prompt service");
       this.llmPromptService = useService("llm_prompt");
-      console.log("[LLM_PROMPT] Got llm_prompt service:", this.llmPromptService);
 
       // Initialize prompt-specific state if not already done
       if (!this.state._promptInitialized) {
-        console.log("[LLM_PROMPT] Initializing prompt state");
         Object.assign(this.state, {
           _promptInitialized: true,
           isLoadingPrompts: false,
         });
-        console.log("[LLM_PROMPT] Prompt state initialized");
-      } else {
-        console.log("[LLM_PROMPT] Prompt state already initialized");
-      }
+      } 
 
       // Ensure prompts are loaded when component mounts
-      console.log("[LLM_PROMPT] Setting up onMounted hook");
       onMounted(async () => {
-        console.log("[LLM_PROMPT] onMounted hook executing");
         try {
           if (!this.llmPromptService.isLoaded) {
-            console.log("[LLM_PROMPT] Service not loaded, calling loadPrompts");
             this.state.isLoadingPrompts = true;
             await this.llmPromptService.loadPrompts();
-            console.log("[LLM_PROMPT] loadPrompts completed");
           } else {
             console.log("[LLM_PROMPT] Service already loaded");
           }
@@ -56,13 +42,10 @@ patch(LLMChatThreadHeader.prototype, {
         } finally {
           this.state.isLoadingPrompts = false;
         }
-        console.log("[LLM_PROMPT] onMounted hook completed");
       });
-      console.log("[LLM_PROMPT] onMounted hook setup completed");
     } catch (error) {
       console.error("[LLM_PROMPT] Error in _setupPromptFeatures:", error);
     }
-    console.log("[LLM_PROMPT] _setupPromptFeatures completed");
   },
 
   // --------------------------------------------------------------------------

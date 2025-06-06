@@ -60,21 +60,27 @@ export const LLMChatService = {
                 activeThread: null,
                 threads: [],
                 llmModels: [],
-                tools: [],
-
-                // Methods
+                tools: [],                // Methods
                 async initializeLLMChat(actionData, initActiveId, postInitializationPromises = []) {
                     this.llmChatView = {
                         actionId: actionData.id,
                     };
                     this.initActiveId = initActiveId;
 
+                    // Emit initialization start event for extensions
+                    env.bus.trigger("llm_chat:initializing", {
+                        actionData,
+                        initActiveId,
+                        service: this,
+                        promises: postInitializationPromises
+                    });
+
                     // Load resources
                     await this.loadLLMModels();
                     await this.loadThreads();
                     await this.loadTools();
 
-                    // Execute additional initialization promises
+                    // Execute additional initialization promises from extensions
                     if (postInitializationPromises.length > 0) {
                         await Promise.all(postInitializationPromises);
                     }
@@ -86,6 +92,11 @@ export const LLMChatService = {
                             this.openInitThread();
                         }
                     }
+
+                    // Emit initialization complete event
+                    env.bus.trigger("llm_chat:initialized", {
+                        service: this
+                    });
                 },
 
                 close() {
@@ -141,17 +152,31 @@ export const LLMChatService = {
                         "model",
                         "res_id",
                         "tool_ids",
+                        "assistant_id",
+                        "prompt_id",
                     ];
+
+                    // Allow extensions to add additional fields via event
+                    const extendedFields = [...additionalFields];
+                    env.bus.trigger("llm_chat:extend_load_fields", {
+                        fields: extendedFields,
+                        method: 'loadThreads'
+                    });
 
                     const result = await orm.searchRead(
                         "llm.thread",
                         [["create_uid", "=", user.userId]],
-                        [...THREAD_SEARCH_FIELDS, ...additionalFields],
+                        [...THREAD_SEARCH_FIELDS, ...extendedFields],
                         { order: "write_date desc" }
                     );
 
                     this.threads = result.map(thread => this._mapThreadDataFromServer(thread));
 
+                    // Emit threads loaded event
+                    env.bus.trigger("llm_chat:threads_loaded", {
+                        threads: this.threads,
+                        service: this
+                    });
                 },
 
                 _mapThreadDataFromServer(threadData) {
@@ -182,10 +207,35 @@ export const LLMChatService = {
                         console.log("Thread mapped with model:", mappedData.llmModel);
                     }
 
-                    return mappedData;
-                },
+                    // Handle assistant data if present
+                    if (threadData.assistant_id) {
+                        mappedData.assistant_id = threadData.assistant_id[0];
+                        mappedData.assistant_name = threadData.assistant_id[1];
+                    } else {
+                        // Explicitly clear assistant data when not present
+                        mappedData.assistant_id = null;
+                        mappedData.assistant_name = null;
+                    }
 
-                async refreshThread(threadId, additionalFields = []) {
+                    // Handle prompt data if present
+                    if (threadData.prompt_id) {
+                        if (Array.isArray(threadData.prompt_id)) {
+                            mappedData.promptId = threadData.prompt_id[0];
+                            mappedData.promptName = threadData.prompt_id[1];
+                        } else {
+                            mappedData.promptId = threadData.prompt_id;
+                        }
+                    }
+
+                    // Allow extensions to map additional data via event
+                    env.bus.trigger("llm_chat:map_thread_data", {
+                        threadData,
+                        mappedData,
+                        service: this
+                    });
+
+                    return mappedData;
+                },                async refreshThread(threadId, additionalFields = []) {
                     try {
                         const THREAD_SEARCH_FIELDS = [
                             "name",
@@ -198,12 +248,22 @@ export const LLMChatService = {
                             "model",
                             "res_id",
                             "tool_ids",
+                            "assistant_id",
+                            "prompt_id",
                         ];
+
+                        // Allow extensions to add additional fields via event
+                        const extendedFields = [...additionalFields];
+                        env.bus.trigger("llm_chat:extend_load_fields", {
+                            fields: extendedFields,
+                            method: 'refreshThread',
+                            threadId
+                        });
 
                         const result = await orm.searchRead(
                             "llm.thread",
                             [["id", "=", threadId]],
-                            [...THREAD_SEARCH_FIELDS, ...additionalFields]
+                            [...THREAD_SEARCH_FIELDS, ...extendedFields]
                         );
 
                         if (!result || !result.length) {
@@ -216,6 +276,35 @@ export const LLMChatService = {
                         if (threadIndex !== -1) {
                             // Update the thread in place to maintain reactivity
                             Object.assign(this.threads[threadIndex], mappedThreadData);
+                            
+                            // If this is the active thread, update it too
+                            if (this.activeThread && this.activeThread.id === threadId) {
+                                Object.assign(this.activeThread, mappedThreadData);
+                                
+                                // Emit event for active thread changes
+                                env.bus.trigger("llm_chat:active_thread_updated", {
+                                    threadId: threadId,
+                                    thread: this.activeThread,
+                                    updatedFields: mappedThreadData
+                                });
+                                console.log("Emitted llm_chat:active_thread_updated event for thread:", threadId);
+                            }
+                            
+                            // Emit general thread update event
+                            env.bus.trigger("llm_chat:thread_updated", {
+                                threadId: threadId,
+                                thread: this.threads[threadIndex],
+                                updatedFields: mappedThreadData
+                            });
+                            console.log("Emitted llm_chat:thread_updated event for thread:", threadId);
+
+                            // Emit thread refreshed event
+                            env.bus.trigger("llm_chat:thread_refreshed", {
+                                threadId,
+                                thread: this.threads[threadIndex],
+                                updatedFields: mappedThreadData,
+                                service: this
+                            });
                         }
                     } catch (error) {
                         console.error("Error refreshing thread:", error);
@@ -284,7 +373,7 @@ export const LLMChatService = {
                             throw new Error("No LLM model available");
                         }
                     }
-                    
+
                     const threadData = {
                         name,
                         model_id: defaultModel.id,
@@ -375,7 +464,7 @@ export const LLMChatService = {
                         }
 
                         try {
-                            const name = _t("New Chat for %s %s", {relatedThreadModel, relatedThreadId});
+                            const name = _t("New Chat for %s %s", { relatedThreadModel, relatedThreadId });
                             return await this.createThread({
                                 name,
                                 relatedThreadModel,
@@ -490,6 +579,55 @@ export const LLMChatService = {
                     }
                 },
 
+                /**
+                 * Set an assistant for a thread
+                 * @param {number} threadId - Thread ID
+                 * @param {number} assistantId - Assistant ID
+                 */
+                async setThreadAssistant(threadId, assistantId) {
+                    try {
+                        console.log(`Setting assistant ${assistantId} for thread ${threadId}`);
+
+                        await orm.write("llm.thread", [threadId], {
+                            assistant_id: assistantId
+                        });
+
+                        // Refresh thread to get updated data including tools
+                        await this.refreshThread(threadId);
+
+                        console.log(`Successfully set assistant ${assistantId} for thread ${threadId}`);
+
+                        return true;
+                    } catch (error) {
+                        console.error("Error setting thread assistant:", error);
+                        throw error;
+                    }
+                },
+
+                /**
+                 * Clear the assistant from a thread
+                 * @param {number} threadId - Thread ID
+                 */
+                async clearThreadAssistant(threadId) {
+                    try {
+                        console.log(`Clearing assistant for thread ${threadId}`);
+
+                        await orm.write("llm.thread", [threadId], {
+                            assistant_id: false
+                        });
+
+                        // Refresh thread to get updated data
+                        await this.refreshThread(threadId);
+
+                        console.log(`Successfully cleared assistant for thread ${threadId}`);
+
+                        return true;
+                    } catch (error) {
+                        console.error("Error clearing thread assistant:", error);
+                        throw error;
+                    }
+                },
+
                 // Computed properties
                 get activeId() {
                     return this.activeThread
@@ -529,7 +667,7 @@ export const LLMChatService = {
                     return [...new Map(providers.map(p => [p.id, p])).values()];
                 },
 
-                
+
                 get defaultLLMModel() {
                     if (!this.llmModels || !Array.isArray(this.llmModels) || (!this.llmModels.length > 0)) {
                         console.log("DefaultLLMModel: No models available");

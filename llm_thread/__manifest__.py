@@ -40,7 +40,7 @@ Contact: support@apexive.com
     ],
     "assets": {
         "web.assets_backend": [
-            # Services
+            # Services (load first - event service must be loaded before others)
             "llm_thread/static/src/services/llm_chat_service.js",
             "llm_thread/static/src/services/llm_composer_service.js",
 

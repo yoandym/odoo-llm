@@ -8,13 +8,11 @@ import { _t } from "@web/core/l10n/translation";
 
 patch(LLMChatThreadHeader.prototype, {
     setup() {
-        console.log("Assistant patch: Calling super.setup()");
         super.setup();
         this._setupAssistantFeatures();
     },
 
     _setupAssistantFeatures() {
-        console.log("Assistant patch: Setting up assistant features");
         // Add assistant service
         this.llmAssistantService = useService("llm_assistant");
 
@@ -55,6 +53,9 @@ patch(LLMChatThreadHeader.prototype, {
                 console.error("Error loading assistants:", error);
                 // Don't block the component from loading even if assistants fail to load
             }
+
+            // Set up event listeners for thread changes
+            this._setupEventListeners();
         });
 
         // Watch for thread changes to update dropdowns
@@ -85,6 +86,88 @@ patch(LLMChatThreadHeader.prototype, {
             }
 
         });
+    },
+
+    /**
+     * Set up event listeners for the new bus-based architecture
+     */
+    _setupEventListeners() {
+        // Listen for bus events directly
+        this.env.bus.addEventListener("llm_chat:thread_refreshed", this._onThreadRefreshed.bind(this));
+        this.env.bus.addEventListener("llm_chat:thread_updated", this._onThreadUpdated.bind(this));
+        this.env.bus.addEventListener("llm_chat:active_thread_updated", this._onActiveThreadUpdated.bind(this));
+    },
+
+    /**
+     * Handle thread refresh events from the new event system
+     */
+    _onThreadRefreshed(event) {
+        const { threadId, thread, updatedFields } = event.detail;
+
+        // Only process if this is our current thread
+        if (this.props.thread?.id === threadId) {
+            console.log("Thread refreshed event received:", {
+                threadId,
+                assistantId: updatedFields.assistantId,
+                toolIds: updatedFields.tool_ids
+            });
+
+            // Update assistant state if changed
+            if (updatedFields.assistantId !== undefined) {
+                this.state.selectedAssistantId = updatedFields.assistantId;
+            }
+
+            // Sync tools from the updated thread data
+            this._syncToolsFromThread(thread);
+        }
+    },
+
+    /**
+     * Handle thread update events from legacy bus system
+     */
+    _onThreadUpdated(event) {
+        const { threadId, thread, updatedFields } = event.detail;
+
+        // Only process if this is our current thread
+        if (this.props.thread?.id === threadId) {
+            console.log("Thread updated event received:", {
+                threadId,
+                assistantId: updatedFields.assistantId,
+                toolIds: updatedFields.tool_ids
+            });
+
+            // Update assistant state if changed
+            if (updatedFields.assistantId !== undefined) {
+                this.state.selectedAssistantId = updatedFields.assistantId;
+            }
+
+            // Sync tools from the updated thread data
+            this._syncToolsFromThread(thread);
+        }
+    },
+
+    /**
+     * Handle active thread update events from legacy bus system
+     */
+    _onActiveThreadUpdated(event) {
+        const { threadId, thread, updatedFields } = event.detail;
+
+        // Only process if this is our current thread
+        if (this.props.thread?.id === threadId) {
+            console.log("Active thread updated event received:", {
+                threadId,
+                assistantId: updatedFields.assistantId,
+                toolIds: updatedFields.tool_ids
+            });
+
+            // Update assistant state if changed
+            if (updatedFields.assistantId !== undefined) {
+                this.state.selectedAssistantId = updatedFields.assistantId;
+            }
+
+            // Sync tools from the updated thread data
+            this._syncToolsFromThread(thread);
+        }
     },
 
     // --------------------------------------------------------------------------

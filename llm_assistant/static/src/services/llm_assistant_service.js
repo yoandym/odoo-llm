@@ -15,7 +15,7 @@ export const llmAssistantService = {
     start(env, { orm, rpc, notification }) {
         console.log("LLM Assistant Service: Starting...");
         
-        // Service state - use reactive instead of useState (useState is for components only)
+        // Service state
         const state = reactive({
             assistants: [],
             assistantsByThreadId: {},
@@ -200,6 +200,33 @@ export const llmAssistantService = {
         }
         
         console.log("LLM Assistant Service: Started successfully");
+        
+        // Set up event listeners for bus-based integration
+        env.bus.addEventListener("llm_chat:initializing", (event) => {
+            console.log("LLM Assistant Service: Chat initializing, adding assistant loading promise");
+            const assistantLoadPromise = loadAssistants();
+            event.detail.promises.push(assistantLoadPromise);
+        });
+        
+        env.bus.addEventListener("llm_chat:map_thread_data", (event) => {
+            const { threadData, mappedData } = event.detail;
+            
+            // Add assistant information to mapped data
+            if (threadData.assistant_id) {
+                if (Array.isArray(threadData.assistant_id)) {
+                    mappedData.assistantId = threadData.assistant_id[0];
+                    mappedData.assistantName = threadData.assistant_id[1];
+                } else {
+                    mappedData.assistantId = threadData.assistant_id;
+                }
+                mappedData.assistant = getAssistant(mappedData.assistantId);
+            } else {
+                // Clear assistant data when assistant_id is false/null
+                mappedData.assistantId = null;
+                mappedData.assistantName = null;
+                mappedData.assistant = null;
+            }
+        });
         
         // Return service interface
         return {
