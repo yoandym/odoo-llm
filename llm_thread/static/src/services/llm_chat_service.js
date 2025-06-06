@@ -235,7 +235,7 @@ export const LLMChatService = {
                     });
 
                     return mappedData;
-                },                async refreshThread(threadId, additionalFields = []) {
+                }, async refreshThread(threadId, additionalFields = []) {
                     try {
                         const THREAD_SEARCH_FIELDS = [
                             "name",
@@ -276,11 +276,11 @@ export const LLMChatService = {
                         if (threadIndex !== -1) {
                             // Update the thread in place to maintain reactivity
                             Object.assign(this.threads[threadIndex], mappedThreadData);
-                            
+
                             // If this is the active thread, update it too
                             if (this.activeThread && this.activeThread.id === threadId) {
                                 Object.assign(this.activeThread, mappedThreadData);
-                                
+
                                 // Emit event for active thread changes
                                 env.bus.trigger("llm_chat:active_thread_updated", {
                                     threadId: threadId,
@@ -289,7 +289,7 @@ export const LLMChatService = {
                                 });
                                 console.log("Emitted llm_chat:active_thread_updated event for thread:", threadId);
                             }
-                            
+
                             // Emit general thread update event
                             env.bus.trigger("llm_chat:thread_updated", {
                                 threadId: threadId,

@@ -26,10 +26,10 @@ export const LLMPromptService = {
             const promptLoadPromise = service.initialize();
             event.detail.promises.push(promptLoadPromise);
         });
-        
+
         env.bus.addEventListener("llm_chat:map_thread_data", (event) => {
             const { threadData, mappedData } = event.detail;
-            
+
             // Add prompt information to mapped data
             if (threadData.prompt_id) {
                 if (Array.isArray(threadData.prompt_id)) {
