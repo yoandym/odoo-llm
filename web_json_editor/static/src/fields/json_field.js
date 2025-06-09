@@ -35,7 +35,7 @@ export class JsonEditorField extends Component {
       if (this.editor && !this.isInternalChange) {
         this.updateEditorValue();
       }
-    }, () => [this.props.value]);
+    }, () => [this.props.record.data[this.props.name]]);
   }
 
   initEditor() {
@@ -91,12 +91,8 @@ export class JsonEditorField extends Component {
   updateEditorValue() {
     if (!this.editor) return;
     
-    let value = this.props.value;
-    
-    // Get the actual value from record data if props.value is undefined
-    if (value === undefined && this.props.record && this.props.name) {
-      value = this.props.record.data[this.props.name];
-    }
+    // Get value from record data
+    let value = this.props.record.data[this.props.name];
     
     // Handle empty or default values
     if (!value || value === '') {
@@ -128,8 +124,8 @@ export class JsonEditorField extends Component {
   /**
    * Format the value for display mode
    */
-  formatValue() {
-    const value = this.props.value || this.props.record.data[this.props.name];
+  get formattedValue() {
+    const value = this.props.record.data[this.props.name];
     return formatJSON(value);
   }
 
@@ -137,6 +133,9 @@ export class JsonEditorField extends Component {
    * Handle changes from the JSON editor
    */
   onEditorChange() {
+    // Prevent recursive updates
+    if (this.isInternalChange) return;
+    
     this.isInternalChange = true;
     
     try {
@@ -147,19 +146,24 @@ export class JsonEditorField extends Component {
       const field = this.props.record.fields[this.props.name];
       const fieldType = field ? field.type : 'text';
       
+      let valueToUpdate;
       if (fieldType === "json") {
         // For JSON fields, pass the object directly
-        this.props.update(jsonValue);
+        valueToUpdate = jsonValue;
       } else {
         // For text and char fields, convert to a JSON string
-        const stringValue = JSON.stringify(jsonValue, null, 2);
-        this.props.update(stringValue);
+        valueToUpdate = JSON.stringify(jsonValue, null, 2);
       }
+      
+      // Update the field value using the correct method
+      this.updateValue(valueToUpdate);
+      
     } catch (e) {
+      console.error("Error in onEditorChange:", e);
       // If JSON is invalid, try to get text value
       try {
         const textValue = this.editor.getText();
-        this.props.update(textValue);
+        this.updateValue(textValue);
       } catch (textError) {
         console.error("Error getting editor text value:", textError);
       }
@@ -169,6 +173,14 @@ export class JsonEditorField extends Component {
         this.isInternalChange = false;
       }, 100);
     }
+  }
+
+  /**
+   * Update the field value in the record
+   */
+  updateValue(value) {
+    // Use the record's update method
+    this.props.record.update({ [this.props.name]: value });
   }
 
   /**
