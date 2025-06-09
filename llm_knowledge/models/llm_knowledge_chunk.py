@@ -151,11 +151,10 @@ class LLMKnowledgeChunk(models.Model):
         can_vector_search = bool(query_vector or vector_search_term)
         if not can_vector_search:
             return super().search(
-                original_args,
+                domain=original_args,
                 offset=offset,
                 limit=limit,
                 order=order,
-                **kwargs,
             )
 
         collections = self.env["llm.knowledge.collection"]
@@ -171,11 +170,10 @@ class LLMKnowledgeChunk(models.Model):
                 collections |= collection
             else:
                 return super().search(
-                    original_args,
+                    domain=original_args,
                     offset=offset,
                     limit=limit,
                     order=order,
-                    **kwargs,
                 )
         else:
             domain = [
@@ -194,11 +192,10 @@ class LLMKnowledgeChunk(models.Model):
             embedding_models = collections.mapped("embedding_model_id")
             if not embedding_models:
                 return super().search(
-                    original_args,
+                    domain=original_args,
                     offset=offset,
                     limit=limit,
                     order=order,
-                    **kwargs,
                 )
 
             for model in embedding_models:
@@ -214,11 +211,10 @@ class LLMKnowledgeChunk(models.Model):
 
         if not collections:
             return super().search(
-                original_args,
+                domain=original_args,
                 offset=offset,
                 limit=limit,
                 order=order,
-                **kwargs,
             )
 
         return self._vector_search_aggregate(

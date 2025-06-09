@@ -79,7 +79,7 @@ class LLMToolKnowledgeRetriever(models.Model):
 
         chunk_model = self.env["llm.knowledge.chunk"]
         chunks = chunk_model.search(
-            args=[("embedding", "=", query)],
+            domain=[("embedding", "=", query)],
             limit=search_limit,
             collection_id=collection.id,
             query_min_similarity=similarity_cutoff,

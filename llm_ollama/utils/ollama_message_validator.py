@@ -47,7 +47,7 @@ class OllamaMessageValidator:
         for i, msg in enumerate(self.messages):
             role = msg.get("role", "unknown")
             content_preview = (
-                (msg.get("content", "")[:30] + "...") if msg.get("content") else "None"
+                (msg.get("content", "") + "...") if msg.get("content") else "None"
             )
 
             if role == "tool":
