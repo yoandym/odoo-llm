@@ -23,20 +23,23 @@ class LLMToolKnowledgeRetriever(models.Model):
         """
         Collection = self.env["llm.knowledge.collection"].sudo()
         collections = Collection.search([("active", "=", True)])
-        return [(str(collection.id), collection.name) for collection in collections]
+        return [(collection.id, collection.name) for collection in collections]
 
     def get_input_schema(self, method="execute"):
         schema = super().get_input_schema(method=method)
         if self.implementation == "knowledge_retriever":
             available_collections = self._get_available_collections()
+            # Make it crystal clear that we expect integer IDs
             collections_description = ", ".join(
                 [
-                    f"'{name}' (ID: {collection_id})"
+                    f"{collection_id}: '{name}'"
                     for collection_id, name in available_collections
                 ]
             )
-            schema["properties"]["collection_id"]["description"] += (
-                f"Available collections are: {collections_description}"
+            # Replace the description entirely to avoid confusion
+            schema["properties"]["collection_id"]["description"] = (
+                f"The numeric ID of the collection to search. Available collections: {collections_description}. "
+                f"IMPORTANT: Use the integer ID, not the collection name."
             )
         return schema
 
@@ -60,7 +63,7 @@ class LLMToolKnowledgeRetriever(models.Model):
 
         Parameters:
             query: REQUIRED The search query text used to find relevant information. Be specific and focused in your query to get the most relevant results.
-            collection_id: REQUIRED The ID (as a string) of the 'llm.knowledge.collection' record to search within.
+            collection_id: REQUIRED The numeric ID of the 'llm.knowledge.collection' record to search within. This must be an integer value.
             top_k: Maximum number of chunks to retrieve per resource. Higher values return more context from each resource but may include less relevant passages.
             top_n: Maximum number of distinct resources to retrieve results from. Increase this value to get information from more diverse sources.
             similarity_cutoff: Minimum semantic similarity threshold (0.0-1.0) for including results. Higher values (e.g., 0.7) return only highly relevant results.
