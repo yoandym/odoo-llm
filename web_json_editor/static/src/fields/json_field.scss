@@ -10,6 +10,70 @@
       height: 100%;
       min-height: 300px;
 
+      // View mode specific styling
+      &.jsoneditor-mode-view {
+        .jsoneditor-outer {
+          padding: 10px;
+          background-color: $gray-100;
+        }
+
+        .jsoneditor-tree {
+          background-color: transparent;
+          
+          // Style the tree nodes
+          .jsoneditor-readonly {
+            padding: 3px 5px;
+            margin: 2px 0;
+            background-color: transparent;
+          }
+
+          // Make keys more prominent
+          .jsoneditor-key {
+            color: $primary;
+            font-weight: 600;
+          }
+
+          // Style values
+          .jsoneditor-value {
+            &.jsoneditor-string {
+              color: $success;
+            }
+            &.jsoneditor-number {
+              color: $info;
+            }
+            &.jsoneditor-boolean {
+              color: $warning;
+            }
+            &.jsoneditor-null {
+              color: $danger;
+              font-style: italic;
+            }
+          }
+
+          // Indent nested content
+          .jsoneditor-tree-inner {
+            padding-left: 20px;
+          }
+        }
+      }
+
+      // Preview mode styling
+      &.jsoneditor-mode-preview {
+        .jsoneditor-preview {
+          padding: 15px;
+          background-color: $gray-100;
+          font-family: $font-family-monospace;
+          font-size: $font-size-sm;
+          line-height: 1.6;
+
+          pre {
+            margin: 0;
+            background-color: transparent;
+            border: none;
+          }
+        }
+      }
+
       .jsoneditor-menu {
         background-color: $gray-200;
         border-bottom: 1px solid $border-color;
@@ -24,9 +88,13 @@
 
         // Style for all menu buttons
         button {
-          background-color: $o-brand-primary;
+          background-color: transparent;
           border: none;
           opacity: 1;
+
+          &:hover {
+            background-color: $gray-300;
+          }
 
           &.jsoneditor-separator {
             margin-right: 0.5rem;
@@ -34,7 +102,6 @@
 
           // Mode selection buttons
           &.jsoneditor-type-modes {
-            background-color: transparent;
             color: $gray-700;
 
             .jsoneditor-icon {
@@ -47,10 +114,11 @@
 
             // Selected mode
             &.jsoneditor-selected {
-              background-color: $o-brand-primary;
+              background-color: $primary;
+              color: $white;
 
               .jsoneditor-icon {
-                filter: brightness(1);
+                filter: brightness(1) invert(1);
               }
 
               .jsoneditor-text {
@@ -79,24 +147,77 @@
         font-size: $font-size-sm;
       }
 
-      /* No tree mode styling needed as we removed tree mode */
+      // Tree mode styling
+      .jsoneditor-tree {
+        font-family: $font-family-base;
+        font-size: $font-size-base;
+        
+        .jsoneditor-tree-inner {
+          padding: 10px;
+        }
+      }
     }
   }
 
-  .json-view {
-    background-color: $gray-100;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    padding: 0.5rem;
-    margin: 0;
-    max-height: 300px;
-    overflow: auto;
-    font-family: $font-family-monospace;
-    font-size: $font-size-sm;
-    white-space: pre-wrap;
+  // When field is readonly, adjust styling
+  .o_form_readonly & {
+    .json-editor-container {
+      min-height: 200px;
+      
+      .jsoneditor {
+        min-height: 200px;
+        
+        // Remove edit controls in readonly mode
+        .jsoneditor-contextmenu,
+        .jsoneditor-actionmenu {
+          display: none !important;
+        }
+      }
+    }
   }
 }
 
+// Hide powered by text
 .jsoneditor-poweredBy {
   display: none !important;
+}
+
+// Improve contrast for dark themes
+body.o_dark_mode {
+  .o_field_json_editor {
+    .jsoneditor {
+      background-color: $gray-900;
+      color: $gray-100;
+      
+      .jsoneditor-menu {
+        background-color: $gray-800;
+        border-color: $gray-700;
+      }
+      
+      .ace_editor {
+        background-color: $gray-900;
+        color: $gray-100;
+      }
+      
+      .jsoneditor-tree {
+        background-color: $gray-900;
+        
+        .jsoneditor-key {
+          color: lighten($primary, 15%);
+        }
+        
+        .jsoneditor-value {
+          &.jsoneditor-string {
+            color: lighten($success, 15%);
+          }
+          &.jsoneditor-number {
+            color: lighten($info, 15%);
+          }
+          &.jsoneditor-boolean {
+            color: lighten($warning, 15%);
+          }
+        }
+      }
+    }
+  }
 }

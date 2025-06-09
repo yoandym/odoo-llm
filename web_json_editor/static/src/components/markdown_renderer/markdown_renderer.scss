@@ -1,0 +1,105 @@
+.markdown-renderer {
+    position: relative;
+    
+    .markdown-content {
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            
+            &:first-child {
+                margin-top: 0;
+            }
+        }
+
+        h1 { font-size: 1.75rem; }
+        h2 { font-size: 1.5rem; }
+        h3 { font-size: 1.25rem; }
+        h4 { font-size: 1.1rem; }
+
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+            
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+            
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+
+        li {
+            margin-bottom: 0.25rem;
+        }
+
+        hr {
+            margin: 1.5rem 0;
+            border: none;
+            border-top: 1px solid #dee2e6;
+        }
+
+        strong {
+            font-weight: 600;
+        }
+
+        em {
+            font-style: italic;
+        }
+
+        code {
+            background-color: #f8f9fa;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        
+        pre {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+            
+            code {
+                background-color: transparent;
+                padding: 0;
+                font-size: 0.875rem;
+            }
+        }
+    }
+    
+    .copy-button {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        opacity: 0.7;
+        
+        &:hover {
+            opacity: 1;
+        }
+    }
+}
+
+// Special styling for field usage
+.o_field_markdown {
+    .markdown-renderer {
+        .markdown-content {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1.5rem;
+            min-height: 200px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+    }
+}

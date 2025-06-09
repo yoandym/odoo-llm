@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="web_json_editor.MarkdownRenderer" owl="1">
+        <div t-att-class="'markdown-renderer ' + (props.class || '')">
+            <div class="markdown-content" t-out="renderedContent" />
+            <button 
+                t-if="props.showCopyButton"
+                class="btn btn-sm btn-outline-secondary copy-button"
+                t-on-click="copyToClipboard"
+                title="Copy to clipboard"
+            >
+                <i class="fa fa-copy" />
+            </button>
+        </div>
+    </t>
+</templates>
