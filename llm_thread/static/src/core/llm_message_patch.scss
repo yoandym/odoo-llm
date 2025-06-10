@@ -6,11 +6,11 @@
         background-color: #f0f7ff;
         border-radius: 8px;
         padding: 12px;
-        
+
         /* Preserve formatting for AI messages */
         line-height: 1.6;
         word-wrap: break-word;
-        
+
         code {
             background-color: rgba(0, 0, 0, 0.05);
             padding: 0.2em 0.4em;
@@ -18,7 +18,7 @@
             font-family: 'Courier New', Courier, monospace;
             font-size: 0.9em;
         }
-        
+
         pre {
             background-color: #f6f8fa;
             border: 1px solid #e1e4e8;
@@ -26,7 +26,7 @@
             padding: 16px;
             overflow-x: auto;
             margin: 8px 0;
-            
+
             code {
                 background-color: transparent;
                 padding: 0;
@@ -34,41 +34,42 @@
                 line-height: 1.45;
             }
         }
-        
-        ul, ol {
+
+        ul,
+        ol {
             margin: 8px 0;
             padding-left: 24px;
         }
-        
+
         li {
             margin: 4px 0;
         }
-        
+
         a {
             color: #0066cc;
             text-decoration: none;
-            
+
             &:hover {
                 text-decoration: underline;
             }
         }
-        
+
         p {
             margin: 8px 0;
-            
+
             &:first-child {
                 margin-top: 0;
             }
-            
+
             &:last-child {
                 margin-bottom: 0;
             }
         }
-        
+
         strong {
             font-weight: 600;
         }
-        
+
         em {
             font-style: italic;
         }
@@ -84,19 +85,39 @@
 }
 
 @keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
+
+    0%,
+    50% {
+        opacity: 1;
+    }
+
+    51%,
+    100% {
+        opacity: 0;
+    }
 }
 
 /* Tool Call Accordion Styles */
+.o-mail-ToolCalls {
+    width: 100%;
+    margin-top: 16px;
+}
+
 .o-mail-ToolCall-accordion {
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    background: #f8f9fa;
+    background: #fff;
     overflow: hidden;
     transition: all 0.3s ease;
     margin: 8px 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 100%;
+
+    /* Ensure accordion takes full width within AI message box */
+    .o-ai-message & {
+        background: #fff;
+        border-color: #d0e4ff;
+    }
 }
 
 .o-mail-ToolCall-header {
@@ -109,7 +130,7 @@
     transition: background-color 0.2s;
     border-radius: 8px 8px 0 0;
     min-height: 48px;
-    
+
     &:hover {
         background: #f5f5f5;
     }
@@ -129,6 +150,13 @@
     border-top: 1px solid #e0e0e0;
     background: #f8f9fa;
     animation: slideDown 0.3s ease-out;
+    width: 100%;
+
+    /* Better styling within AI message box */
+    .o-ai-message & {
+        background: #f5f8ff;
+        border-color: #d0e4ff;
+    }
 }
 
 @keyframes slideDown {
@@ -136,6 +164,7 @@
         opacity: 0;
         transform: translateY(-10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -144,8 +173,8 @@
 
 .o-mail-ToolCall-section {
     padding: 12px 16px;
-    
-    & + & {
+
+    &+& {
         border-top: 1px solid #e0e0e0;
     }
 }
@@ -170,6 +199,8 @@
     line-height: 1.5;
     overflow-x: auto;
     white-space: pre;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* Dark mode support */
@@ -177,46 +208,56 @@
     .o-mail-Message.o-ai-message {
         .o-mail-Message-content {
             background-color: #1a2332;
-            
+
             code {
                 background-color: rgba(255, 255, 255, 0.1);
             }
-            
+
             pre {
                 background-color: #1e1e1e;
                 border-color: #444;
             }
-            
+
             a {
                 color: #58a6ff;
             }
         }
     }
-    
+
     .o-mail-ToolCall-accordion {
-        background: #2a2a2a;
+        background: #333;
         border-color: #444;
+
+        .o-ai-message & {
+            background: #333;
+            border-color: #555;
+        }
     }
-    
+
     .o-mail-ToolCall-header {
         background: #333;
-        
+
         &:hover {
             background: #3a3a3a;
         }
     }
-    
+
     .o-mail-ToolCall-details {
         background: #2a2a2a;
         border-color: #444;
+
+        .o-ai-message & {
+            background: #2a2a2a;
+            border-color: #555;
+        }
     }
-    
+
     .o-mail-ToolCall-code {
         background: #1e1e1e;
         border-color: #444;
         color: #e0e0e0;
     }
-    
+
     .o-mail-ToolCall-label {
         color: #aaa;
     }
@@ -224,6 +265,7 @@
 
 /* Chevron icon animation */
 .o-mail-ToolCall-header {
+
     .fa-chevron-down,
     .fa-chevron-right {
         transition: transform 0.3s ease;

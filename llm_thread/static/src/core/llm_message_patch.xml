@@ -28,11 +28,11 @@
             <t t-elif="message.body" t-out="processedBody"/>
         </xpath>
 
-        <!-- Add tool calls and streaming indicator after message content -->
-        <xpath expr="//div[hasclass('o-mail-Message-content')]" position="after">
+        <!-- Add tool calls and streaming indicator inside message content -->
+        <xpath expr="//div[hasclass('o-mail-Message-content')]" position="inside">
             <!-- Tool calls for assistant messages -->
             <t t-if="hasToolCalls and isAiMessage">
-                <div class="o-mail-ToolCalls mt-2">
+                <div class="o-mail-ToolCalls mt-3">
                     <t t-foreach="toolCallsWithResults" t-as="toolCall" t-key="toolCall.id">
                         <div class="o-mail-ToolCall-accordion mb-2">
                             <div class="o-mail-ToolCall-header" t-on-click="() => this.toggleToolCall(toolCall.id)">
