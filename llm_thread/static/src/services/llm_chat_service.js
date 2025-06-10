@@ -193,6 +193,7 @@ export const LLMChatService = {
                         relatedThreadModel: threadData.model,
                         relatedThreadId: threadData.res_id,
                         tool_ids: threadData.tool_ids || [],
+                        selectedToolIds: threadData.tool_ids || [],
                     };
 
                     if (threadData.model_id && threadData.provider_id) {
@@ -374,11 +375,20 @@ export const LLMChatService = {
                         }
                     }
 
+                    // Get default tools
+                    const defaultTools = await this.getDefaultTools();
+                    console.log("Default tools found:", defaultTools);
+
                     const threadData = {
                         name,
                         model_id: defaultModel.id,
                         provider_id: defaultModel.llmProvider.id,
                     };
+
+                    // Add default tools if any are found
+                    if (defaultTools.length > 0) {
+                        threadData.tool_ids = [[6, 0, defaultTools.map(tool => tool.id)]];
+                    }
 
                     if (relatedThreadModel && relatedThreadId) {
                         threadData.model = relatedThreadModel;
@@ -397,7 +407,7 @@ export const LLMChatService = {
                     const threadDetails = await orm.read(
                         "llm.thread",
                         [actualThreadId],
-                        ["name", "model_id", "provider_id", "write_date"]
+                        ["name", "model_id", "provider_id", "write_date", "tool_ids"]
                     );
 
                     if (!threadDetails || !threadDetails[0]) {
@@ -419,6 +429,8 @@ export const LLMChatService = {
                         isServerPinned: true,
                         llmModel: defaultModel,
                         updatedAt: threadDetails[0].write_date,
+                        tool_ids: threadDetails[0].tool_ids || [],
+                        selectedToolIds: threadDetails[0].tool_ids || [],
                         ...(relatedThreadModel && { relatedThreadModel }),
                         ...(relatedThreadId && { relatedThreadId }),
                     };
@@ -493,15 +505,36 @@ export const LLMChatService = {
                         const result = await orm.searchRead(
                             "llm.tool",
                             [["active", "=", true]],
-                            ["name", "id"]
+                            ["name", "id", "title", "default"]
                         );
 
                         this.tools = result.map(tool => ({
                             id: tool.id,
                             name: tool.name,
+                            title: tool.title,
+                            default: tool.default,
                         }));
                     } catch (error) {
                         console.error("Error loading tools:", error);
+                        return [];
+                    }
+                },
+
+                async getDefaultTools() {
+                    try {
+                        const result = await orm.searchRead(
+                            "llm.tool",
+                            [["active", "=", true], ["default", "=", true]],
+                            ["name", "id", "title"]
+                        );
+
+                        return result.map(tool => ({
+                            id: tool.id,
+                            name: tool.name,
+                            title: tool.title,
+                        }));
+                    } catch (error) {
+                        console.error("Error loading default tools:", error);
                         return [];
                     }
                 },
