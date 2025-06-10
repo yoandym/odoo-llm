@@ -148,28 +148,68 @@
         }
     }
 
-    // Tools dropdown
-    .form-check {
-        padding: 0.25rem 1rem;
-        margin-bottom: 0;
-
-        &:hover {
-            background-color: #f8f9fa;
+    // Tools dropdown - Very specific targeting
+    .o_LLMChatThreadHeader_controls .dropdown-menu {
+        // Ensure tools dropdown has minimum width for checkboxes
+        &.dropdown-menu-end {
+            min-width: 300px; // Increased width to ensure no clipping
+            padding: 0; // Remove default padding to let form-check handle it
+            overflow: visible; // Ensure content isn't clipped
         }
 
-        .form-check-input {
+        // Target form-check specifically within dropdown menus
+        .form-check {
+            padding: 0.75rem 1.25rem !important; // More generous padding with !important
+            margin: 0 !important; // Reset all margins
             cursor: pointer;
-
-            &:checked {
-                background-color: #0066cc;
-                border-color: #0066cc;
-            }
-        }
-
-        .form-check-label {
-            cursor: pointer;
+            display: flex !important;
+            align-items: flex-start;
+            border: none;
+            background: none;
             width: 100%;
-            margin-bottom: 0;
+            position: relative;
+            min-height: 2.5rem; // Ensure minimum height
+
+            &:hover {
+                background-color: #f8f9fa !important;
+            }
+
+            .form-check-input {
+                cursor: pointer;
+                margin: 0.125rem 0.75rem 0 0 !important; // Explicit margins with !important
+                flex-shrink: 0;
+                position: relative;
+                z-index: 1;
+                left: 0 !important; // Ensure it's not pushed off-screen
+                min-width: 1rem;
+                min-height: 1rem;
+
+                &:checked {
+                    background-color: #0066cc;
+                    border-color: #0066cc;
+                }
+
+                &:focus {
+                    box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+                }
+            }
+
+            .form-check-label {
+                cursor: pointer;
+                margin: 0 !important;
+                line-height: 1.5;
+                flex: 1;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: auto;
+                padding-left: 0 !important; // Remove any default label padding
+
+                small {
+                    font-size: 0.8rem;
+                    opacity: 0.8;
+                }
+            }
         }
     }
 
