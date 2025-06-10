@@ -464,7 +464,7 @@ export const LLMChatService = {
                         }
 
                         try {
-                            const name = _t("New Chat for %s %s", { relatedThreadModel, relatedThreadId });
+                            const name = _t("New Chat for %s %s", relatedThreadModel, relatedThreadId);
                             return await this.createThread({
                                 name,
                                 relatedThreadModel,
