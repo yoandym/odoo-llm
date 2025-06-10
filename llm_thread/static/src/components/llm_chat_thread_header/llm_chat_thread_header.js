@@ -284,7 +284,13 @@ export class LLMChatThreadHeader extends Component {
     /**
      * Toggle tool selection
      */
-    async onToggleTool(tool, isChecked) {
+    async onToggleTool(tool, isChecked, ev) {
+        // Prevent dropdown from closing and default checkbox behavior
+        if (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+        }
+
         const toolId = tool.id;
 
         if (isChecked) {
@@ -355,13 +361,6 @@ export class LLMChatThreadHeader extends Component {
         });
     }
 
-    /**
-     * Prevent dropdown from closing
-     */
-    preventDropdownClose(ev) {
-        ev.stopPropagation();
-    }
-
     // --------------------------------------------------------------------------
     // Thread Deletion
     // --------------------------------------------------------------------------
@@ -377,19 +376,19 @@ export class LLMChatThreadHeader extends Component {
                 try {
                     // Delete the thread
                     await this.orm.unlink("llm.thread", [this.props.thread.id]);
-                    
+
                     // Notify success
                     this.notificationService.add(
                         _t("Thread deleted successfully"),
                         { type: "success" }
                     );
-                    
+
                     // Refresh the thread list in llmChat service
                     await this.llmChat.loadThreads();
-                    
+
                     // Manually trigger the threads changed event to update the sidebar
                     this.env.bus.trigger("llm_chat:threads_changed", { threads: this.llmChat.threads });
-                    
+
                     // If this was the active thread, select another thread or create a new one
                     if (this.llmChat.activeThread && this.llmChat.activeThread.id === this.props.thread.id) {
                         const remainingThreads = this.llmChat.threads || [];
@@ -415,7 +414,7 @@ export class LLMChatThreadHeader extends Component {
                     );
                 }
             },
-            cancel: () => {},
+            cancel: () => { },
             confirmLabel: _t("Delete"),
             cancelLabel: _t("Cancel"),
         });
