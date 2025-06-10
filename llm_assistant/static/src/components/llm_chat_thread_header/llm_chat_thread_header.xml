@@ -3,7 +3,7 @@
     <!-- Extend the base LLMChatThreadHeader template -->
     <t t-inherit="llm_thread.LLMChatThreadHeader" t-inherit-mode="extension">
         <!-- Add the Assistant dropdown before the Provider dropdown -->
-        <xpath expr="//Dropdown[1]" position="before">
+        <xpath expr="//div[hasclass('o_LLMChatThreadHeader_controls')]//Dropdown[1]" position="before">
             <!-- LLM Assistant Dropdown (NEW) -->
             <Dropdown togglerClass="state.isLoadingAssistants ? 'btn btn-light btn-sm disabled' : 'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
                 <t t-set-slot="toggler">

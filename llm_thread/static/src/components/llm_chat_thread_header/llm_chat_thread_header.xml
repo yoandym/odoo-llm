@@ -3,54 +3,47 @@
     <t t-name="llm_thread.LLMChatThreadHeader" owl="1">
         <div class="o_LLMChatThreadHeader d-flex align-items-center px-3 py-2 border-bottom bg-white">
             <!-- Mobile: Toggle Thread List -->
-            <button 
-                t-if="isMobile"
-                class="btn btn-light btn-sm me-2"
-                t-on-click="toggleThreadList"
-                title="Toggle thread list"
-            >
+            <button t-if="isMobile" class="btn btn-light btn-sm me-2" t-on-click="toggleThreadList" title="Toggle thread list">
                 <i class="fa fa-bars" />
             </button>
 
             <!-- Thread Name (Editable on Desktop) -->
             <div class="o_LLMChatThreadHeader_title flex-grow-1 me-3">
                 <t t-if="!state.isEditingName or isMobile">
-                    <h5 
-                        class="mb-0 text-truncate"
-                        t-att-class="{ 'cursor-pointer': !isMobile }"
-                        t-att-title="props.thread.name"
-                        t-on-click="startEditingName.bind(this)"
-                    >
-                        <t t-esc="props.thread.name" />
-                        <i t-if="!isMobile" class="fa fa-pencil ms-1 small opacity-50" />
-                    </h5>
+                    <div class="d-flex align-items-center">
+                        <h5 class="mb-0 text-truncate cursor-pointer me-2" t-att-title="props.thread.name" t-on-click="startEditingName.bind(this)">
+                            <t t-esc="props.thread.name" />
+                        </h5>
+
+                        <!-- Thread Actions Menu -->
+                        <div t-if="!isMobile" class="o_thread_actions">
+                            <Dropdown togglerClass="'btn btn-sm btn-light border-0 shadow-none p-1'" menuClass="'dropdown-menu-start'">
+                                <t t-set-slot="toggler">
+                                    <i class="fa fa-ellipsis-v text-muted" />
+                                </t>
+
+                                <DropdownItem onSelected="startEditingName.bind(this)">
+                                    <i class="fa fa-pencil fa-fw me-2 text-primary" />
+                                    <span>Rename Thread</span>
+                                </DropdownItem>
+
+                                <div class="dropdown-divider" />
+
+                                <DropdownItem onSelected="deleteThread.bind(this)">
+                                    <i class="fa fa-trash fa-fw me-2 text-danger" />
+                                    <span class="text-danger">Delete Thread</span>
+                                </DropdownItem>
+                            </Dropdown>
+                        </div>
+                    </div>
                 </t>
                 <t t-else="">
                     <div class="d-flex align-items-center">
-                        <input
-                            t-ref="threadNameInput"
-                            type="text"
-                            class="form-control form-control-sm"
-                            t-att-value="state.pendingName"
-                            t-att-disabled="state.isSaving"
-                            t-on-input="onThreadNameInput"
-                            t-on-keydown="onThreadNameKeydown"
-                            placeholder="Thread name..."
-                        />
-                        <button 
-                            class="btn btn-sm btn-primary ms-1"
-                            t-att-disabled="state.isSaving"
-                            t-on-click="saveThreadName"
-                            title="Save"
-                        >
+                        <input t-ref="threadNameInput" type="text" class="form-control form-control-sm" t-att-value="state.pendingName" t-att-disabled="state.isSaving" t-on-input="onThreadNameInput" t-on-keydown="onThreadNameKeydown" placeholder="Thread name..." />
+                        <button class="btn btn-sm btn-primary ms-1" t-att-disabled="state.isSaving" t-on-click="saveThreadName" title="Save">
                             <i class="fa fa-check" />
                         </button>
-                        <button 
-                            class="btn btn-sm btn-secondary ms-1"
-                            t-att-disabled="state.isSaving"
-                            t-on-click="cancelEditingName"
-                            title="Cancel"
-                        >
+                        <button class="btn btn-sm btn-secondary ms-1" t-att-disabled="state.isSaving" t-on-click="cancelEditingName" title="Cancel">
                             <i class="fa fa-times" />
                         </button>
                     </div>
@@ -60,10 +53,7 @@
             <!-- Desktop: Dropdowns -->
             <div t-if="!isMobile" class="o_LLMChatThreadHeader_controls d-flex align-items-center gap-2">
                 <!-- Provider Dropdown -->
-                <Dropdown 
-                    togglerClass="'btn btn-light btn-sm'"
-                    menuClass="'o_LLMChatThreadHeader_dropdown'"
-                >
+                <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
                     <t t-set-slot="toggler">
                         <span class="text-truncate" style="max-width: 150px;">
                             <t t-if="selectedProvider" t-esc="selectedProvider.name" />
@@ -71,22 +61,16 @@
                         </span>
                         <i class="fa fa-caret-down ms-1" />
                     </t>
-                    
+
                     <t t-foreach="llmProviders" t-as="provider" t-key="provider.id">
-                        <DropdownItem
-                            onSelected="onSelectProvider.bind(this, provider)"
-                            class="{ 'active': state.selectedProviderId === provider.id }"
-                        >
+                        <DropdownItem onSelected="onSelectProvider.bind(this, provider)" class="{ 'active': state.selectedProviderId === provider.id }">
                             <t t-esc="provider.name" />
                         </DropdownItem>
                     </t>
                 </Dropdown>
 
                 <!-- Model Dropdown with Search -->
-                <Dropdown
-                    togglerClass="state.selectedProviderId ? 'btn btn-light btn-sm' : 'btn btn-light btn-sm disabled'"
-                    menuClass="'o_LLMChatThreadHeader_dropdown'"
-                >
+                <Dropdown togglerClass="state.selectedProviderId ? 'btn btn-light btn-sm' : 'btn btn-light btn-sm disabled'" menuClass="'o_LLMChatThreadHeader_dropdown'">
                     <t t-set-slot="toggler">
                         <span class="text-truncate" style="max-width: 200px;">
                             <t t-if="selectedModel" t-esc="selectedModel.name" />
@@ -94,22 +78,16 @@
                         </span>
                         <i class="fa fa-caret-down ms-1" />
                     </t>
-                    
+
                     <t t-foreach="filteredModels" t-as="model" t-key="model.id">
-                        <DropdownItem
-                            onSelected="onSelectModel.bind(this, model)"
-                            class="{ 'active': state.selectedModelId === model.id }"
-                        >
+                        <DropdownItem onSelected="onSelectModel.bind(this, model)" class="{ 'active': state.selectedModelId === model.id }">
                             <t t-esc="model.name" />
                         </DropdownItem>
                     </t>
                 </Dropdown>
 
                 <!-- Tools Dropdown -->
-                <Dropdown
-                    togglerClass="'btn btn-light btn-sm'"
-                    menuClass="'o_LLMChatThreadHeader_dropdown dropdown-menu-end'"
-                >
+                <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown dropdown-menu-end'">
                     <t t-set-slot="toggler">
                         Tools
                         <t t-if="selectedToolsCount > 0">
@@ -119,12 +97,9 @@
                         </t>
                         <i class="fa fa-caret-down ms-1" />
                     </t>
-                    
+
                     <t t-foreach="availableTools" t-as="tool" t-key="tool.id">
-                        <DropdownItem
-                            onSelected="() => this.onToggleTool(tool, !this.isToolSelected(tool.id))"
-                            class="{ 'd-flex': true, 'align-items-center': true, 'justify-content-between': true }"
-                        >
+                        <DropdownItem onSelected="() => this.onToggleTool(tool, !this.isToolSelected(tool.id))" class="{ 'd-flex': true, 'align-items-center': true, 'justify-content-between': true }">
                             <span class="d-flex align-items-center">
                                 <i t-att-class="{
                                     'fa': true,
@@ -143,12 +118,7 @@
             </div>
 
             <!-- Mobile: Settings Button -->
-            <button
-                t-if="isMobile"
-                class="btn btn-light btn-sm"
-                t-on-click="openThreadSettings"
-                title="Thread settings"
-            >
+            <button t-if="isMobile" class="btn btn-light btn-sm" t-on-click="openThreadSettings" title="Thread settings">
                 <i class="fa fa-cog" />
             </button>
         </div>

@@ -4,6 +4,8 @@ import { Component, useState, useRef, onMounted, onWillUnmount } from "@odoo/owl
 import { useService } from "@web/core/utils/hooks";
 import { Dropdown } from "@web/core/dropdown/dropdown";
 import { DropdownItem } from "@web/core/dropdown/dropdown_item";
+import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { _t } from "@web/core/l10n/translation";
 
 /**
  * LLMChatThreadHeader Component for Odoo v17
@@ -37,6 +39,7 @@ export class LLMChatThreadHeader extends Component {
         this.notificationService = useService("notification");
         this.uiService = useService("ui");
         this.orm = useService("orm");
+        this.dialogService = useService("dialog");
 
         // Direct access to llmChat store
         this.llmChat = this.llmChatService;
@@ -174,7 +177,7 @@ export class LLMChatThreadHeader extends Component {
         } catch (error) {
             console.error("Failed to save thread name:", error);
             this.notificationService.add(
-                this.env._t("Failed to save thread name"),
+                _t("Failed to save thread name"),
                 { type: "danger" }
             );
         } finally {
@@ -357,5 +360,64 @@ export class LLMChatThreadHeader extends Component {
      */
     preventDropdownClose(ev) {
         ev.stopPropagation();
+    }
+
+    // --------------------------------------------------------------------------
+    // Thread Deletion
+    // --------------------------------------------------------------------------
+
+    /**
+     * Delete thread with confirmation
+     */
+    async deleteThread() {
+        this.dialogService.add(ConfirmationDialog, {
+            title: _t("Delete Thread"),
+            body: _t("Are you sure you want to delete this thread? This action cannot be undone."),
+            confirm: async () => {
+                try {
+                    // Delete the thread
+                    await this.orm.unlink("llm.thread", [this.props.thread.id]);
+                    
+                    // Notify success
+                    this.notificationService.add(
+                        _t("Thread deleted successfully"),
+                        { type: "success" }
+                    );
+                    
+                    // Refresh the thread list in llmChat service
+                    await this.llmChat.loadThreads();
+                    
+                    // Manually trigger the threads changed event to update the sidebar
+                    this.env.bus.trigger("llm_chat:threads_changed", { threads: this.llmChat.threads });
+                    
+                    // If this was the active thread, select another thread or create a new one
+                    if (this.llmChat.activeThread && this.llmChat.activeThread.id === this.props.thread.id) {
+                        const remainingThreads = this.llmChat.threads || [];
+                        if (remainingThreads.length > 0) {
+                            // Select the first available thread
+                            const nextThread = remainingThreads[0];
+                            await this.llmChat.selectThread(nextThread.id);
+                        } else {
+                            // No threads left, create a new one
+                            const newThread = await this.llmChat.createThread({
+                                name: this.env._t("New Chat")
+                            });
+                            if (newThread) {
+                                await this.llmChat.selectThread(newThread.id);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to delete thread:", error);
+                    this.notificationService.add(
+                        _t("Failed to delete thread"),
+                        { type: "danger" }
+                    );
+                }
+            },
+            cancel: () => {},
+            confirmLabel: _t("Delete"),
+            cancelLabel: _t("Cancel"),
+        });
     }
 }
