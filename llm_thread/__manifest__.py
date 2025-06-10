@@ -40,7 +40,13 @@ Contact: support@apexive.com
     ],
     "assets": {
         "web.assets_backend": [
-            # Services (load first - event service must be loaded before others)
+            # Core patches and services (load first)
+            "llm_thread/static/src/core/llm_message_patch.js",
+            "llm_thread/static/src/core/llm_message_patch.xml",
+            "llm_thread/static/src/core/llm_message_patch.scss",
+            "llm_thread/static/src/core/llm_message_type_service.js",
+            
+            # Services
             "llm_thread/static/src/services/llm_chat_service.js",
             "llm_thread/static/src/services/llm_composer_service.js",
 
@@ -69,9 +75,8 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.xml",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.scss",
 
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.js",
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.xml",
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.scss",
+            # Removed llm_chat_message_list - using Odoo's ThreadView
+            # Removed llm_message - using Odoo's Message with patches
 
             "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.js",
             "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.xml",
@@ -91,10 +96,6 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_form_button/llm_form_button.js",
             "llm_thread/static/src/components/llm_form_button/llm_form_button.xml",
 
-            "llm_thread/static/src/components/llm_message/llm_message.js",
-            "llm_thread/static/src/components/llm_message/llm_message.xml",
-            "llm_thread/static/src/components/llm_message/llm_message.scss",
-
             # Streaming indicator component
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.js",
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.xml",
@@ -103,13 +104,6 @@ Contact: support@apexive.com
             # Client Actions
             "llm_thread/static/src/llm_chat_client_action.js",
             "llm_thread/static/src/llm_message_actions.js",
-
-            # SCSS Styles (loaded after Odoo primary variables are available)
-            #  Core Odoo SCSS files, commonly in:
-            # web/static/src/scss/primary_variables.scss
-            # web/static/src/scss/secondary_variables.scss
-            # web/static/src/scss/bootstrap_overridden.scss
-
         ],
     },
     "images": [

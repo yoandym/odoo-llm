@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <!-- LLMChatThread Template -->
+    <!-- LLMChatThread Template using Odoo's native Message component -->
     <t t-name="llm_thread.LLMChatThread" owl="1">
         <div t-att-class="containerClass">
             <!-- Header -->
-            <LLMChatThreadHeader thread="props.thread" onOpenSidebar="props.onOpenSidebar" />
+            <LLMChatThreadHeader 
+                thread="props.thread" 
+                onOpenSidebar="props.onOpenSidebar" 
+            />
 
             <!-- Messages Content Area -->
             <div class="o_LLMChatThread_content flex-grow-1 overflow-auto position-relative" t-ref="content">
@@ -22,16 +25,55 @@
 
                 <!-- Message List -->
                 <t t-else="">
-                    <LLMChatMessageList t-if="state.streamingMessageId" messages="state.messages" isLoading="state.isLoadingMessages" hasMore="state.hasMoreMessages" streamingMessageId="state.streamingMessageId" onRetryMessage.bind="onRetryMessage" className="'px-3 py-2'" />
-                    <LLMChatMessageList t-else="" messages="state.messages" isLoading="state.isLoadingMessages" hasMore="state.hasMoreMessages" onRetryMessage.bind="onRetryMessage" className="'px-3 py-2'" />
+                    <div class="o_LLMChatMessageList px-3 py-2">
+                        <!-- Loading more indicator -->
+                        <t t-if="state.isLoadingMessages and state.messages.length > 0">
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-muted" role="status">
+                                    <span class="visually-hidden">Loading more messages...</span>
+                                </div>
+                            </div>
+                        </t>
+
+                        <!-- Empty state -->
+                        <t t-if="!state.messages.length and !state.isLoadingMessages">
+                            <div class="text-center py-5 text-muted">
+                                <i class="fa fa-comments fa-3x mb-3 opacity-50"/>
+                                <p>No messages yet. Start a conversation!</p>
+                            </div>
+                        </t>
+
+                        <!-- Grouped messages -->
+                        <t t-foreach="groupedMessages" t-as="group" t-key="group.date">
+                            <!-- Date separator -->
+                            <div class="o_mail_DateSection d-flex align-items-center my-3">
+                                <hr class="flex-grow-1 opacity-25"/>
+                                <span class="mx-3 text-muted small">
+                                    <t t-esc="group.displayDate"/>
+                                </span>
+                                <hr class="flex-grow-1 opacity-25"/>
+                            </div>
+
+                            <!-- Messages in group -->
+                            <t t-foreach="group.messages" t-as="message" t-key="message.id">
+                                <div class="o_LLMChatMessage">
+                                    <Message t-props="getMessageProps(message)"/>
+                                </div>
+                            </t>
+                        </t>
+                    </div>
                 </t>
             </div>
 
             <!-- Composer -->
             <div class="o_LLMChatThread_composer border-top">
-                <LLMChatComposer composer="composerState" thread="props.thread" exposeAPI.bind="onComposerAPIExposed" placeholder="_t('Type your message... (Shift+Enter for new line)')" autofocus="1" />
+                <LLMChatComposer 
+                    composer="composerState" 
+                    thread="props.thread" 
+                    placeholder="'Type your message... (Shift+Enter for new line)'"
+                    autofocus="1" 
+                />
             </div>
         </div>
     </t>
-    <!-- End of LLMChatThread Template -->
 </templates>

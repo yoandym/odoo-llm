@@ -4,9 +4,7 @@ import logging
 
 import emoji
 import markdown2
-
 from odoo import _, api, fields, models
-
 from odoo.addons.llm_mail_message_subtypes.const import (
     LLM_ASSISTANT_SUBTYPE_XMLID, LLM_TOOL_RESULT_SUBTYPE_XMLID,
     LLM_USER_SUBTYPE_XMLID)
@@ -111,7 +109,15 @@ class LLMThread(models.Model):
             kwargs.get("tool_name"),
         )
         post_vals = self.build_post_vals(subtype_xmlid, body, author_id, email_from)
+        
+        # Additional debug logging
+        _logger.info("HTML Encoding Debug - About to call message_post with body: %s", post_vals.get("body"))
+        
         message = self.message_post(**post_vals)
+        
+        # Check what body was actually stored
+        _logger.info("HTML Encoding Debug - Message body after message_post: %s", message.body)
+        
         extra_vals = self.build_update_vals(**kwargs)
         
         if extra_vals:
@@ -375,9 +381,25 @@ class LLMThread(models.Model):
         return None
 
     @api.model
+    def _process_message_body(self, body):
+        """Process message body content - keep as plain text to avoid HTML encoding issues."""
+        if not body:
+            return body
+            
+        # Just apply emoji processing, no HTML conversion
+        return emoji.demojize(body)
+
+    @api.model
     def build_post_vals(self, subtype_xmlid, body, author_id, email_from):
+        # Debug logging to track HTML encoding issue
+        original_body = body
+        processed_body = self._process_message_body(body)
+        
+        _logger.info("HTML Encoding Debug - Original body: %s", original_body)
+        _logger.info("HTML Encoding Debug - Processed body: %s", processed_body)
+        
         return {
-            "body": markdown2.markdown(emoji.demojize(body)),
+            "body": processed_body,
             "message_type": "comment",
             "subtype_xmlid": subtype_xmlid,
             "author_id": author_id,
