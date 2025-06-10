@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { useState, onWillStart, onWillUnmount, onMounted } from "@odoo/owl";
+import { useState, onWillStart, onWillUnmount, onMounted, useRef } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { Composer } from "@mail/core/common/composer";
@@ -52,6 +52,9 @@ export class LLMChatComposer extends Composer {
 
     super.setup();
 
+    // Create ref for textarea
+    this.textareaRef = useRef("textarea");
+
     // LLM-specific services
     this.llmComposerService = useService("llm_composer");
     this.llmChatService = useService("llm_chat");
@@ -90,7 +93,8 @@ export class LLMChatComposer extends Composer {
     onMounted(() => {
       // Focus on mount if needed
       if (this.props.autofocus) {
-        this.focusTextInput();
+        // Use setTimeout to ensure DOM is ready
+        setTimeout(() => this.focusTextInput(), 0);
       }
     });
   }
@@ -136,8 +140,12 @@ export class LLMChatComposer extends Composer {
         this.llmState.isStreaming = false;
         this.llmState.isDisabled = false;
 
-        // Focus after streaming stops
-        setTimeout(() => this.focusTextInput(), 100);
+        // Focus after streaming stops, but only if component is mounted
+        setTimeout(() => {
+          if (this.textareaRef.el || this.root?.el) {
+            this.focusTextInput();
+          }
+        }, 100);
       }
     };
 
@@ -169,7 +177,7 @@ export class LLMChatComposer extends Composer {
         this.llmState.isStreaming = true;
 
         // Clear input immediately for better UX
-        this.props.composer.textInputContent = "";
+        this.clearTextInput();
 
         // Use custom handler
         await this.props.onCustomSendMessage();
@@ -177,6 +185,7 @@ export class LLMChatComposer extends Composer {
       } catch (error) {
         // Restore content on error
         this.props.composer.textInputContent = messageBody;
+        this.updateTextInputValue(messageBody);
         this.llmState.isDisabled = false;
         this.llmState.isStreaming = false;
         throw error;
@@ -197,7 +206,7 @@ export class LLMChatComposer extends Composer {
     const previousContent = this.props.composer.textInputContent;
 
     // Clear input immediately for better UX
-    this.props.composer.textInputContent = "";
+    this.clearTextInput();
 
     try {
       await this.llmComposerService.postUserMessage(
@@ -207,6 +216,7 @@ export class LLMChatComposer extends Composer {
     } catch (error) {
       // Restore content on error
       this.props.composer.textInputContent = previousContent;
+      this.updateTextInputValue(previousContent);
       this.llmState.isDisabled = false;
       this.llmState.isStreaming = false;
 
@@ -271,8 +281,58 @@ export class LLMChatComposer extends Composer {
    * Focus the text input
    */
   focusTextInput() {
-    if (this.ref && this.ref.el) {
-      this.ref.el.focus();
+    const textarea = this.getTextareaElement();
+    if (textarea && !this.llmState.isDisabled) {
+      textarea.focus();
+    }
+  }
+
+  /**
+   * Get the textarea DOM element
+   */
+  getTextareaElement() {
+    // Use the ref first (preferred approach)
+    if (this.textareaRef.el) {
+      return this.textareaRef.el;
+    }
+
+    // Fallback to querySelector if ref is not available
+    if (this.root?.el) {
+      return this.root.el.querySelector('textarea[t-ref="textarea"]');
+    }
+
+    return null;
+  }
+
+  /**
+   * Clear the text input properly
+   */
+  clearTextInput() {
+    // Clear the reactive property
+    this.props.composer.textInputContent = "";
+
+    // Also clear the DOM element directly to ensure it's cleared
+    const textarea = this.getTextareaElement();
+    if (textarea) {
+      textarea.value = "";
+      // Trigger input event to ensure any event listeners are notified
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
+  /**
+   * Update text input value
+   */
+  updateTextInputValue(value) {
+    // Update the reactive property
+    this.props.composer.textInputContent = value;
+
+    // Also update the DOM element directly
+    const textarea = this.getTextareaElement();
+    if (textarea) {
+      textarea.value = value;
+      // Trigger input event to ensure any event listeners are notified
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
   }
 
