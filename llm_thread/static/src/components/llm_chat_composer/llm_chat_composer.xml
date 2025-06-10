@@ -3,6 +3,14 @@
     <!-- LLMChatComposer Template - extends Odoo's mail composer -->
     <t t-name="llm_thread.LLMChatComposer" owl="1">
         <div t-att-class="containerClass">
+            <!-- Streaming indicator - positioned above the composer -->
+            <div t-if="llmState.isStreaming" class="o_LLMChatComposer_streamingIndicator text-center text-muted">
+                <small>
+                    <i class="fa fa-circle-o-notch fa-spin me-1" />
+                    <span>AI is generating response...</span>
+                </small>
+            </div>
+
             <!-- Use Odoo's composer with custom configuration -->
             <div class="o-mail-Composer d-grid flex-shrink-0 p-4" t-att-class="{ 'o-isUiSmall': ui.isSmall }">
 
@@ -43,14 +51,6 @@
                 <!-- Footer with emoji picker -->
                 <div class="o-mail-Composer-footer overflow-auto">
                     <Picker t-props="picker" t-if="picker"/>
-                </div>
-
-                <!-- Streaming indicator -->
-                <div t-if="llmState.isStreaming" class="o_LLMChatComposer_streamingIndicator text-center py-2 mt-2">
-                    <small class="text-muted">
-                        <i class="fa fa-circle-o-notch fa-spin me-1" />
-                        <span>AI is generating response...</span>
-                    </small>
                 </div>
             </div>
         </div>
