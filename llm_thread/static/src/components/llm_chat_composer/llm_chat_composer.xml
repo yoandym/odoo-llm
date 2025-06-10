@@ -42,7 +42,7 @@
 
                 <!-- Footer with emoji picker -->
                 <div class="o-mail-Composer-footer overflow-auto">
-                    <Picker t-props="picker"/>
+                    <Picker t-props="picker" t-if="picker"/>
                 </div>
 
                 <!-- Streaming indicator -->

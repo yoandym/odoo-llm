@@ -5,7 +5,7 @@ import { Chatter } from "@mail/core/web/chatter";
 import { useState, Component, useRef } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
-import { LLMChatterInterface } from "./llm_chatter_interface";
+import { LLMChatThread } from "../llm_chat_thread/llm_chat_thread";
 
 /**
  * Patch the Chatter component to add LLM chat integration
@@ -32,9 +32,6 @@ patch(Chatter.prototype, {
             llmThread: null,
             isInitializingLLM: false,
         });
-
-        // Ref for the LLM interface component
-        this.llmInterfaceRef = useRef("llmInterface");
     },
 
 
@@ -178,7 +175,7 @@ patch(Chatter.prototype, {
 
     /**
      * Send LLM message using the chat service
-     * This is called from the LLMChatterInterface component
+     * This is called from the LLMChatThread component
      */
     async sendLLMMessage(message) {
         console.log("[LLM] Sending message:", message);
@@ -247,11 +244,11 @@ patch(Chatter.prototype, {
     },
 });
 
-// Add LLMChatterInterface to Chatter's components
+// Add LLMChatThread to Chatter's components
 patch(Chatter, {
     components: {
         ...Chatter.components,
-        LLMChatterInterface,
+        LLMChatThread,
     },
 });
 

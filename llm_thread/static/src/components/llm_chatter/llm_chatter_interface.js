@@ -1,9 +1,11 @@
 /** @odoo-module **/
 
-import { Component, useState, useRef, onMounted } from "@odoo/owl";
+import { Component, useState, useRef, onMounted, onWillStart } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
+import { Deferred } from "@web/core/utils/concurrency";
 import { LLMChatThreadHeader } from "../llm_chat_thread_header/llm_chat_thread_header";
+import { LLMChatComposer } from "../llm_chat_composer/llm_chat_composer";
 
 /**
  * LLM Chat Interface Component for Chatter
@@ -11,15 +13,18 @@ import { LLMChatThreadHeader } from "../llm_chat_thread_header/llm_chat_thread_h
  * This component provides the full LLM chat interface including:
  * - Header with provider/model selection
  * - Messages display
- * - Message composer
+ * - Extended LLM composer with streaming support
  */
 export class LLMChatterInterface extends Component {
     static template = "llm_thread.LLMChatterInterface";
-    static components = { LLMChatThreadHeader };
+    static components = {
+        LLMChatThreadHeader,
+        LLMChatComposer,
+    };
     static props = {
         thread: { type: Object },
         modelName: { type: String, optional: true },
-        onSendMessage: { type: Function },
+        onSendMessage: { type: Function, optional: true },
     };
 
     setup() {
@@ -28,20 +33,71 @@ export class LLMChatterInterface extends Component {
         this.userService = useService("user");
 
         this.state = useState({
-            isSending: false,
             isLoadingMessages: true,
             messages: [],
+            composer: null, // Will hold composer state for LLMChatComposer
         });
 
         this.messagesContainer = useRef("messagesContainer");
-        this.messageInput = useRef("messageInput");
+        this.composerAPI = null; // Will hold composer API from callback
+
+        // Initialize composer state
+        onWillStart(async () => {
+            if (this.props.thread?.id) {
+                // Create composer state compatible with LLMChatComposer
+                // Include all properties that the base Composer expects
+                this.state.composer = {
+                    // Core text input properties
+                    textInputContent: "",
+                    isFocused: false,
+
+                    // Selection state (required by base Composer)
+                    selection: {
+                        start: 0,
+                        end: 0,
+                        direction: "none"
+                    },
+
+                    // Attachment properties
+                    attachments: [],
+                    isUploading: false,
+                    uploadingAttachments: [],
+
+                    // Mention properties
+                    mentionedChannels: [],
+                    mentionedPartners: [],
+
+                    // Canned responses
+                    cannedResponses: [],
+
+                    // Thread reference
+                    thread: this.props.thread,
+
+                    // Emoji picker state
+                    showEmojiPicker: false,
+
+                    // Additional base Composer properties that might be needed
+                    isComposerSuggestion: false,
+                    hasParent: false,
+                    isEditing: false,
+
+                    // Message properties
+                    message: null,
+                    messageToReplyTo: null,
+
+                    // State flags
+                    isExpanded: false,
+                    isMinimized: false,
+                };
+            }
+        });
 
         onMounted(() => {
             this.loadMessages();
-            // Focus input after a short delay
+            // Focus composer after mounting
             setTimeout(() => {
-                if (this.messageInput.el) {
-                    this.messageInput.el.focus();
+                if (this.composerAPI?.focus) {
+                    this.composerAPI.focus();
                 }
             }, 100);
         });
@@ -270,30 +326,24 @@ export class LLMChatterInterface extends Component {
     }
 
     /**
-     * Handle key down events in input
+     * Handle message sending from composer
+     * This is called by the LLMChatComposer when sendMessage is triggered
      */
-    onKeyDown(ev) {
-        if (ev.key === 'Enter' && !ev.shiftKey) {
-            ev.preventDefault();
-            this.sendMessage();
-        }
-    }
-
-    /**
-     * Send a message
-     */
-    async sendMessage() {
-        const input = this.messageInput.el;
-        if (!input?.value.trim() || this.state.isSending) {
+    async onComposerSendMessage() {
+        if (!this.state.composer?.textInputContent?.trim()) {
             return;
         }
 
-        const message = input.value.trim();
-        input.value = '';
-        this.state.isSending = true;
+        const message = this.state.composer.textInputContent.trim();
 
         try {
-            await this.props.onSendMessage(message);
+            // Use parent's onSendMessage if provided, or call service directly
+            if (this.props.onSendMessage) {
+                await this.props.onSendMessage(message);
+            } else {
+                // Direct service call as fallback
+                await this.llmChatService.sendMessage(this.props.thread.id, message);
+            }
 
             // Reload messages after sending
             await this.loadMessages();
@@ -304,11 +354,8 @@ export class LLMChatterInterface extends Component {
                 _t("Failed to send message: ") + error.message,
                 { type: "danger" }
             );
-        } finally {
-            this.state.isSending = false;
-            if (input) {
-                input.focus();
-            }
+            // Re-throw so composer can handle error state
+            throw error;
         }
     }
 
@@ -317,5 +364,19 @@ export class LLMChatterInterface extends Component {
      */
     async refreshMessages() {
         await this.loadMessages();
+    }
+
+    /**
+     * Set composer API from callback
+     */
+    setComposerAPI(api) {
+        this.composerAPI = api;
+    }
+
+    /**
+     * Get composer API for external access
+     */
+    getComposerAPI() {
+        return this.composerAPI;
     }
 }

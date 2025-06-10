@@ -19,9 +19,37 @@ export class LLMChatComposer extends Composer {
     "className?",
     "placeholder?",
     "exposeAPI?",
+    "onCustomSendMessage?", // Custom send handler for chatter integration
   ];
 
   setup() {
+    // Ensure composer prop has all required properties before calling super.setup()
+    if (!this.props.composer) {
+      throw new Error("LLMChatComposer requires a composer prop");
+    }
+
+    // Ensure required properties exist
+    if (!this.props.composer.selection) {
+      this.props.composer.selection = {
+        start: 0,
+        end: 0,
+        direction: "none"
+      };
+    }
+
+    // Ensure attachments exist
+    if (!this.props.composer.attachments) {
+      this.props.composer.attachments = [];
+    }
+
+    // Ensure other required properties
+    if (!this.props.composer.mentionedChannels) {
+      this.props.composer.mentionedChannels = [];
+    }
+    if (!this.props.composer.mentionedPartners) {
+      this.props.composer.mentionedPartners = [];
+    }
+
     super.setup();
 
     // LLM-specific services
@@ -125,7 +153,7 @@ export class LLMChatComposer extends Composer {
   }
 
   /**
-   * Override sendMessage to use LLM service instead of thread service
+   * Override sendMessage to use custom handler or LLM service
    */
   async sendMessage() {
     const messageBody = this.props.composer.textInputContent.trim();
@@ -133,6 +161,34 @@ export class LLMChatComposer extends Composer {
       return;
     }
 
+    // Check if we have a custom send handler (e.g., from chatter)
+    if (this.props.onCustomSendMessage) {
+      try {
+        // Update UI state
+        this.llmState.isDisabled = true;
+        this.llmState.isStreaming = true;
+
+        // Clear input immediately for better UX
+        this.props.composer.textInputContent = "";
+
+        // Use custom handler
+        await this.props.onCustomSendMessage();
+
+      } catch (error) {
+        // Restore content on error
+        this.props.composer.textInputContent = messageBody;
+        this.llmState.isDisabled = false;
+        this.llmState.isStreaming = false;
+        throw error;
+      } finally {
+        // Reset states after custom handler completes
+        this.llmState.isDisabled = false;
+        this.llmState.isStreaming = false;
+      }
+      return;
+    }
+
+    // Default LLM service behavior
     // Update UI state
     this.llmState.isDisabled = true;
     this.llmState.isStreaming = true;

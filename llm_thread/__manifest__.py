@@ -85,6 +85,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chatter/llm_chatter.js",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.scss",
+            "llm_thread/static/src/components/llm_chatter/llm_chatter_interface.scss",
 
             # Form Button Widget
             "llm_thread/static/src/components/llm_form_button/llm_form_button.js",
