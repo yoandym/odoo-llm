@@ -20,6 +20,8 @@ export class LLMMessage extends Component {
 
         this.state = useState({
             isToolCallsExpanded: false,
+            expandedToolCalls: {}, // Track which tool calls are expanded
+            isExpanded: false, // For simple tool message expansion
         });
     }
 
@@ -33,7 +35,7 @@ export class LLMMessage extends Component {
         }
 
         // For AI messages, render HTML
-        if (this.props.message.isAiMessage) {
+        if (this.isAiMessage) {
             return markup(this.props.message.body);
         }
 
@@ -70,7 +72,7 @@ export class LLMMessage extends Component {
             classes.push("o-selfAuthored");
         }
 
-        if (this.props.message.isAiMessage) {
+        if (this.isAiMessage) {
             classes.push("o-ai-message");
         }
 
@@ -79,6 +81,15 @@ export class LLMMessage extends Component {
         }
 
         return classes.join(" ");
+    }
+
+    /**
+     * Check if this is an AI message
+     */
+    get isAiMessage() {
+        // Check if it's an assistant message or tool result message
+        return this.props.message.subtype_xmlid === 'llm_mail_message_subtypes.mt_llm_assistant' ||
+               this.props.message.subtype_xmlid === 'llm_mail_message_subtypes.mt_llm_tool_result';
     }
 
     /**
@@ -99,7 +110,7 @@ export class LLMMessage extends Component {
             }
         }
         
-        return this.props.message.isAiMessage ? _t("AI Assistant") : _t("Unknown");
+        return this.isAiMessage ? _t("AI Assistant") : _t("Unknown");
     }
 
     /**
@@ -128,5 +139,163 @@ export class LLMMessage extends Component {
      */
     toggleToolCallsExpansion() {
         this.state.isToolCallsExpanded = !this.state.isToolCallsExpanded;
+    }
+
+    /**
+     * Toggle individual tool call expansion
+     */
+    toggleToolCall(toolCallId) {
+        this.state.expandedToolCalls[toolCallId] = !this.state.expandedToolCalls[toolCallId];
+    }
+
+    /**
+     * Get parsed tool calls
+     */
+    get parsedToolCalls() {
+        if (!this.props.message.tool_calls) {
+            return [];
+        }
+        try {
+            return JSON.parse(this.props.message.tool_calls);
+        } catch (e) {
+            console.error('Failed to parse tool calls:', e);
+            return [];
+        }
+    }
+
+    /**
+     * Check if message has tool calls
+     */
+    get hasToolCalls() {
+        return this.parsedToolCalls.length > 0;
+    }
+
+    /**
+     * Get parsed tool call definition
+     */
+    get parsedToolCallDefinition() {
+        if (!this.props.message.tool_call_definition) {
+            return null;
+        }
+        try {
+            return JSON.parse(this.props.message.tool_call_definition);
+        } catch (e) {
+            console.error('Failed to parse tool call definition:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Get parsed tool call result
+     */
+    get parsedToolCallResult() {
+        if (!this.props.message.tool_call_result) {
+            return null;
+        }
+        try {
+            return JSON.parse(this.props.message.tool_call_result);
+        } catch (e) {
+            console.error('Failed to parse tool call result:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Check if this is a tool result message
+     */
+    get isToolResultMessage() {
+        // Check by subtype_xmlid
+        if (this.props.message.subtype_xmlid === 'llm_mail_message_subtypes.mt_llm_tool_result') {
+            return true;
+        }
+        
+        // Alternative check: if message has tool_call_id or tool_call_result
+        if (this.props.message.tool_call_id || this.props.message.tool_call_result) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Format JSON for display
+     */
+    formatJSON(obj) {
+        if (!obj) return '';
+        return JSON.stringify(obj, null, 2);
+    }
+
+    /**
+     * Toggle simple expansion for tool messages
+     */
+    toggleExpansion() {
+        this.state.isExpanded = !this.state.isExpanded;
+    }
+
+    /**
+     * Get tool name from author
+     */
+    get toolName() {
+        if (this.parsedToolCallDefinition?.function?.name) {
+            return this.parsedToolCallDefinition.function.name;
+        }
+        // Use the author name as tool name
+        return this.authorName;
+    }
+
+    /**
+     * Get combined tool information
+     */
+    get toolCallsWithResults() {
+        if (!this.hasToolCalls) {
+            return [];
+        }
+
+        const toolCalls = this.parsedToolCalls;
+        const toolResults = this.props.message.toolResults || [];
+
+        // Map tool calls with their results
+        return toolCalls.map(call => {
+            const result = toolResults.find(r => r.tool_call_id === call.id);
+            
+            // Parse the result data if available
+            let parsedResult = null;
+            let hasError = false;
+            
+            if (result && result.tool_call_result) {
+                try {
+                    const resultData = JSON.parse(result.tool_call_result);
+                    parsedResult = resultData;
+                    hasError = !!resultData.error;
+                } catch (e) {
+                    console.error('Failed to parse tool result:', e);
+                }
+            }
+            
+            // Parse the arguments if available
+            let parsedArguments = {};
+            if (call.function && call.function.arguments) {
+                try {
+                    parsedArguments = JSON.parse(call.function.arguments);
+                } catch (e) {
+                    console.error('Failed to parse tool arguments:', e);
+                }
+            }
+            
+            return {
+                ...call,
+                result: result || null,
+                parsedResult: parsedResult,
+                hasError: hasError,
+                parsedArguments: parsedArguments
+            };
+        });
+    }
+
+    /**
+     * Create click handler for tool call
+     */
+    getToolCallClickHandler(toolCallId) {
+        return () => this.toggleToolCall(toolCallId);
     }
 }

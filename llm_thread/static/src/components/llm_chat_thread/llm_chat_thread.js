@@ -311,18 +311,68 @@ export class LLMChatThread extends Component {
             author: msg.author_id,
             email_from: msg.email_from,
             date: msg.date,
-            isAiMessage: msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_assistant" || msg.message_type === "llm_response",
+            isAiMessage: msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_assistant" || 
+                         msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_tool_result" ||
+                         msg.message_type === "llm_response",
             isStreaming: false,
             attachments: msg.attachment_ids || [],
+            // Add all tool-related fields
+            subtype_xmlid: msg.subtype_xmlid,
+            tool_call_id: msg.tool_call_id,
+            tool_calls: msg.tool_calls,
+            tool_call_definition: msg.tool_call_definition,
+            tool_call_result: msg.tool_call_result,
+            message_type: msg.message_type,
+            subtype_id: msg.subtype_id,
         }));
 
-        // Sort messages by date ascending (oldest first, newest last)
-        // This ensures consistent chat ordering regardless of server response order
-        return processed.sort((a, b) => {
+        // Sort messages by date ascending
+        const sorted = processed.sort((a, b) => {
             const dateA = new Date(a.date);
             const dateB = new Date(b.date);
             return dateA - dateB;
         });
+
+        // Link tool results to their parent assistant messages
+        const messagesMap = new Map(sorted.map(msg => [msg.id, msg]));
+        
+        sorted.forEach(msg => {
+            if (msg.tool_call_id && msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_tool_result") {
+                // Find the assistant message that made this tool call
+                const assistantMsg = sorted.find(m => {
+                    if (m.tool_calls && m.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_assistant") {
+                        try {
+                            const calls = JSON.parse(m.tool_calls);
+                            return calls.some(call => call.id === msg.tool_call_id);
+                        } catch (e) {
+                            return false;
+                        }
+                    }
+                    return false;
+                });
+
+                if (assistantMsg) {
+                    // Store tool results in the assistant message
+                    if (!assistantMsg.toolResults) {
+                        assistantMsg.toolResults = [];
+                    }
+                    assistantMsg.toolResults.push({
+                        id: msg.id,
+                        tool_call_id: msg.tool_call_id,
+                        tool_call_definition: msg.tool_call_definition,
+                        tool_call_result: msg.tool_call_result,
+                        body: msg.body,
+                        date: msg.date,
+                    });
+                    
+                    // Mark the tool result message as hidden
+                    msg.isHidden = true;
+                }
+            }
+        });
+
+        // Filter out hidden messages
+        return sorted.filter(msg => !msg.isHidden);
     }
 
     /**
@@ -330,6 +380,47 @@ export class LLMChatThread extends Component {
      */
     handleMessageCreated(messageData) {
         const processedMessage = this.processMessages([messageData])[0];
+
+        // Check if this is a tool result message that should be linked to an assistant message
+        if (messageData.tool_call_id && messageData.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_tool_result") {
+            // Find the assistant message that made this tool call
+            const assistantMsg = this.state.messages.find(m => {
+                if (m.tool_calls && m.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_assistant") {
+                    try {
+                        const calls = JSON.parse(m.tool_calls);
+                        return calls.some(call => call.id === messageData.tool_call_id);
+                    } catch (e) {
+                        return false;
+                    }
+                }
+                return false;
+            });
+
+            if (assistantMsg) {
+                // Store tool result in the assistant message
+                if (!assistantMsg.toolResults) {
+                    assistantMsg.toolResults = [];
+                }
+                assistantMsg.toolResults.push({
+                    id: messageData.id,
+                    tool_call_id: messageData.tool_call_id,
+                    tool_call_definition: messageData.tool_call_definition,
+                    tool_call_result: messageData.tool_call_result,
+                    body: messageData.body,
+                    date: messageData.date,
+                });
+                
+                // Force re-render of the assistant message
+                const msgIndex = this.state.messages.indexOf(assistantMsg);
+                if (msgIndex >= 0) {
+                    // Trigger reactivity by creating a new message object
+                    this.state.messages[msgIndex] = { ...assistantMsg };
+                }
+                
+                // Don't add the tool result as a separate message
+                return;
+            }
+        }
 
         // Mark as streaming if it's an AI message
         if (processedMessage.isAiMessage) {
@@ -349,6 +440,66 @@ export class LLMChatThread extends Component {
      * Handle message updates (for streaming)
      */
     handleMessageUpdated(messageData) {
+        // First check if this is a tool result update that should be linked to an assistant message
+        if (messageData.tool_call_id && messageData.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_tool_result") {
+            // Find the assistant message that made this tool call
+            const assistantMsg = this.state.messages.find(m => {
+                if (m.tool_calls && m.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_assistant") {
+                    try {
+                        const calls = JSON.parse(m.tool_calls);
+                        return calls.some(call => call.id === messageData.tool_call_id);
+                    } catch (e) {
+                        return false;
+                    }
+                }
+                return false;
+            });
+
+            if (assistantMsg) {
+                // Update the tool result in the assistant message
+                if (!assistantMsg.toolResults) {
+                    assistantMsg.toolResults = [];
+                }
+                
+                // Find and update existing tool result or add new one
+                const existingResult = assistantMsg.toolResults.find(r => r.id === messageData.id);
+                if (existingResult) {
+                    Object.assign(existingResult, {
+                        tool_call_definition: messageData.tool_call_definition,
+                        tool_call_result: messageData.tool_call_result,
+                        body: messageData.body,
+                        date: messageData.date,
+                    });
+                } else {
+                    assistantMsg.toolResults.push({
+                        id: messageData.id,
+                        tool_call_id: messageData.tool_call_id,
+                        tool_call_definition: messageData.tool_call_definition,
+                        tool_call_result: messageData.tool_call_result,
+                        body: messageData.body,
+                        date: messageData.date,
+                    });
+                }
+                
+                // Force re-render of the assistant message
+                const msgIndex = this.state.messages.indexOf(assistantMsg);
+                if (msgIndex >= 0) {
+                    // Trigger reactivity by creating a new message object
+                    this.state.messages[msgIndex] = { ...assistantMsg };
+                }
+                
+                // Auto-scroll during updates
+                if (this.shouldAutoScroll()) {
+                    requestAnimationFrame(() => {
+                        this.scrollToBottom({ smooth: true });
+                    });
+                }
+                
+                return;
+            }
+        }
+
+        // Regular message update
         const messageIndex = this.state.messages.findIndex(
             m => m.id === messageData.id
         );
@@ -358,6 +509,12 @@ export class LLMChatThread extends Component {
                 body: messageData.body,
                 date: messageData.date,
                 email_from: messageData.email_from,
+                // Update tool-related fields if present
+                subtype_xmlid: messageData.subtype_xmlid || this.state.messages[messageIndex].subtype_xmlid,
+                tool_call_id: messageData.tool_call_id !== undefined ? messageData.tool_call_id : this.state.messages[messageIndex].tool_call_id,
+                tool_calls: messageData.tool_calls !== undefined ? messageData.tool_calls : this.state.messages[messageIndex].tool_calls,
+                tool_call_definition: messageData.tool_call_definition !== undefined ? messageData.tool_call_definition : this.state.messages[messageIndex].tool_call_definition,
+                tool_call_result: messageData.tool_call_result !== undefined ? messageData.tool_call_result : this.state.messages[messageIndex].tool_call_result,
             });
 
             // Auto-scroll during streaming
