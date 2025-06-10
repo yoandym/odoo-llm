@@ -1,44 +1,58 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <!-- LLMChatComposer Template -->
+    <!-- LLMChatComposer Template - extends Odoo's mail composer -->
     <t t-name="llm_thread.LLMChatComposer" owl="1">
         <div t-att-class="containerClass">
-            <div class="o_LLMChatComposer_container d-flex align-items-end gap-2 mx-auto p-3" style="max-width: 1200px;">
+            <!-- Use Odoo's composer with custom configuration -->
+            <div class="o-mail-Composer d-grid flex-shrink-0 p-4" t-att-class="{ 'o-isUiSmall': ui.isSmall }">
 
-                <!-- Text Input -->
-                <div class="o_LLMChatComposer_inputWrapper flex-grow-1">
-                    <LLMChatComposerTextInput value="state.textContent" placeholder="placeholder" disabled="state.isDisabled" onValueChange.bind="onTextContentChange" onKeydown.bind="onKeydown" exposeAPI.bind="onTextInputAPIExposed" className="'o_LLMChatComposer_input'" />
+                <!-- Main composer area -->
+                <div class="o-mail-Composer-coreMain d-flex flex-nowrap align-items-start flex-grow-1">
+                    <div class="d-flex bg-view flex-grow-1 border rounded-3">
+
+                        <!-- Text input area -->
+                        <div class="position-relative flex-grow-1">
+                            <textarea class="o-mail-Composer-input bg-view shadow-none overflow-auto form-control px-3 py-2 border-0 rounded-3" t-ref="textarea" style="min-height: 64px; max-height: 200px;" t-on-keydown="onKeydown" t-on-focusin="onFocusin" t-on-focusout="() => this.props.composer.isFocused = false" t-on-paste="onPaste" t-model="props.composer.textInputContent" t-att-placeholder="placeholder" t-att-readOnly="llmState.isDisabled" />
+
+                            <!-- Fake textarea for height calculation -->
+                            <textarea class="o-mail-Composer-fake overflow-hidden position-absolute form-control px-3 py-2 border-0 rounded-3" t-model="props.composer.textInputContent" t-ref="fakeTextarea" disabled="1" />
+                        </div>
+
+                        <!-- Action buttons -->
+                        <div class="o-mail-Composer-actions d-flex bg-view align-items-end p-2">
+                            <!-- Emoji button -->
+                            <button class="btn border-0 rounded-pill me-1" t-att-class="{'bg-300': picker.state.picker === picker.PICKERS.EMOJI}" aria-label="Emojis" t-on-click="onClickAddEmoji" t-ref="emoji-button">
+                                <i class="fa fa-smile-o"/>
+                            </button>
+
+                            <!-- Send/Stop button -->
+                            <t t-if="!llmState.isStreaming">
+                                <button class="btn btn-primary" t-att-disabled="isSendButtonDisabled" t-att-title="_t('Send message (Enter)')" t-on-click="sendMessage">
+                                    <i class="fa fa-paper-plane" />
+                                </button>
+                            </t>
+                            <t t-else="">
+                                <button class="btn btn-danger" t-att-title="_t('Stop generating')" t-on-click="onClickStop">
+                                    <i class="fa fa-stop" />
+                                </button>
+                            </t>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="o_LLMChatComposer_actions d-flex gap-2">
-                    <!-- Send Button -->
-                    <t t-if="!state.isStreaming">
-                        <button class="o_LLMChatComposer_sendButton btn btn-primary" t-att-disabled="isSendDisabled" t-att-title="_t('Send message (Enter)')" t-on-click="onClickSend">
-                            <i class="fa fa-paper-plane-o" />
-                        </button>
-                    </t>
-
-                    <!-- Stop Button -->
-                    <t t-else="">
-                        <button class="o_LLMChatComposer_stopButton btn btn-danger" t-att-title="_t('Stop generating')" t-on-click="onClickStop">
-                            <i class="fa fa-stop" />
-                        </button>
-                    </t>
+                <!-- Footer with emoji picker -->
+                <div class="o-mail-Composer-footer overflow-auto">
+                    <Picker t-props="picker"/>
                 </div>
-            </div>
 
-            <!-- Optional: Streaming indicator -->
-            <t t-if="state.isStreaming">
-                <div class="o_LLMChatComposer_streamingIndicator text-center py-2">
+                <!-- Streaming indicator -->
+                <div t-if="llmState.isStreaming" class="o_LLMChatComposer_streamingIndicator text-center py-2 mt-2">
                     <small class="text-muted">
                         <i class="fa fa-circle-o-notch fa-spin me-1" />
                         <span>AI is generating response...</span>
                     </small>
                 </div>
-            </t>
+            </div>
         </div>
     </t>
-
-
 </templates>

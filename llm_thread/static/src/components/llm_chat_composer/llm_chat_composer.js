@@ -1,43 +1,40 @@
 /** @odoo-module **/
 
-import { Component, useState, useRef, onWillStart, onWillUnmount } from "@odoo/owl";
+import { useState, onWillStart, onWillUnmount, onMounted } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
-import { LLMChatComposerTextInput } from "../llm_chat_composer_text_input/llm_chat_composer_text_input";
+import { Composer } from "@mail/core/common/composer";
 
 /**
  * LLMChatComposer Component for Odoo v17
  * 
- * This component provides the message composer interface for LLM chat threads.
+ * This component extends Odoo's mail composer for LLM chat threads.
  * It handles message input, sending, and streaming response states.
  */
-export class LLMChatComposer extends Component {
+export class LLMChatComposer extends Composer {
   static template = "llm_thread.LLMChatComposer";
-  static components = { LLMChatComposerTextInput };
-  static props = {
-    thread: { type: Object },
-    className: { type: String, optional: true },
-    placeholder: { type: String, optional: true },
-    exposeAPI: { type: Function, optional: true }, // Callback to expose API to parent
-  };
+  static props = [
+    ...Composer.props,
+    "thread",
+    "className?",
+    "placeholder?",
+    "exposeAPI?",
+  ];
 
   setup() {
-    // Services
+    super.setup();
+
+    // LLM-specific services
     this.llmComposerService = useService("llm_composer");
     this.llmChatService = useService("llm_chat");
 
-    // Refs
-    this.textInputAPI = null;
-    
-    // State
-    this.state = useState({
-      textContent: "",
-      isDisabled: false,
+    // LLM-specific state
+    this.llmState = useState({
       isStreaming: false,
-      isFocused: false,
+      isDisabled: false,
     });
 
-    // Create composer state in service
+    // Create composer state in LLM service
     onWillStart(() => {
       this.composerState = this.llmComposerService.createComposerState(
         this.props.thread.id
@@ -51,28 +48,65 @@ export class LLMChatComposer extends Component {
       }
     });
 
-    // Subscribe to events
-    this.setupEventListeners();
+    // Subscribe to LLM events
+    this.setupLLMEventListeners();
 
     // Cleanup
     onWillUnmount(() => {
-      this.cleanupEventListeners();
-      if (this.state.isStreaming) {
+      this.cleanupLLMEventListeners();
+      if (this.llmState.isStreaming) {
         this.llmComposerService.stopStreaming(this.composerState);
+      }
+    });
+
+    onMounted(() => {
+      // Focus on mount if needed
+      if (this.props.autofocus) {
+        this.focusTextInput();
       }
     });
   }
 
+  // Override placeholder
+  get placeholder() {
+    return this.props.placeholder || _t("Ask anything... (Shift+Enter for new line)");
+  }
+
+  // Override thread getter
+  get thread() {
+    return this.props.thread;
+  }
+
+  // Check if send button should be disabled
+  get isSendButtonDisabled() {
+    return super.isSendButtonDisabled ||
+      this.llmState.isDisabled ||
+      this.llmState.isStreaming ||
+      !this.props.composer.textInputContent.trim();
+  }
+
+  // Get container classes
+  get containerClass() {
+    const classes = ["o_LLMChatComposer"];
+    if (this.props.className) {
+      classes.push(this.props.className);
+    }
+    if (this.llmState.isStreaming) {
+      classes.push("o-streaming");
+    }
+    return classes.join(" ");
+  }
+
   /**
-   * Setup event listeners
+   * Setup LLM-specific event listeners
    */
-  setupEventListeners() {
+  setupLLMEventListeners() {
     const eventBus = this.llmComposerService.eventBus;
 
     this.streamingStoppedHandler = (ev) => {
       if (ev.detail.threadId === this.props.thread.id) {
-        this.state.isStreaming = false;
-        this.state.isDisabled = false;
+        this.llmState.isStreaming = false;
+        this.llmState.isDisabled = false;
 
         // Focus after streaming stops
         setTimeout(() => this.focusTextInput(), 100);
@@ -83,85 +117,31 @@ export class LLMChatComposer extends Component {
   }
 
   /**
-   * Cleanup event listeners
+   * Cleanup LLM event listeners
    */
-  cleanupEventListeners() {
+  cleanupLLMEventListeners() {
     const eventBus = this.llmComposerService.eventBus;
     eventBus.removeEventListener("streaming-stopped", this.streamingStoppedHandler);
   }
 
   /**
-   * Get the placeholder text
-   */
-  get placeholder() {
-    return this.props.placeholder || _t("Ask anything...");
-  }
-
-  /**
-   * Check if the send button should be disabled
-   */
-  get isSendDisabled() {
-    return !this.state.textContent.trim() ||
-      this.state.isDisabled ||
-      this.state.isStreaming;
-  }
-
-  /**
-   * Get container classes
-   */
-  get containerClass() {
-    const classes = ["o_LLMChatComposer"];
-    if (this.props.className) {
-      classes.push(this.props.className);
-    }
-    if (this.state.isStreaming) {
-      classes.push("o-streaming");
-    }
-    return classes.join(" ");
-  }
-
-  /**
-   * Handle text content change
-   */
-  onTextContentChange(newContent) {
-    this.state.textContent = newContent;
-    this.composerState.textContent = newContent;
-  }
-
-  /**
-   * Handle send button click
-   */
-  async onClickSend() {
-    if (this.isSendDisabled) {
-      return;
-    }
-
-    await this.sendMessage();
-  }
-
-  /**
-   * Handle stop button click
-   */
-  onClickStop() {
-    this.llmComposerService.stopStreaming(this.composerState);
-  }
-
-  /**
-   * Send the message
+   * Override sendMessage to use LLM service instead of thread service
    */
   async sendMessage() {
-    const messageBody = this.state.textContent.trim();
-    if (!messageBody) {
+    const messageBody = this.props.composer.textInputContent.trim();
+    if (!messageBody || this.llmState.isStreaming) {
       return;
     }
 
     // Update UI state
-    this.state.isDisabled = true;
-    this.state.isStreaming = true;
+    this.llmState.isDisabled = true;
+    this.llmState.isStreaming = true;
 
-    // Clear input
-    const previousContent = this.state.textContent;
-    this.state.textContent = "";
+    // Store previous content for error recovery
+    const previousContent = this.props.composer.textInputContent;
+
+    // Clear input immediately for better UX
+    this.props.composer.textInputContent = "";
 
     try {
       await this.llmComposerService.postUserMessage(
@@ -170,39 +150,73 @@ export class LLMChatComposer extends Component {
       );
     } catch (error) {
       // Restore content on error
-      this.state.textContent = previousContent;
-      this.state.isDisabled = false;
-      this.state.isStreaming = false;
+      this.props.composer.textInputContent = previousContent;
+      this.llmState.isDisabled = false;
+      this.llmState.isStreaming = false;
+
+      // Let parent class handle error display if needed
+      throw error;
     }
   }
 
   /**
-   * Handle text input API exposure
+   * Override onKeydown to handle LLM-specific shortcuts
    */
-  onTextInputAPIExposed(api) {
-    this.textInputAPI = api;
+  onKeydown(ev) {
+    // Allow Shift+Enter for new lines, Enter to send
+    if (ev.key === "Enter" && !ev.shiftKey) {
+      ev.preventDefault();
+      if (!this.isSendButtonDisabled) {
+        this.sendMessage();
+      }
+      return;
+    }
+
+    // Call parent for other key handling (like suggestions)
+    return super.onKeydown(ev);
+  }
+
+  /**
+   * Handle focus events
+   */
+  onFocusin(ev) {
+    this.props.composer.isFocused = true;
+    if (super.onFocusin) {
+      return super.onFocusin(ev);
+    }
+  }
+
+  /**
+   * Handle paste events
+   */
+  onPaste(ev) {
+    if (super.onPaste) {
+      return super.onPaste(ev);
+    }
+  }
+
+  /**
+   * Handle emoji addition
+   */
+  onClickAddEmoji(ev) {
+    if (super.onClickAddEmoji) {
+      return super.onClickAddEmoji(ev);
+    }
+  }
+
+  /**
+   * Handle stop button click for streaming
+   */
+  onClickStop() {
+    this.llmComposerService.stopStreaming(this.composerState);
   }
 
   /**
    * Focus the text input
    */
   focusTextInput() {
-    if (this.textInputAPI && this.textInputAPI.focus) {
-      this.textInputAPI.focus();
-    }
-  }
-
-  /**
-   * Handle keyboard shortcuts
-   */
-  onKeydown(ev) {
-    if (ev.key === "Enter" && !ev.shiftKey) {
-      if (this.llmComposerService.matchesSendShortcut(ev)) {
-        ev.preventDefault();
-        if (!this.isSendDisabled) {
-          this.sendMessage();
-        }
-      }
+    if (this.ref && this.ref.el) {
+      this.ref.el.focus();
     }
   }
 

@@ -3,6 +3,7 @@
 import { Component, useState, useRef, onWillStart, onMounted, onWillUnmount, onWillUpdateProps } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
+import { Deferred } from "@web/core/utils/concurrency";
 import { LLMChatThreadHeader } from "../llm_chat_thread_header/llm_chat_thread_header";
 import { LLMChatMessageList } from "../llm_chat_message_list/llm_chat_message_list";
 import { LLMChatComposer } from "../llm_chat_composer/llm_chat_composer";
@@ -41,13 +42,26 @@ export class LLMChatThread extends Component {
         // Store composer API
         this.composerAPI = null;
 
-
         // State
         this.state = useState({
             messages: [],
             isLoadingMessages: false,
             hasMoreMessages: true,
             streamingMessageId: null,
+        });
+
+        // Create composer state for Odoo's composer
+        this.composerState = useState({
+            textInputContent: "",
+            thread: this.createThreadWrapper(this.props.thread),
+            attachments: [],
+            mentionedChannels: [],
+            mentionedPartners: [],
+            cannedResponses: [],
+            isFocused: false,
+            forceCursorMove: false,
+            selection: { start: 0, end: 0, direction: "none" },
+            message: null, // For editing messages
         });
 
         // Initialize current thread ID
@@ -311,9 +325,9 @@ export class LLMChatThread extends Component {
             author: msg.author_id,
             email_from: msg.email_from,
             date: msg.date,
-            isAiMessage: msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_assistant" || 
-                         msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_tool_result" ||
-                         msg.message_type === "llm_response",
+            isAiMessage: msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_assistant" ||
+                msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_tool_result" ||
+                msg.message_type === "llm_response",
             isStreaming: false,
             attachments: msg.attachment_ids || [],
             // Add all tool-related fields
@@ -335,7 +349,7 @@ export class LLMChatThread extends Component {
 
         // Link tool results to their parent assistant messages
         const messagesMap = new Map(sorted.map(msg => [msg.id, msg]));
-        
+
         sorted.forEach(msg => {
             if (msg.tool_call_id && msg.subtype_xmlid === "llm_mail_message_subtypes.mt_llm_tool_result") {
                 // Find the assistant message that made this tool call
@@ -364,7 +378,7 @@ export class LLMChatThread extends Component {
                         body: msg.body,
                         date: msg.date,
                     });
-                    
+
                     // Mark the tool result message as hidden
                     msg.isHidden = true;
                 }
@@ -409,14 +423,14 @@ export class LLMChatThread extends Component {
                     body: messageData.body,
                     date: messageData.date,
                 });
-                
+
                 // Force re-render of the assistant message
                 const msgIndex = this.state.messages.indexOf(assistantMsg);
                 if (msgIndex >= 0) {
                     // Trigger reactivity by creating a new message object
                     this.state.messages[msgIndex] = { ...assistantMsg };
                 }
-                
+
                 // Don't add the tool result as a separate message
                 return;
             }
@@ -460,7 +474,7 @@ export class LLMChatThread extends Component {
                 if (!assistantMsg.toolResults) {
                     assistantMsg.toolResults = [];
                 }
-                
+
                 // Find and update existing tool result or add new one
                 const existingResult = assistantMsg.toolResults.find(r => r.id === messageData.id);
                 if (existingResult) {
@@ -480,21 +494,21 @@ export class LLMChatThread extends Component {
                         date: messageData.date,
                     });
                 }
-                
+
                 // Force re-render of the assistant message
                 const msgIndex = this.state.messages.indexOf(assistantMsg);
                 if (msgIndex >= 0) {
                     // Trigger reactivity by creating a new message object
                     this.state.messages[msgIndex] = { ...assistantMsg };
                 }
-                
+
                 // Auto-scroll during updates
                 if (this.shouldAutoScroll()) {
                     requestAnimationFrame(() => {
                         this.scrollToBottom({ smooth: true });
                     });
                 }
-                
+
                 return;
             }
         }
@@ -573,6 +587,65 @@ export class LLMChatThread extends Component {
      */
     get _t() {
         return _t;
+    }
+
+    /**
+     * Create a thread wrapper that implements the interface expected by Odoo's composer
+     */
+    createThreadWrapper(thread) {
+        const wrapper = {
+            // Copy all original thread properties
+            ...thread,
+
+            // Add methods expected by Odoo's composer
+            eq(other) {
+                if (!other) return false;
+                return this.id === other.id && this.model === other.model;
+            },
+
+            notEq(other) {
+                return !this.eq(other);
+            },
+
+            // Add common thread properties that might be expected
+            type: thread.type || 'custom',
+            model: thread.model || 'llm.thread',
+            displayName: thread.name || thread.display_name || 'LLM Thread',
+
+            // Add mail thread properties that composer expects
+            isLoadedDeferred: new Deferred(),
+            isLoaded: true,
+            areAttachmentsLoaded: false,
+            attachments: [],
+            composer: null, // Will be set by composer
+            followers: [],
+            selfFollower: null,
+            message_unread_counter: 0,
+            message_needaction_counter: 0,
+            messages: [],
+            needactionMessages: [],
+            seen_message_id: false,
+            is_pinned: false,
+            hasWriteAccess: true,
+            state: 'open',
+            memberCount: 0,
+            channelMembers: [],
+            invitedMembers: [],
+
+            // Mock methods that might be called
+            markAsRead: () => Promise.resolve(),
+            pin: () => Promise.resolve(),
+            unpin: () => Promise.resolve(),
+            leave: () => Promise.resolve(),
+
+            // Store reference for cleanup
+            _originalThread: thread,
+        };
+
+        // Resolve the deferred immediately since we consider the thread loaded
+        wrapper.isLoadedDeferred.resolve();
+
+        return wrapper;
     }
 
 }
