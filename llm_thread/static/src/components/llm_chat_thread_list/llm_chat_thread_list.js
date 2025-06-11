@@ -3,8 +3,6 @@
 import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 
-console.log("*** LLMChatThreadList module loading ***");
-
 
 export class LLMChatThreadList extends Component {
     static template = "llm_thread.LLMChatThreadList";
@@ -13,14 +11,12 @@ export class LLMChatThreadList extends Component {
     };
 
     setup() {
-        console.log("ThreadList: Component setup called");
         // Services
         this.llmChatService = useService("llm_chat");
         this.notification = useService("notification");
 
         // Direct access to the llmChat store
         this.llmChat = this.llmChatService;
-        console.log("ThreadList: Service accessed:", this.llmChat);
 
         // Component state
         this.state = useState({
@@ -34,11 +30,9 @@ export class LLMChatThreadList extends Component {
 
 
         this.env.bus.addEventListener("llm_chat:thread_selected", () => {
-            console.log("ThreadList: Received thread_selected event");
             // The reactive service will automatically trigger re-renders
         });
 
-        console.log("ThreadList: Setup complete");
     }
 
     /**
