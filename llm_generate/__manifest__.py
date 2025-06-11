@@ -1,6 +1,6 @@
 {
     "name": "LLM Media Generation",
-    "version": "16.0.1.0.2",
+    "version": "17.0.1.0.2",
     "category": "Productivity/Discuss",
     "summary": "Media generation capabilities for LLM models",
     "description": """

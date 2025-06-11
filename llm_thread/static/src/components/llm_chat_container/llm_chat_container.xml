@@ -1,19 +1,46 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMChatContainer" owl="1">
-        <div class="o_LLMChatContainer h-100 d-flex flex-column">
-            <LLMChat
-        t-if="messaging and messaging.llmChat and messaging.llmChat.llmChatView and messaging.isInitialized"
-        record="messaging.llmChat.llmChatView"
-      />
-            <div
-        t-else=""
-        class="o_LLMChatContainer_spinner d-flex flex-grow-1 align-items-center justify-content-center"
-      >
-                <i
-          class="o_LLMChatContainer_spinnerIcon fa fa-circle-o-notch fa-spin me-2"
-        />Please wait...
-            </div>
+        <div t-att-class="containerClass">
+            <!-- Main Chat Component -->
+            <t t-if="isChatReady">
+                <LLMChat initActiveId="initActiveId" t-if="hasInitActiveId" />
+                <LLMChat t-else="" />
+            </t>
+
+            <!-- Loading State -->
+            <t t-elif="state.isInitializing">
+                <div class="o_LLMChatContainer_loading d-flex flex-grow-1 align-items-center justify-content-center">
+                    <div class="text-center">
+                        <i class="o_LLMChatContainer_spinnerIcon fa fa-circle-o-notch fa-spin fa-3x mb-3 text-primary" />
+                        <h5 class="text-muted">Initializing AI Chat...</h5>
+                        <p class="text-muted small">Please wait while we set up your chat environment</p>
+                    </div>
+                </div>
+            </t>
+
+            <!-- Error State -->
+            <t t-elif="state.error">
+                <div class="o_LLMChatContainer_error d-flex flex-grow-1 align-items-center justify-content-center">
+                    <div class="text-center p-4">
+                        <i class="fa fa-exclamation-triangle fa-3x mb-3 text-warning" />
+                        <h5 class="text-danger">Failed to Initialize Chat</h5>
+                        <p class="text-muted mb-3" t-esc="state.error" />
+                        <button class="btn btn-primary" t-on-click="onRetry">
+                            <i class="fa fa-refresh me-2" />
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            </t>
+
+            <!-- Fallback Loading -->
+            <t t-else="">
+                <div class="o_LLMChatContainer_spinner d-flex flex-grow-1 align-items-center justify-content-center">
+                    <i class="o_LLMChatContainer_spinnerIcon fa fa-circle-o-notch fa-spin me-2" />
+                    <span>Loading...</span>
+                </div>
+            </t>
         </div>
     </t>
 </templates>

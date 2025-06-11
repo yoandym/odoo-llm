@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="llm_thread.LLMMessage" owl="1">
+        <div t-att-class="messageClass">
+            <div class="o-mail-Message-core position-relative d-flex flex-shrink-0">
+                <!-- Author side (avatar + info) -->
+                <div class="o-mail-Message-sidebar d-flex flex-shrink-0 align-items-start justify-content-start">
+                    <div class="o-mail-Message-avatarContainer position-relative bg-view cursor-pointer">
+                        <t t-if="avatarSrc">
+                            <img t-att-src="avatarSrc" 
+                                 class="o-mail-Message-avatar w-100 h-100 rounded" 
+                                 t-att-alt="authorName"/>
+                        </t>
+                        <t t-else="">
+                            <t t-if="isToolResultMessage">
+                                <div class="o-mail-Message-avatar w-100 h-100 rounded d-flex align-items-center justify-content-center bg-secondary">
+                                    <i class="fa fa-wrench text-white"/>
+                                </div>
+                            </t>
+                            <t t-elif="isAiMessage">
+                                <div class="o-mail-Message-avatar w-100 h-100 rounded d-flex align-items-center justify-content-center bg-primary">
+                                    <i class="fa fa-robot text-white"/>
+                                </div>
+                            </t>
+                            <t t-else="">
+                                <div class="o-mail-Message-avatar w-100 h-100 rounded d-flex align-items-center justify-content-center bg-secondary">
+                                    <i class="fa fa-user text-white"/>
+                                </div>
+                            </t>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Message content -->
+                <div class="w-100 overflow-hidden">
+                    <div class="o-mail-Message-header d-flex align-items-baseline mb-1 flex-wrap">
+                        <span class="o-mail-Message-author cursor-pointer fw-bold me-1">
+                            <t t-esc="authorName"/>
+                        </span>
+                        <small class="o-mail-Message-date text-muted">
+                            <t t-esc="formattedDate"/>
+                        </small>
+                    </div>
+
+                    <!-- Message body -->
+                    <div class="o-mail-Message-body text-break mb-0 w-100">
+                        <!-- For regular messages, show content -->
+                        <div class="o-mail-Message-content">
+                            <!-- Use Owl's markup for safe HTML rendering -->
+                            <t t-out="messageBody"/>
+                        </div>
+
+                        <!-- Tool calls for assistant messages -->
+                        <t t-if="hasToolCalls and isAiMessage">
+                            <div class="o-mail-ToolCalls mt-2">
+                                <t t-foreach="toolCallsWithResults" t-as="toolCall" t-key="toolCall.id">
+                                    <div class="o-mail-ToolCall-accordion mb-2">
+                                        <div class="o-mail-ToolCall-header" t-on-click="getToolCallClickHandler(toolCall.id)">
+                                            <i t-attf-class="fa fa-chevron-{{ state.expandedToolCalls[toolCall.id] ? 'down' : 'right' }} me-2"/>
+                                            <span class="o-mail-ToolCall-name">
+                                                <i class="fa fa-wrench me-1"/>
+                                                <t t-esc="toolCall.function?.name || 'Tool'"/>
+                                            </span>
+                                            <t t-if="toolCall.result">
+                                                <span class="o-mail-ToolCall-status ms-2">
+                                                    <t t-if="toolCall.parsedResult">
+                                                        <t t-if="toolCall.hasError">
+                                                            <span class="text-danger">
+                                                                <i class="fa fa-exclamation-circle me-1"/>
+                                                                Error
+                                                            </span>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <span class="text-success">
+                                                                <i class="fa fa-check-circle me-1"/>
+                                                                Completed
+                                                            </span>
+                                                        </t>
+                                                    </t>
+                                                    <t t-else="">
+                                                        <span class="text-muted">
+                                                            <i class="fa fa-spinner fa-spin me-1"/>
+                                                            Executing...
+                                                        </span>
+                                                    </t>
+                                                </span>
+                                            </t>
+                                        </div>
+                                        <t t-if="state.expandedToolCalls[toolCall.id]">
+                                            <div class="o-mail-ToolCall-details">
+                                                <div class="o-mail-ToolCall-section">
+                                                    <div class="o-mail-ToolCall-label">Request:</div>
+                                                    <pre class="o-mail-ToolCall-code"><t t-esc="formatJSON(toolCall.parsedArguments)"/></pre>
+                                                </div>
+                                                <t t-if="toolCall.result">
+                                                    <div class="o-mail-ToolCall-section">
+                                                        <div class="o-mail-ToolCall-label">Response:</div>
+                                                        <t t-if="toolCall.parsedResult">
+                                                            <pre class="o-mail-ToolCall-code"><t t-esc="formatJSON(toolCall.parsedResult)"/></pre>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <div class="text-muted">Waiting for response...</div>
+                                                        </t>
+                                                    </div>
+                                                </t>
+                                            </div>
+                                        </t>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+
+                        <!-- Attachments if any -->
+                        <t t-if="props.message.attachments and props.message.attachments.length">
+                            <div class="o-mail-Message-attachments mt-2">
+                                <t t-foreach="props.message.attachments" t-as="attachment" t-key="attachment.id">
+                                    <div class="badge bg-light text-dark me-1">
+                                        <i class="fa fa-paperclip me-1"/>
+                                        <t t-esc="attachment.name"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

@@ -1,65 +1,58 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <t
-    t-name="llm_assistant.LLMChatThreadHeader"
-    t-inherit="llm_thread.LLMChatThreadHeader"
-    t-inherit-mode="extension"
-  >
-        <xpath
-      expr="//div[hasclass('o_ThreadDropdowns')]/div[hasclass('dropdown')][1]"
-      position="before"
-    >
-            <!-- LLM Assistant Dropdown -->
-            <div class="dropdown me-2">
-                <button
-          class="btn btn-light dropdown-toggle d-flex align-items-center gap-2"
-          type="button"
-          data-bs-toggle="dropdown"
-          aria-expanded="false"
-          style="max-width: 200px;"
-        >
-                    <div class="text-truncate">
-                        <t t-if="llmChatThreadHeaderView.selectedAssistant">
-                            <t
-                t-esc="llmChatThreadHeaderView.selectedAssistant.name"
-              />
+    <!-- Extend the base LLMChatThreadHeader template -->
+    <t t-inherit="llm_thread.LLMChatThreadHeader" t-inherit-mode="extension">
+        <!-- Add the Assistant dropdown before the Provider dropdown -->
+        <xpath expr="//div[hasclass('o_LLMChatThreadHeader_controls')]//Dropdown[1]" position="before">
+            <!-- LLM Assistant Dropdown (NEW) -->
+            <Dropdown togglerClass="state.isLoadingAssistants ? 'btn btn-light btn-sm disabled' : 'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                <t t-set-slot="toggler">
+                    <span class="text-truncate" style="max-width: 200px;">
+                        <!-- Loading spinner -->
+                        <i t-if="state.isLoadingAssistants" class="fa fa-spinner fa-spin me-1"/>
+
+                        <!-- Assistant name or placeholder -->
+                        <t t-if="selectedAssistant">
+                            <t t-esc="selectedAssistant.name"/>
                         </t>
-                        <t t-else="">
-                            Select Assistant
-                        </t>
-                    </div>
-                </button>
-                <ul class="dropdown-menu">
-                    <li>
-                        <a
-              class="dropdown-item text-truncate"
-              href="#"
-              t-on-click="onClearAssistant"
-              t-attf-class="{{ !llmChatThreadHeaderView.selectedAssistant ? 'active' : '' }}"
-            >
-                            <i class="fa fa-times me-1" /> No Assistant
-                        </a>
-                    </li>
-                    <li><hr class="dropdown-divider" /></li>
-                    <t
-            t-foreach="llmAssistants"
-            t-as="assistant"
-            t-key="assistant.id"
-          >
-                        <li>
-                            <a
-                class="dropdown-item text-truncate"
-                href="#"
-                t-on-click="() => this.onSelectAssistant(assistant)"
-                t-att-title="assistant.name"
-                t-attf-class="{{ llmChatThreadHeaderView.selectedAssistant and llmChatThreadHeaderView.selectedAssistant.id === assistant.id ? 'active' : '' }}"
-              >
-                                <t t-esc="assistant.name" />
-                            </a>
-                        </li>
+                        <t t-else="">Select Assistant</t>
+                    </span>
+                    <i class="fa fa-caret-down ms-1" />
+                </t>
+
+                <!-- Clear assistant option -->
+                <DropdownItem onSelected="() => this.onClearAssistant()" class="{ 'active': !selectedAssistant }">
+                    <i class="fa fa-times me-2 text-muted"/>
+                    <span>No Assistant</span>
+                </DropdownItem>
+
+                <!-- Assistant list -->
+                <t t-if="!state.isLoadingAssistants and llmAssistants.length">
+                    <t t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
+                        <DropdownItem onSelected="() => this.onSelectAssistant(assistant)" class="{ 'active': selectedAssistant and selectedAssistant.id === assistant.id }">
+                            <!-- Assistant name -->
+                            <span class="text-truncate me-2">
+                                <t t-esc="assistant.name"/>
+                            </span>
+
+                            <!-- Prompt indicator -->
+                            <t t-if="assistant.promptId">
+                                <i class="fa fa-file-text-o text-muted" t-att-title="assistant.llmPrompt ? assistant.llmPrompt.name : 'Has prompt'"/>
+                            </t>
+                        </DropdownItem>
                     </t>
-                </ul>
-            </div>
+                </t>
+            </Dropdown>
+        </xpath>
+
+        <!-- Mobile view: Add assistant info after the title -->
+        <xpath expr="//div[hasclass('o_LLMChatThreadHeader_title')]" position="inside">
+            <t t-if="selectedAssistant and isMobile" groups="base.group_user">
+                <div class="text-truncate small text-muted mt-1">
+                    <i class="fa fa-robot me-1"/>
+                    <span t-esc="selectedAssistant.name"/>
+                </div>
+            </t>
         </xpath>
     </t>
 </templates>

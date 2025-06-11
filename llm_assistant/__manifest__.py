@@ -18,17 +18,8 @@ Key Features:
 Use cases include creating specialized assistants for customer support, data analysis, training assistance, and more.
     """,
     "category": "Productivity, Discuss",
-    "version": "16.0.1.0.1",
-    "depends": [
-        "base",
-        "mail",
-        "web",
-        "llm",
-        "llm_thread",
-        "llm_tool",
-        "llm_prompt",
-        "web_json_editor",
-    ],
+    "version": "17.0.1.0.1",
+    "depends": ["base", "mail", "web", "llm", "llm_thread", "llm_tool", "llm_prompt", "web_json_editor"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "data": [
@@ -44,15 +35,13 @@ Use cases include creating specialized assistants for customer support, data ana
     ],
     "assets": {
         "web.assets_backend": [
-            "llm_assistant/static/src/models/main.js",
-            # Models
-            "llm_assistant/static/src/models/llm_assistant.js",
-            "llm_assistant/static/src/models/llm_chat.js",
-            "llm_assistant/static/src/models/thread.js",
-            "llm_assistant/static/src/models/llm_chat_thread_header_view.js",
-            # Components
-            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
-            "llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
+            # Services (load first)
+            'llm_assistant/static/src/services/llm_assistant_service.js',
+
+            # Component patches
+            'llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js',
+            'llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml',
+            'llm_assistant/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss',
         ],
     },
     "license": "LGPL-3",

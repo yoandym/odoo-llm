@@ -1,23 +1,37 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMChat" owl="1">
-        <div class="o_LLMChat d-flex h-100">
-            <!-- Thread List Section -->
-            <LLMChatSidebar record="llmChatView" />
+        <div class="o_LLMChat d-flex h-100 position-relative">
+            <!-- Mobile Menu Button -->
+            <t t-if="isMobile and !state.isSidebarVisible">
+                <button class="o_LLMChat_mobileMenuButton btn btn-light position-absolute top-0 start-0 m-2 z-index-1" t-on-click="openSidebar">
+                    <i class="fa fa-bars" />
+                </button>
+            </t>
 
-            <!-- Chat Section -->
-            <div class="o_LLMChat_content flex-grow-1">
-                <t t-if="llmChatView.llmChat.activeThread">
-                    <LLMChatThread
-            record="llmChatView.llmChat.activeThread"
-            threadView="llmChatView.threadView"
-          />
+            <!-- Sidebar with proper callbacks -->
+            <LLMChatSidebar isVisible="state.isSidebarVisible" onClose.bind="closeSidebar" onThreadSelect.bind="onThreadSelected" />
+
+            <!-- Chat Content Area -->
+            <div class="o_LLMChat_content flex-grow-1 d-flex flex-column">
+
+                <t t-if="activeThread">
+                    <!-- Use thread ID only for key to prevent unnecessary remounts -->
+                    <LLMChatThread t-key="'thread_' + activeThread.id" thread="activeThread" onOpenSidebar.bind="openSidebar" />
                 </t>
                 <t t-else="">
-                    <div
-            class="o_LLMChat_noThread d-flex align-items-center justify-content-center h-100"
-          >
-                        <span>Select a conversation to start chatting</span>
+                    <div class="o_LLMChat_noThread d-flex align-items-center justify-content-center h-100 bg-light">
+                        <div class="text-center p-4">
+                            <i class="fa fa-comments-o fa-4x text-muted mb-3 opacity-50" />
+                            <h5 class="text-muted">Welcome to AI Chat</h5>
+                            <p class="text-muted">
+                                Select a conversation from the sidebar or create a new chat to get started
+                            </p>
+                            <button class="btn btn-primary mt-3" t-on-click="() => onCreateNewThread()">
+                                <i class="fa fa-plus me-2" />
+                                Start New Chat
+                            </button>
+                        </div>
                     </div>
                 </t>
             </div>

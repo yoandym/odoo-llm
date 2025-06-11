@@ -7,14 +7,14 @@ class IrAttachment(models.Model):
     def llm_get_fields(self, _):
         self.ensure_one()
         is_markdown = (
-            self.name.lower().endswith(".md") and self.mimetype == "stream/octet-stream"
+            self.name.lower().endswith(".md") and self.mimetype == "stream/octet-stream"  # type: ignore
         )
         # TODO: optimize this later for not loading raw data in memory
         return [
             {
                 "field_name": "datas",
-                "mimetype": "text/markdown" if is_markdown else self.mimetype,
-                "rawcontent": self.raw,
+                "mimetype": "text/markdown" if is_markdown else self.mimetype,  # type: ignore
+                "rawcontent": self.raw,  # type: ignore
             }
         ]
 
@@ -33,7 +33,7 @@ class IrAttachment(models.Model):
                         type: str - type of the field to store the type in
         """
         self.ensure_one()
-        data_type = "url" if self.type == "url" else "binary"
+        data_type = "url" if self.type == "url" else "binary"  # type: ignore
         details = {
             "type": data_type,
             "field": "datas" if data_type == "binary" else "url",

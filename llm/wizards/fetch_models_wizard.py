@@ -58,7 +58,6 @@ class FetchModelsWizard(models.TransientModel):
     provider_id = fields.Many2one(
         "llm.provider",
         required=True,
-        readonly=True,
     )
     line_ids = fields.One2many(
         "llm.fetch.models.line",

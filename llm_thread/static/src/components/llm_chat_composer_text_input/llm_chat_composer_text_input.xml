@@ -1,35 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
+    <!-- LLMChatComposerTextInput Template -->
     <t t-name="llm_thread.LLMChatComposerTextInput" owl="1">
-        <t t-if="composerView">
-            <div
-        class="o_LLMChatComposerTextInput position-relative bg-view flex-grow-1"
-        t-on-paste="composerView.onPasteTextInput"
-        t-ref="root"
-      >
-                <textarea
-          class="o_LLMChatComposerTextInput_textarea form-control border bg-light py-3 px-4"
-          t-att-placeholder="composerView.composer.placeholderLLMChat"
-          t-on-click="composerView.onClickTextarea"
-          t-on-focusin="composerView.onFocusinTextarea"
-          t-on-focusout="composerView.onFocusoutTextarea"
-          t-on-keydown="_onKeydown"
-          t-on-input="_onInput"
-          t-ref="textarea"
-        />
-                <!--
-                    from ComposerTextInput for `mail` module: This is an invisible textarea used to compute the composer
-                     height based on the text content. We need it to downsize
-                     the textarea properly without flicker.
-                -->
-                <textarea
-          class="o_ComposerTextInput_mirroredTextarea o_ComposerTextInput_textareaStyle position-absolute px-3 border-0 overflow-hidden opacity-0"
-          t-att-class="{ 'o-composer-is-compact rounded-0 rounded-start-3': composerView.isCompact, 'rounded-3': !composerView.isCompact }"
-          t-esc="composerView.composer.textInputContent"
-          t-ref="mirroredTextarea"
-          disabled="1"
-        />
-            </div>
-        </t>
+        <div class="o_LLMChatComposerTextInput_container position-relative">
+            <textarea t-ref="textarea" t-att-class="containerClass" t-att-value="props.value" t-att-placeholder="props.placeholder" t-att-disabled="props.disabled" t-on-input="onInput" t-on-keydown="onKeydown" t-on-focus="onFocus" t-on-blur="onBlur" rows="1" style="min-height: 40px; resize: none;" />
+
+            <!-- Optional: Character counter or other overlay elements -->
+            <t t-if="props.value.length > 0">
+                <div class="o_LLMChatComposerTextInput_overlay position-absolute bottom-0 end-0 p-1">
+                    <small class="text-muted" style="font-size: 0.75rem;">
+                        <t t-esc="props.value.length" />
+ chars
+                    </small>
+                </div>
+            </t>
+        </div>
     </t>
 </templates>

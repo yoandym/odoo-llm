@@ -123,11 +123,11 @@ class LLMKnowledgeChunk(models.Model):
         return super().unlink()
 
     @api.model
-    def search(self, args, offset=0, limit=None, order=None, count=False, **kwargs):
+    def search(self, domain, offset=0, limit=None, order=None, **kwargs):
         vector_search_term = None
-        original_args = list(args)  # Keep original args for potential fallback
+        original_args = list(domain)  # Keep original args for potential fallback
         search_args = []  # Args to pass to vector store filter or fallback search
-        for arg in args:
+        for arg in domain:
             if (
                 isinstance(arg, (list, tuple))
                 and len(arg) == 3
@@ -151,12 +151,10 @@ class LLMKnowledgeChunk(models.Model):
         can_vector_search = bool(query_vector or vector_search_term)
         if not can_vector_search:
             return super().search(
-                original_args,
+                domain=original_args,
                 offset=offset,
                 limit=limit,
                 order=order,
-                count=count,
-                **kwargs,
             )
 
         collections = self.env["llm.knowledge.collection"]
@@ -172,12 +170,10 @@ class LLMKnowledgeChunk(models.Model):
                 collections |= collection
             else:
                 return super().search(
-                    original_args,
+                    domain=original_args,
                     offset=offset,
                     limit=limit,
                     order=order,
-                    count=count,
-                    **kwargs,
                 )
         else:
             domain = [
@@ -189,19 +185,17 @@ class LLMKnowledgeChunk(models.Model):
             collections = self.env["llm.knowledge.collection"].search(domain)
 
         if not collections:
-            return 0 if count else self.browse([])
+            return self.browse([])
 
         model_vector_map = {}
         if vector_search_term and not query_vector:
             embedding_models = collections.mapped("embedding_model_id")
             if not embedding_models:
                 return super().search(
-                    original_args,
+                    domain=original_args,
                     offset=offset,
                     limit=limit,
                     order=order,
-                    count=count,
-                    **kwargs,
                 )
 
             for model in embedding_models:
@@ -217,12 +211,10 @@ class LLMKnowledgeChunk(models.Model):
 
         if not collections:
             return super().search(
-                original_args,
+                domain=original_args,
                 offset=offset,
                 limit=limit,
                 order=order,
-                count=count,
-                **kwargs,
             )
 
         return self._vector_search_aggregate(
@@ -240,7 +232,6 @@ class LLMKnowledgeChunk(models.Model):
             ),
             offset=offset,
             limit=limit,
-            count=count,
         )
 
     def _vector_search_aggregate(
@@ -254,7 +245,6 @@ class LLMKnowledgeChunk(models.Model):
         query_operator,
         offset,
         limit,
-        count,
     ):
         """Performs vector search across collections, aggregates, sorts, and limits."""
         # List of tuples: (score, chunk_id)
@@ -288,14 +278,11 @@ class LLMKnowledgeChunk(models.Model):
                 continue
 
         if not aggregated_results:
-            return 0 if count else self.browse([])
+            return self.browse([])
 
         aggregated_results.sort(key=lambda x: (x[0], -x[1]), reverse=True)
 
-        if count:
-            return len(aggregated_results)
-
-        final_results = aggregated_results[offset : offset + limit if limit else None]
+        final_results = aggregated_results[offset: offset + limit if limit else None]
         chunk_ids = [res[1] for res in final_results]
         similarities = [res[0] for res in final_results]
         similarity_scores = dict(zip(chunk_ids, similarities))  # noqa: B905

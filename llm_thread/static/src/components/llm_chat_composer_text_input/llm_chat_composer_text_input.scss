@@ -1,23 +1,75 @@
+// llm_chat_composer_text_input.scss
+
 .o_LLMChatComposerTextInput {
-  flex: 1 1 auto;
-
-  &_textarea {
-    resize: none;
-    min-height: 112px !important;
-    max-height: 200px;
-    line-height: 1.5;
-    border-width: 1.5px;
-
-    &::placeholder {
-      color: rgba($gray-600, 0.8);
-    }
-
-    &:hover {
-      border-color: rgba($primary, 0.3);
-    }
+    border-radius: 20px;
+    padding: 10px 16px;
+    transition: all 0.2s ease;
+    background-color: $o-view-background-color;
+    border: 1px solid $o-gray-300;
 
     &:focus {
-      border-color: $primary;
+        outline: none;
+        border-color: $o-brand-primary;
+        box-shadow: 0 0 0 0.2rem rgba($o-brand-primary, 0.25);
     }
-  }
+
+    &.o-disabled {
+        background-color: $o-gray-200;
+        cursor: not-allowed;
+    }
+
+    &.o-focused {
+        border-color: $o-brand-primary;
+    }
+
+    &_container {
+        position: relative;
+        width: 100%;
+    }
+
+    &_overlay {
+        pointer-events: none;
+        opacity: 0.7;
+        padding-right: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+}
+
+// Animations
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba($o-danger, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba($o-danger, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba($o-danger, 0);
+    }
+}
+
+// Mobile responsive
+@include media-breakpoint-down(sm) {
+    .o_LLMChatComposer {
+        &_container {
+            padding: 0.75rem !important;
+        }
+
+        &_sendButton,
+        &_stopButton {
+            min-width: 36px;
+            height: 36px;
+
+            i {
+                font-size: 0.875rem;
+            }
+        }
+    }
+
+    .o_LLMChatComposerTextInput {
+        padding: 8px 14px;
+        font-size: 0.875rem;
+    }
 }

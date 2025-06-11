@@ -102,7 +102,9 @@ class LLMAssistant(models.Model):
     def _compute_system_prompt_preview(self):
         """Compute preview of the formatted system prompt"""
         for assistant in self:
-            assistant.system_prompt_preview = assistant.get_messages()
+            messages = assistant.get_messages()
+            assistant.system_prompt_preview = assistant._format_messages_as_markdown(messages)
+            
 
     @api.depends("thread_ids")
     def _compute_thread_count(self):
@@ -406,3 +408,40 @@ class LLMAssistant(models.Model):
                 # Keep the original expression on error
 
         return result_str
+
+    def _format_messages_as_markdown(self, messages):
+        """Convert messages list to markdown formatted string
+        
+        Args:
+            messages (list): List of message dictionaries
+            
+        Returns:
+            str: Markdown formatted string
+        """
+        if not messages:
+            return "No messages configured"
+        
+        markdown_parts = []
+        
+        for message in messages:
+            role = message.get('role', 'unknown').title()
+            content = message.get('content', '')
+            
+            # Handle different content formats
+            if isinstance(content, list):
+                # Content is a list of content blocks
+                text_parts = []
+                for block in content:
+                    if isinstance(block, dict) and block.get('type') == 'text':
+                        text_parts.append(block.get('text', ''))
+                content_text = '\n\n'.join(text_parts)
+            elif isinstance(content, str):
+                # Content is a simple string
+                content_text = content
+            else:
+                content_text = str(content)
+            
+            # Create markdown section for this message
+            markdown_parts.append(f"## {role} Message\n\n{content_text}")
+        
+        return '\n\n---\n\n'.join(markdown_parts)

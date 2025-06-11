@@ -12,7 +12,7 @@
         - Trigger resource processing pipeline automatically
     """,
     "category": "Technical",
-    "version": "16.0.1.0.0",
+    "version": "17.0.1.0.0",
     "depends": ["llm_knowledge", "base_automation"],
     "external_dependencies": {
         "python": [],

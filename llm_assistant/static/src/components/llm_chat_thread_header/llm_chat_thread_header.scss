@@ -1,0 +1,133 @@
+// llm_chat_thread_header.scss - Assistant module extension
+// This file extends the base styles and ensures consistency across all dropdowns
+
+.o_LLMChatThreadHeader {
+    // Ensure all dropdown buttons have consistent styling
+    .dropdown {
+        .dropdown-toggle {
+            // Match the base module button styling
+            border: 1px solid $o-gray-300;
+            background-color: $white;
+            
+            &:hover:not(:disabled) {
+                background-color: $o-gray-100;
+                border-color: $o-gray-400;
+            }
+            
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            
+            // Remove default Bootstrap caret to use custom icon
+            &::after {
+                display: none;
+            }
+            
+            // Ensure consistent text truncation
+            .text-truncate {
+                display: inline-block;
+                vertical-align: middle;
+            }
+        }
+        
+        // Consistent dropdown menu styling
+        .dropdown-menu {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border: 1px solid $o-gray-300;
+            
+            .dropdown-item {
+                padding: 0.5rem 1rem;
+                color: $o-gray-900;
+                
+                &:hover:not(.active) {
+                    background-color: $o-gray-100;
+                    color: $o-gray-900;
+                }
+                
+                &.active {
+                    background-color: $o-brand-primary;
+                    color: white;
+                    
+                    .text-muted {
+                        color: rgba(255, 255, 255, 0.7) !important;
+                    }
+                }
+                
+                &:focus {
+                    outline: none;
+                    box-shadow: none;
+                }
+                
+                // Icon styling within dropdown items
+                i {
+                    width: 1.2em;
+                    text-align: center;
+                }
+            }
+            
+            .dropdown-divider {
+                margin: 0.25rem 0;
+            }
+        }
+    }
+    
+    // Ensure consistent gap between dropdowns
+    &_controls {
+        gap: 0.5rem !important;
+        
+        // Override any inline styles from the template
+        .dropdown {
+            margin-right: 0 !important;
+        }
+    }
+}
+
+// Dark mode support for assistant dropdown
+@media (prefers-color-scheme: dark) {
+    .o_LLMChatThreadHeader {
+        .dropdown {
+            .dropdown-toggle {
+                background-color: $o-gray-800;
+                border-color: $o-gray-600;
+                color: $o-gray-100;
+                
+                &:hover:not(:disabled) {
+                    background-color: $o-gray-700;
+                    border-color: $o-gray-500;
+                }
+                
+                .text-muted {
+                    color: $o-gray-400 !important;
+                }
+            }
+            
+            .dropdown-menu {
+                background-color: $o-gray-800;
+                border-color: $o-gray-600;
+                
+                .dropdown-item {
+                    color: $o-gray-100;
+                    
+                    &:hover:not(.active) {
+                        background-color: $o-gray-700;
+                        color: $o-gray-100;
+                    }
+                    
+                    &.active {
+                        background-color: $o-brand-primary;
+                        color: white;
+                    }
+                    
+                    .text-muted {
+                        color: $o-gray-400 !important;
+                    }
+                }
+                
+                .dropdown-divider {
+                    border-color: $o-gray-600;
+                }
+            }
+        }
+    }
+}

@@ -26,7 +26,7 @@ class LLMResourceHTTPRetriever(models.Model):
     @api.model
     def _get_available_retrievers(self):
         """Get all available retriever methods"""
-        retrievers = super()._get_available_retrievers()
+        retrievers = super()._get_available_retrievers()  # type: ignore
         retrievers.append(("http", "HTTP Retriever"))
         return retrievers
 
@@ -182,7 +182,7 @@ class LLMResourceHTTPRetriever(models.Model):
 
         parsed_url = urlparse(final_url)
         # Use attachment name if available, else try URL path, else default
-        filename = self.name or parsed_url.path.split("/")[-1] or "downloaded_file"
+        filename = self.name or parsed_url.path.split("/")[-1] or "downloaded_file"  # type: ignore
         if "." not in filename:
             ext = mimetypes.guess_extension(content_type)
             if ext:

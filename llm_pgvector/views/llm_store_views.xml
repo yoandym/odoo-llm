@@ -6,10 +6,7 @@
         <field name="inherit_id" ref="llm_store.llm_store_view_form" />
         <field name="arch" type="xml">
             <xpath expr="//field[@name='service']" position="after">
-                <field
-          name="pgvector_index_method"
-          attrs="{'invisible': [('service', '!=', 'pgvector')]}"
-        />
+                <field name="pgvector_index_method" invisible="service != 'pgvector'" />
             </xpath>
         </field>
     </record>

@@ -1,263 +1,118 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
     <t t-name="llm_thread.LLMChatThreadHeader" owl="1">
-        <div
-      class="o_ThreadViewTopbar d-flex flex-shrink-0 w-100 px-3 bg-100 border-bottom align-items-center"
-      t-ref="root"
-      style="height: 50px;"
-    >
-            <!-- Toggle Button (Mobile) -->
-            <button
-        t-if="isSmall"
-        class="o_ThreadViewTopbar_button btn px-2 border-none rounded shadow-none me-2 flex-shrink-0"
-        t-on-click="_onToggleThreadList"
-      >
-                <i
-          class="fa fa-lg fa-bars text-700"
-          role="img"
-          aria-label="Toggle thread list"
-        />
+        <div class="o_LLMChatThreadHeader d-flex align-items-center px-3 py-2 border-bottom bg-white">
+            <!-- Mobile: Toggle Thread List -->
+            <button t-if="isMobile" class="btn btn-light btn-sm me-2" t-on-click="toggleThreadList" title="Toggle thread list">
+                <i class="fa fa-bars" />
             </button>
 
-            <!-- Thread Name (Editable) -->
-            <div
-        class="o_ThreadViewTopbar_title d-flex flex-grow-1 align-items-center min-w-0 me-2"
-      >
-                <t t-if="!llmChatThreadHeaderView.isEditingName || isSmall">
-                    <div
-            class="o_ThreadViewTopbar_threadName o_ThreadViewTopbar_editableItem lead flex-shrink-1 px-1 border text-truncate fw-bold"
-            t-att-title="thread.name"
-            t-on-click="llmChatThreadHeaderView.onClickTopbarThreadName"
-            t-attf-class="{{ isSmall ? 'border-0' : 'border-light' }}"
-            style="cursor: pointer;"
-          >
-                        <t t-esc="thread.name" />
-                    </div>
-                </t>
-                <t t-if="llmChatThreadHeaderView.isEditingName and !isSmall">
-                    <input
-            class="o_ThreadViewTopbar_threadNameInput form-control lead fw-bold o_input_tooltip flex-shrink-1"
-            type="text"
-            autofocus="autofocus"
-            t-att-value="llmChatThreadHeaderView.pendingName"
-            t-on-input="onInputThreadNameInput"
-            t-on-keydown="onKeyDownThreadNameInput"
-            t-ref="threadNameInput"
-            title="Press Enter to save, Esc to cancel"
-            data-bs-toggle="tooltip"
-            data-bs-placement="bottom"
-          />
-                     <button
-            class="btn btn-sm btn-primary ms-1"
-            t-on-click="llmChatThreadHeaderView.saveThreadName"
-            title="Save"
-          >
-                        <i class="fa fa-check" />
-                    </button>
-                    <button
-            class="btn btn-sm btn-secondary ms-1"
-            t-on-click="llmChatThreadHeaderView.discardThreadNameEdition"
-            title="Cancel"
-          >
-                        <i class="fa fa-times" />
-                    </button>
-                </t>
-            </div>
+            <!-- Thread Name (Editable on Desktop) -->
+            <div class="o_LLMChatThreadHeader_title flex-grow-1 me-3">
+                <t t-if="!state.isEditingName or isMobile">
+                    <div class="d-flex align-items-center">
+                        <h5 class="mb-0 text-truncate cursor-pointer me-2" t-att-title="props.thread.name" t-on-click="startEditingName.bind(this)">
+                            <t t-esc="props.thread.name" />
+                        </h5>
 
-            <!-- Dropdowns (Desktop) -->
-            <div
-        t-if="!isSmall"
-        class="o_ThreadDropdowns d-flex align-items-center flex-shrink-0"
-      >
-                <!-- LLM Provider Dropdown -->
-                <div class="dropdown">
-                    <button
-            class="btn btn-light dropdown-toggle d-flex align-items-center gap-1"
-            type="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-            style="max-width: 180px;"
-          >
-                        <span class="text-truncate">
-                            <t t-if="llmChatThreadHeaderView.selectedProvider">
-                                <t
-                  t-esc="llmChatThreadHeaderView.selectedProvider.name"
-                />
-                            </t>
-                            <t t-else="">
-                                Select Provider
-                            </t>
-                        </span>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <t
-              t-foreach="llmProviders"
-              t-as="provider"
-              t-key="provider.id"
-            >
-                            <li>
-                                <a
-                  class="dropdown-item text-truncate"
-                  href="#"
-                  t-on-click.prevent="() => this.onSelectProvider(provider)"
-                  t-att-title="provider.name"
-                  t-attf-class="{{ llmChatThreadHeaderView.selectedProviderId === provider.id ? 'active' : '' }}"
-                >
-                                    <t t-esc="provider.name" />
-                                </a>
-                            </li>
-                        </t>
-                    </ul>
-                </div>
-
-                <!-- LLM Model Searchable Dropdown -->
-                <div class="dropdown ms-2" t-ref="modelDropdown">
-                    <button
-            class="btn btn-light dropdown-toggle d-flex align-items-center gap-1"
-            type="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-            style="max-width: 180px;"
-            t-att-disabled="!llmChatThreadHeaderView.selectedProviderId"
-            title="{{ llmChatThreadHeaderView.selectedProviderId ? (llmChatThreadHeaderView.selectedModel ? llmChatThreadHeaderView.selectedModel.name : 'Select Model') : 'Select a provider first'}}"
-          >
-                        <span class="text-truncate">
-                            <t t-if="llmChatThreadHeaderView.selectedModel">
-                                <t
-                  t-esc="llmChatThreadHeaderView.selectedModel.name"
-                />
-                            </t>
-                            <t t-else="">
-                                Select Model
-                            </t>
-                        </span>
-                    </button>
-                     <!-- Add data-bs-auto-close="outside" to keep dropdown open -->
-                    <div
-            class="dropdown-menu p-0"
-            data-bs-auto-close="outside"
-            style="min-width: 250px; max-height: 300px; overflow-y: auto;"
-          >
-                         <!-- Search Input -->
-                         <div class="p-2 border-bottom">
-                             <input
-                type="text"
-                class="form-control form-control-sm"
-                placeholder="Search models..."
-                t-att-value="state.modelSearchQuery"
-                t-on-input="onModelSearchInput"
-                t-on-click="_preventDropdownClose"
-                t-ref="modelSearchInput"
-                aria-label="Search models"
-              />
-                         </div>
-                         <!-- Filtered Model List -->
-                         <ul class="list-unstyled mb-0">
-                            <t t-if="filteredModels.length > 0">
-                                <t
-                  t-foreach="filteredModels"
-                  t-as="model"
-                  t-key="model.id"
-                >
-                                    <li>
-                                        <a
-                      href="#"
-                      class="dropdown-item text-truncate d-block"
-                      t-on-click.prevent="() => onSelectModel(model)"
-                      t-att-title="model.name"
-                      t-attf-class="{{ llmChatThreadHeaderView.selectedModelId === model.id ? 'active' : '' }}"
-                    >
-                                            <t t-esc="model.name" />
-                                        </a>
-                                    </li>
+                        <!-- Thread Actions Menu -->
+                        <div t-if="!isMobile" class="o_thread_actions">
+                            <Dropdown togglerClass="'btn btn-sm btn-light border-0 shadow-none p-1'" menuClass="'dropdown-menu-start'">
+                                <t t-set-slot="toggler">
+                                    <i class="fa fa-ellipsis-v text-muted" />
                                 </t>
-                            </t>
-                            <t t-else="">
-                                <li
-                  class="dropdown-item text-muted disabled"
-                >No models found<t t-if="state.modelSearchQuery"> for '<t
-                      t-esc="state.modelSearchQuery"
-                    />'</t>.</li>
-                            </t>
-                         </ul>
-                    </div>
-                </div>
 
-                 <!-- Tools Dropdown -->
-                 <div class="dropdown ms-2">
-                    <button
-            class="btn btn-light dropdown-toggle d-flex align-items-center gap-1"
-            type="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-            style="max-width: 120px;"
-            title="Select Tools"
-          >
-                        Tools
-                        <t
-              t-if="thread.selectedToolIds and thread.selectedToolIds.length > 0"
-            >
-                            <span class="badge bg-secondary ms-1">
-                                <t t-esc="thread.selectedToolIds.length" />
-                            </span>
-                        </t>
-                    </button>
-                    <!-- Add data-bs-auto-close="outside" to keep dropdown open -->
-                    <div
-            class="dropdown-menu p-2"
-            data-bs-auto-close="outside"
-            style="min-width: 200px;"
-          >
-                        <h6
-              class="dropdown-header px-2 py-1"
-            >Available Tools</h6>
-                        <div style="max-height: 250px; overflow-y: auto;">
-                            <t
-                t-if="llmChat.tools and llmChat.tools.length > 0"
-              >
-                                <t
-                  t-foreach="llmChat.tools"
-                  t-as="tool"
-                  t-key="tool.id"
-                >
-                                    <div
-                    class="form-check dropdown-item mb-0"
-                  > <!-- Wrap in dropdown-item for hover effect -->
-                                        <input
-                      type="checkbox"
-                      class="form-check-input"
-                      t-att-id="'tool-checkbox-' + tool.id"
-                      t-att-value="tool.id"
-                      t-att-checked="thread.selectedToolIds and thread.selectedToolIds.includes(tool.id)"
-                      t-on-change="(ev) => onToolSelectChange(ev, tool)"
-                    />
-                                        <label
-                      class="form-check-label"
-                      t-att-for="'tool-checkbox-' + tool.id"
-                    >
-                                            <t t-esc="tool.name" />
-                                        </label>
-                                    </div>
-                                </t>
-                            </t>
-                             <t t-else="">
-                                <div
-                  class="dropdown-item text-muted disabled"
-                >No tools available.</div>
-                            </t>
+                                <DropdownItem onSelected="startEditingName.bind(this)">
+                                    <i class="fa fa-pencil fa-fw me-2 text-primary" />
+                                    <span>Rename Thread</span>
+                                </DropdownItem>
+
+                                <div class="dropdown-divider" />
+
+                                <DropdownItem onSelected="deleteThread.bind(this)">
+                                    <i class="fa fa-trash fa-fw me-2 text-danger" />
+                                    <span class="text-danger">Delete Thread</span>
+                                </DropdownItem>
+                            </Dropdown>
                         </div>
                     </div>
-                </div>
+                </t>
+                <t t-else="">
+                    <div class="d-flex align-items-center">
+                        <input t-ref="threadNameInput" type="text" class="form-control form-control-sm" t-att-value="state.pendingName" t-att-disabled="state.isSaving" t-on-input="onThreadNameInput" t-on-keydown="onThreadNameKeydown" placeholder="Thread name..." />
+                        <button class="btn btn-sm btn-primary ms-1" t-att-disabled="state.isSaving" t-on-click="saveThreadName" title="Save">
+                            <i class="fa fa-check" />
+                        </button>
+                        <button class="btn btn-sm btn-secondary ms-1" t-att-disabled="state.isSaving" t-on-click="cancelEditingName" title="Cancel">
+                            <i class="fa fa-times" />
+                        </button>
+                    </div>
+                </t>
             </div>
 
-            <!-- Settings Button (Mobile) -->
-            <button
-        class="o_ThreadViewTopbar_button btn px-2 border-none rounded shadow-none ms-auto flex-shrink-0"
-        t-if="isSmall"
-        t-on-click="llmChatThreadHeaderView.openThreadSettings"
-        title="Settings"
-      >
-                <i class="fa fa-lg fa-gear text-700" />
+            <!-- Desktop: Dropdowns -->
+            <div t-if="!isMobile" class="o_LLMChatThreadHeader_controls d-flex align-items-center gap-2">
+                <!-- Provider Dropdown -->
+                <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                    <t t-set-slot="toggler">
+                        <span class="text-truncate" style="max-width: 150px;">
+                            <t t-if="selectedProvider" t-esc="selectedProvider.name" />
+                            <t t-else="">Select Provider</t>
+                        </span>
+                        <i class="fa fa-caret-down ms-1" />
+                    </t>
+
+                    <t t-foreach="llmProviders" t-as="provider" t-key="provider.id">
+                        <DropdownItem onSelected="onSelectProvider.bind(this, provider)" class="{ 'active': state.selectedProviderId === provider.id }">
+                            <t t-esc="provider.name" />
+                        </DropdownItem>
+                    </t>
+                </Dropdown>
+
+                <!-- Model Dropdown with Search -->
+                <Dropdown togglerClass="state.selectedProviderId ? 'btn btn-light btn-sm' : 'btn btn-light btn-sm disabled'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                    <t t-set-slot="toggler">
+                        <span class="text-truncate" style="max-width: 200px;">
+                            <t t-if="selectedModel" t-esc="selectedModel.name" />
+                            <t t-else="">Select Model</t>
+                        </span>
+                        <i class="fa fa-caret-down ms-1" />
+                    </t>
+
+                    <t t-foreach="filteredModels" t-as="model" t-key="model.id">
+                        <DropdownItem onSelected="onSelectModel.bind(this, model)" class="{ 'active': state.selectedModelId === model.id }">
+                            <t t-esc="model.name" />
+                        </DropdownItem>
+                    </t>
+                </Dropdown>
+
+                <!-- Tools Dropdown -->
+                <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown dropdown-menu-end'">
+                    <t t-set-slot="toggler">
+                        Tools
+                        <t t-if="selectedToolsCount > 0">
+                            <span class="badge bg-secondary ms-1">
+                                <t t-esc="selectedToolsCount" />
+                            </span>
+                        </t>
+                        <i class="fa fa-caret-down ms-1" />
+                    </t>
+
+                    <t t-foreach="availableTools" t-as="tool" t-key="tool.id">
+                        <div class="form-check" t-on-click="(ev) => this.onToggleTool(tool, !this.isToolSelected(tool.id), ev)">
+                            <input class="form-check-input" type="checkbox" t-att-id="'tool-' + tool.id" t-att-checked="this.isToolSelected(tool.id)" t-on-click.stop="" />
+                            <label class="form-check-label d-flex justify-content-between align-items-center" t-att-for="'tool-' + tool.id">
+                                <span t-esc="tool.name" />
+                                <small t-if="tool.title" class="text-muted ms-2" t-esc="tool.title" />
+                            </label>
+                        </div>
+                    </t>
+                </Dropdown>
+            </div>
+
+            <!-- Mobile: Settings Button -->
+            <button t-if="isMobile" class="btn btn-light btn-sm" t-on-click="openThreadSettings" title="Thread settings">
+                <i class="fa fa-cog" />
             </button>
         </div>
     </t>

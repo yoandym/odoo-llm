@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <!-- Patch the Message template to add LLM features -->
+    <t t-inherit="mail.Message" t-inherit-mode="extension">
+
+        <!-- Add custom avatar for AI messages -->
+        <xpath expr="//img[hasclass('o-mail-Message-avatar')]" position="attributes">
+            <attribute name="t-if">!isAiMessage</attribute>
+        </xpath>
+
+        <xpath expr="//img[hasclass('o-mail-Message-avatar')]" position="after">
+            <t t-if="isAiMessage">
+                <t t-if="isToolResultMessage">
+                    <div class="o-mail-Message-avatar o_object_fit_cover rounded-circle d-flex align-items-center justify-content-center bg-secondary">
+                        <i class="fa fa-wrench text-white"/>
+                    </div>
+                </t>
+                <t t-else="">
+                    <div class="o-mail-Message-avatar o_object_fit_cover rounded-circle d-flex align-items-center justify-content-center bg-primary">
+                        <i class="fa fa-robot text-white"/>
+                    </div>
+                </t>
+            </t>
+        </xpath>
+
+        <!-- Override message body rendering to handle HTML content properly -->
+        <xpath expr="//t[@t-elif='message.body']" position="replace">
+            <t t-elif="message.body" t-out="processedBody"/>
+        </xpath>
+
+        <!-- Add tool calls and streaming indicator inside message content -->
+        <xpath expr="//div[hasclass('o-mail-Message-content')]" position="inside">
+            <!-- Tool calls for assistant messages -->
+            <t t-if="hasToolCalls and isAiMessage">
+                <div class="o-mail-ToolCalls mt-3">
+                    <t t-foreach="toolCallsWithResults" t-as="toolCall" t-key="toolCall.id">
+                        <div class="o-mail-ToolCall-accordion mb-2">
+                            <div class="o-mail-ToolCall-header" t-on-click="() => this.toggleToolCall(toolCall.id)">
+                                <i t-attf-class="fa fa-chevron-{{ llmState.expandedToolCalls[toolCall.id] ? 'down' : 'right' }} me-2"/>
+                                <span class="o-mail-ToolCall-name">
+                                    <i class="fa fa-wrench me-1"/>
+                                    <t t-esc="toolCall.function?.name || 'Tool'"/>
+                                </span>
+                                <t t-if="toolCall.result">
+                                    <span class="o-mail-ToolCall-status ms-2">
+                                        <t t-if="toolCall.parsedResult">
+                                            <t t-if="toolCall.hasError">
+                                                <span class="text-danger">
+                                                    <i class="fa fa-exclamation-circle me-1"/>
+                                                    Error
+                                                </span>
+                                            </t>
+                                            <t t-else="">
+                                                <span class="text-success">
+                                                    <i class="fa fa-check-circle me-1"/>
+                                                    Completed
+                                                </span>
+                                            </t>
+                                        </t>
+                                        <t t-else="">
+                                            <span class="text-muted">
+                                                <i class="fa fa-spinner fa-spin me-1"/>
+                                                Executing...
+                                            </span>
+                                        </t>
+                                    </span>
+                                </t>
+                            </div>
+                            <t t-if="llmState.expandedToolCalls[toolCall.id]">
+                                <div class="o-mail-ToolCall-details">
+                                    <div class="o-mail-ToolCall-section">
+                                        <div class="o-mail-ToolCall-label">Request:</div>
+                                        <pre class="o-mail-ToolCall-code">
+                                            <t t-esc="formatJSON(toolCall.parsedArguments)"/>
+                                        </pre>
+                                    </div>
+                                    <t t-if="toolCall.result">
+                                        <div class="o-mail-ToolCall-section">
+                                            <div class="o-mail-ToolCall-label">Response:</div>
+                                            <t t-if="toolCall.parsedResult">
+                                                <pre class="o-mail-ToolCall-code">
+                                                    <t t-esc="formatJSON(toolCall.parsedResult)"/>
+                                                </pre>
+                                            </t>
+                                            <t t-else="">
+                                                <div class="text-muted">Waiting for response...</div>
+                                            </t>
+                                        </div>
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+                </div>
+            </t>
+
+            <!-- Streaming indicator -->
+            <t t-if="isStreaming">
+                <span class="o-mail-StreamingIndicator">▋</span>
+            </t>
+        </xpath>
+
+        <!-- Add classes to message for styling -->
+        <xpath expr="//div[hasclass('o-mail-Message')]" position="attributes">
+            <attribute name="t-attf-class">{{ isAiMessage ? 'o-ai-message' : '' }} {{ isStreaming ? 'o-streaming' : '' }}</attribute>
+        </xpath>
+
+        <!-- Add class to message content for AI messages -->
+        <xpath expr="//div[hasclass('o-mail-Message-content')]" position="attributes">
+            <attribute name="t-attf-class">{{ isAiMessage ? 'o-ai-message-content' : '' }}</attribute>
+        </xpath>
+
+    </t>
+</templates>

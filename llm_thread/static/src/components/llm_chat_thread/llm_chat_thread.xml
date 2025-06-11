@@ -1,33 +1,78 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
+    <!-- LLMChatThread Template using Odoo's native Message component -->
     <t t-name="llm_thread.LLMChatThread" owl="1">
-        <div class="o_LLMChatThread d-flex flex-column h-100">
+        <div t-att-class="containerClass">
             <!-- Header -->
-            <LLMChatThreadHeader record="threadView.llmChatThreadHeaderView" />
+            <LLMChatThreadHeader 
+                thread="props.thread" 
+                onOpenSidebar="props.onOpenSidebar" 
+            />
 
-            <!-- Messages -->
-            <div class="o_LLMChatThread_content flex-grow-1 overflow-auto">
-                <t t-if="thread.cache?.isLoading">
-                    <div
-            class="d-flex justify-content-center align-items-center h-100"
-          >
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
+            <!-- Messages Content Area -->
+            <div class="o_LLMChatThread_content flex-grow-1 overflow-auto position-relative" t-ref="content">
+                <!-- Loading Indicator for Initial Load -->
+                <t t-if="state.isLoadingMessages and state.messages.length === 0">
+                    <div class="d-flex justify-content-center align-items-center h-100">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted">Loading conversation...</p>
                         </div>
                     </div>
                 </t>
+
+                <!-- Message List -->
                 <t t-else="">
-                    <!-- Message List -->
-                    <LLMChatMessageList
-            record="threadView.messageListView"
-            composerView="threadView.composerView"
-          />
+                    <div class="o_LLMChatMessageList px-3 py-2">
+                        <!-- Loading more indicator -->
+                        <t t-if="state.isLoadingMessages and state.messages.length > 0">
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-muted" role="status">
+                                    <span class="visually-hidden">Loading more messages...</span>
+                                </div>
+                            </div>
+                        </t>
+
+                        <!-- Empty state -->
+                        <t t-if="!state.messages.length and !state.isLoadingMessages">
+                            <div class="text-center py-5 text-muted">
+                                <i class="fa fa-comments fa-3x mb-3 opacity-50"/>
+                                <p>No messages yet. Start a conversation!</p>
+                            </div>
+                        </t>
+
+                        <!-- Grouped messages -->
+                        <t t-foreach="groupedMessages" t-as="group" t-key="group.date">
+                            <!-- Date separator -->
+                            <div class="o_mail_DateSection d-flex align-items-center my-3">
+                                <hr class="flex-grow-1 opacity-25"/>
+                                <span class="mx-3 text-muted small">
+                                    <t t-esc="group.displayDate"/>
+                                </span>
+                                <hr class="flex-grow-1 opacity-25"/>
+                            </div>
+
+                            <!-- Messages in group -->
+                            <t t-foreach="group.messages" t-as="message" t-key="message.id">
+                                <div class="o_LLMChatMessage">
+                                    <Message t-props="getMessageProps(message)"/>
+                                </div>
+                            </t>
+                        </t>
+                    </div>
                 </t>
             </div>
 
-            <!-- Chat Composer - Moved outside scrollable area -->
-            <div class="o_LLMChatThread_composer p-3">
-                <LLMChatComposer record="threadView.composerView" />
+            <!-- Composer -->
+            <div class="o_LLMChatThread_composer border-top">
+                <LLMChatComposer 
+                    composer="composerState" 
+                    thread="props.thread" 
+                    placeholder="'Type your message... (Shift+Enter for new line)'"
+                    autofocus="1" 
+                />
             </div>
         </div>
     </t>

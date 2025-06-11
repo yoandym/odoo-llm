@@ -1,62 +1,117 @@
 /** @odoo-module **/
 
-import { registerMessagingComponent } from "@mail/utils/messaging_component";
-import { useModels } from "@mail/component_hooks/use_models";
+import { Component, useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
-const { Component, useState } = owl;
+console.log("*** LLMChatThreadList module loading ***");
+
 
 export class LLMChatThreadList extends Component {
-  setup() {
-    useModels();
-    super.setup();
-    this.state = useState({
-      isLoading: false,
-    });
-  }
+    static template = "llm_thread.LLMChatThreadList";
+    static props = {
+        onThreadSelect: { type: Function, optional: true },
+    };
 
-  /**
-   * @returns {LLMChatView}
-   */
-  get llmChatView() {
-    return this.props.record;
-  }
+    setup() {
+        console.log("ThreadList: Component setup called");
+        // Services
+        this.llmChatService = useService("llm_chat");
+        this.notification = useService("notification");
 
-  /**
-   * @returns {Thread}
-   */
-  get activeThread() {
-    return this.llmChatView.llmChat.activeThread;
-  }
+        // Direct access to the llmChat store
+        this.llmChat = this.llmChatService;
+        console.log("ThreadList: Service accessed:", this.llmChat);
 
-  /**
-   * Handle thread click
-   * @param {Thread} thread
-   */
-  async _onThreadClick(thread) {
-    if (this.state.isLoading) return;
+        // Component state
+        this.state = useState({
+            isLoading: false,
+            loadingThreadId: null,
+            threads: this.llmChat.orderedThreads,
+        });
 
-    this.state.isLoading = true;
-    try {
-      await this.llmChatView.llmChat.selectThread(thread.id);
-      this.llmChatView.update({
-        isThreadListVisible: false,
-      });
-    } catch (error) {
-      console.error("Error selecting thread:", error);
-      this.messaging.notify({
-        title: "Error",
-        message: "Failed to load thread",
-        type: "danger",
-      });
-    } finally {
-      this.state.isLoading = false;
+        // Watch for service changes to trigger re-renders
+        this.env.bus.addEventListener("llm_chat:threads_changed", this._onThreadsChanged.bind(this));
+
+
+        this.env.bus.addEventListener("llm_chat:thread_selected", () => {
+            console.log("ThreadList: Received thread_selected event");
+            // The reactive service will automatically trigger re-renders
+        });
+
+        console.log("ThreadList: Setup complete");
     }
-  }
+
+    /**
+     * react to changes in threads
+     */
+    _onThreadsChanged(event) {
+        this.state.threads = this.llmChat.orderedThreads;
+    }
+
+    /**
+     * Get the active thread
+     */
+    get activeThread() {
+        const active = this.llmChat.activeThread;
+        console.log("ThreadList: activeThread getter called, returning:", active?.id, active?.name);
+        return active;
+    }
+
+    /**
+     * Check if there are no threads
+     */
+    get hasNoThreads() {
+        return this.state.threads.length === 0;
+    }
+
+    /**
+     * Handle thread click
+     * @param {Object} thread
+     */
+    async onThreadClick(thread) {
+        // Prevent multiple clicks
+        if (this.state.isLoading || this.state.loadingThreadId === thread.id) {
+            return;
+        }
+
+        this.state.isLoading = true;
+        this.state.loadingThreadId = thread.id;
+
+        try {
+            await this.llmChat.selectThread(thread.id);
+
+            // Call the callback if provided
+            if (this.props.onThreadSelect) {
+                this.props.onThreadSelect(thread);
+            }
+        } catch (error) {
+            console.error("Error selecting thread:", error);
+            this.notification.add(
+                this.env._t("Failed to load thread"),
+                {
+                    title: this.env._t("Error"),
+                    type: "danger",
+                }
+            );
+        } finally {
+            this.state.isLoading = false;
+            this.state.loadingThreadId = null;
+        }
+    }
+
+    /**
+     * Check if a thread is currently being loaded
+     */
+    isThreadLoading(threadId) {
+        return this.state.loadingThreadId === threadId;
+    }
+
+    /**
+     * Check if a thread is active
+     */
+    isThreadActive(threadId) {
+        const isActive = this.activeThread?.id === threadId;
+        console.log(`ThreadList: isThreadActive(${threadId}) = ${isActive}, activeThread:`, this.activeThread?.id);
+        return isActive;
+    }
 }
-
-Object.assign(LLMChatThreadList, {
-  props: { record: Object },
-  template: "llm_thread.LLMChatThreadList",
-});
-
-registerMessagingComponent(LLMChatThreadList);

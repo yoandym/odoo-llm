@@ -1,40 +1,38 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <t t-name="llm_thread.LLMChatThreadList" owl="1">
-        <div
-      class="o_LLMChatThreadList d-flex flex-column flex-grow-1 overflow-auto"
-    >
-            <t t-if="llmChatView.llmChat.threads.length === 0">
-                <div
-          class="d-flex flex-column align-items-center justify-content-center flex-grow-1 text-muted p-3"
-        >
-                    <i class="fa fa-comments fa-3x mb-3 text-300" />
-                    <span class="fs-6">No chats yet</span>
-                </div>
-            </t>
-            <t t-else="">
-                <div class="o_LLMChatThreadList_items d-flex flex-column">
-                    <t
-            t-foreach="llmChatView.llmChat.orderedThreads"
-            t-as="thread"
-            t-key="thread.id"
-          >
-                        <button
-              class="o_DiscussSidebarCategoryItem btn d-flex align-items-center w-100 px-0 py-2 border-0 rounded-0 fw-normal text-reset bg-100"
-              t-att-class="{'o-active bg-200': thread.id === activeThread?.id}"
-              t-on-click="() => this._onThreadClick(thread)"
-            >
-                            <span
-                class="o_DiscussSidebarCategoryItem_item o_DiscussSidebarCategoryItem_name ms-3 me-2 text-truncate"
-                t-esc="thread.name"
-              />
-                            <div
-                class="o_DiscussSidebarCategoryItem_item flex-grow-1"
-              />
-                        </button>
-                    </t>
-                </div>
-            </t>
+  <t t-name="llm_thread.LLMChatThreadList" owl="1">
+    <div class="o_LLMChatThreadList d-flex flex-column flex-grow-1">
+      <!-- Empty State -->
+      <t t-if="hasNoThreads">
+        <div class="d-flex flex-column align-items-center justify-content-center flex-grow-1 text-muted p-4">
+          <i class="fa fa-comments-o fa-3x mb-3 opacity-50" />
+          <span class="fs-6">No conversations yet</span>
+          <span class="small opacity-75 mt-1">Click "New Chat" to start</span>
         </div>
-    </t>
+      </t>
+
+      <!-- Thread List -->
+      <t t-else="">
+        <div class="o_LLMChatThreadList_items">
+          <t t-foreach="state.threads" t-as="thread" t-key="thread.id">
+            <div class="o_LLMChatSidebar_item d-flex align-items-center px-3 py-2 cursor-pointer" t-att-class="{
+                                'o-active': isThreadActive(thread.id),
+                                'opacity-50': isThreadLoading(thread.id)
+                            }" t-on-click="onThreadClick.bind(this, thread)">
+              <!-- Thread Icon -->
+              <i class="fa fa-comment-o me-2 opacity-75" />
+
+              <!-- Thread Name -->
+              <span class="text-truncate flex-grow-1" t-esc="thread.name" />
+
+              <!-- Loading Indicator -->
+              <t t-if="isThreadLoading(thread.id)">
+                <i class="fa fa-spinner fa-spin ms-2 opacity-50" />
+              </t>
+            </div>
+          </t>
+        </div>
+      </t>
+    </div>
+  </t>
 </templates>

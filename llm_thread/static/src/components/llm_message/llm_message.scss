@@ -1,0 +1,232 @@
+/* LLM Message Formatting Styles */
+
+.o-mail-Message-formattedContent {
+    /* Basic text styling */
+    line-height: 1.6;
+    word-wrap: break-word;
+}
+
+/* Code styling */
+.o-mail-Message-formattedContent code {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+}
+
+.o-mail-Message-formattedContent pre {
+    background-color: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+    margin: 8px 0;
+}
+
+.o-mail-Message-formattedContent pre code {
+    background-color: transparent;
+    padding: 0;
+    font-size: 0.875em;
+    line-height: 1.45;
+}
+
+/* List styling */
+.o-mail-Message-formattedContent ul,
+.o-mail-Message-formattedContent ol {
+    margin: 8px 0;
+    padding-left: 24px;
+}
+
+.o-mail-Message-formattedContent li {
+    margin: 4px 0;
+}
+
+/* Link styling */
+.o-mail-Message-formattedContent a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.o-mail-Message-formattedContent a:hover {
+    text-decoration: underline;
+}
+
+/* Paragraph spacing */
+.o-mail-Message-formattedContent p {
+    margin: 8px 0;
+}
+
+.o-mail-Message-formattedContent p:first-child {
+    margin-top: 0;
+}
+
+.o-mail-Message-formattedContent p:last-child {
+    margin-bottom: 0;
+}
+
+/* Strong and emphasis */
+.o-mail-Message-formattedContent strong {
+    font-weight: 600;
+}
+
+.o-mail-Message-formattedContent em {
+    font-style: italic;
+}
+
+/* AI message specific styling */
+.o-ai-message .o-mail-Message-formattedContent {
+    color: #1a1a1a;
+}
+
+/* Dark mode support (if your Odoo theme supports it) */
+.o_dark_mode .o-mail-Message-formattedContent code {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.o_dark_mode .o-mail-Message-formattedContent pre {
+    background-color: #1e1e1e;
+    border-color: #444;
+}
+
+.o_dark_mode .o-mail-Message-formattedContent a {
+    color: #58a6ff;
+}
+
+/* Streaming message animation */
+.o-streaming .o-mail-Message-formattedContent::after {
+    content: '▋';
+    animation: blink 1s infinite;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Tool Call Accordion Styles */
+.o-mail-ToolCall-accordion {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #f8f9fa;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    margin: 8px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.o-mail-ToolCall-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: #fff;
+    transition: background-color 0.2s;
+    border-radius: 8px 8px 0 0;
+    min-height: 48px;
+}
+
+.o-mail-ToolCall-header:hover {
+    background: #f5f5f5;
+}
+
+.o-mail-ToolCall-name {
+    font-weight: 500;
+    color: #1a73e8;
+    flex: 1;
+}
+
+.o-mail-ToolCall-status {
+    font-size: 0.9em;
+}
+
+.o-mail-ToolCall-details {
+    border-top: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.o-mail-ToolCall-section {
+    padding: 12px 16px;
+}
+
+.o-mail-ToolCall-section + .o-mail-ToolCall-section {
+    border-top: 1px solid #e0e0e0;
+}
+
+.o-mail-ToolCall-label {
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.o-mail-ToolCall-code {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 0;
+    font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+    font-size: 0.875em;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+/* Dark mode support for tool calls */
+.o_dark_mode .o-mail-ToolCall-accordion {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+.o_dark_mode .o-mail-ToolCall-header {
+    background: #333;
+}
+
+.o_dark_mode .o-mail-ToolCall-header:hover {
+    background: #3a3a3a;
+}
+
+.o_dark_mode .o-mail-ToolCall-details {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+.o_dark_mode .o-mail-ToolCall-code {
+    background: #1e1e1e;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.o_dark_mode .o-mail-ToolCall-label {
+    color: #aaa;
+}
+
+/* Tool result message specific styling */
+.o-mail-Message[data-message-type="tool_result"] .o-mail-Message-avatar {
+    background-color: #6c757d;
+}
+
+/* Chevron icon animation */
+.o-mail-ToolCall-header .fa-chevron-down,
+.o-mail-ToolCall-header .fa-chevron-right {
+    transition: transform 0.3s ease;
+    width: 16px;
+    text-align: center;
+}

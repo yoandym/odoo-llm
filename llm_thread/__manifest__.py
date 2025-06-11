@@ -4,7 +4,8 @@
     "description": """
 Easy AI Chat for Odoo
 =====================
-A user-friendly module that brings AI-powered chat to your Odoo environment. Integrate with multiple AI providers, manage real-time conversations, and enhance workflows with multimodal support.
+A user-friendly module that brings AI-powered chat to your Odoo environment. Integrate with multiple AI providers, manage real-time conversations,
+and enhance workflows with multimodal support.
 
 Key Features:
 - Multiple AI Providers: OpenAI, Anthropic, Grok, Ollama, DeepSeek, and more
@@ -20,12 +21,13 @@ Getting Started:
 3. Fetch available models with one click
 4. Start chatting from anywhere in Odoo
 
-Use cases include customer support automation, data analysis, training assistance, custom AI workflows, and automated tool execution for your business.
+Use cases include customer support automation, data analysis, training assistance, custom AI workflows, and automated tool execution for your
+business.
 
 Contact: support@apexive.com
     """,
     "category": "Productivity, Discuss",
-    "version": "16.0.1.1.2",
+    "version": "17.0.1.1.2",
     "depends": ["base", "mail", "web", "llm", "llm_tool", "llm_mail_message_subtypes"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
@@ -38,71 +40,70 @@ Contact: support@apexive.com
     ],
     "assets": {
         "web.assets_backend": [
-            # Models
-            "llm_thread/static/src/models/main.js",
-            "llm_thread/static/src/models/messaging.js",
-            "llm_thread/static/src/models/llm_chat.js",
-            "llm_thread/static/src/models/llm_chat_view.js",
-            "llm_thread/static/src/models/thread.js",
-            "llm_thread/static/src/models/composer.js",
-            "llm_thread/static/src/models/composer_view.js",
-            "llm_thread/static/src/models/llm_model.js",
-            "llm_thread/static/src/models/llm_provider.js",
-            "llm_thread/static/src/models/thread_view.js",
-            "llm_thread/static/src/models/llm_chat_thread_header_view.js",
-            "llm_thread/static/src/models/chatter.js",
-            "llm_thread/static/src/models/llm_tool.js",
-            "llm_thread/static/src/models/message.js",
-            "llm_thread/static/src/models/message_action.js",
-            "llm_thread/static/src/models/message_action_list.js",
-            "llm_thread/static/src/models/message_action_view.js",
-            "llm_thread/static/src/models/messaging_notification_handler.js",
+            # Core patches and services (load first)
+            "llm_thread/static/src/core/llm_message_patch.js",
+            "llm_thread/static/src/core/llm_message_patch.xml",
+            "llm_thread/static/src/core/llm_message_patch.scss",
+            "llm_thread/static/src/core/llm_message_type_service.js",
+            
+            # Services
+            "llm_thread/static/src/services/llm_chat_service.js",
+            "llm_thread/static/src/services/llm_composer_service.js",
+
             # Components
-            "llm_thread/static/src/components/llm_chat/llm_chat.js",
-            "llm_thread/static/src/components/llm_chat/llm_chat.xml",
-            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.js",
-            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.xml",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.js",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.scss",
-            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.xml",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.js",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.xml",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.scss",
+
+            "llm_thread/static/src/components/llm_chat/llm_chat.js",
+            "llm_thread/static/src/components/llm_chat/llm_chat.xml",
+            "llm_thread/static/src/components/llm_chat/llm_chat.scss",
+
+            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.js",
+            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.xml",
+            "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.scss",
+
+            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.js",
+            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.xml",
+            "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.scss",
+
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.js",
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.xml",
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.scss",
+
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.js",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.xml",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.scss",
+
+            # Removed llm_chat_message_list - using Odoo's ThreadView
+            # Removed llm_message - using Odoo's Message with patches
+
             "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.js",
             "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.xml",
             "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.scss",
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.js",
-            "llm_thread/static/src/components/llm_chat_message_list/llm_chat_message_list.xml",
+
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
-            "llm_thread/static/src/components/llm_chatter_topbar/llm_chatter_topbar.xml",
-            "llm_thread/static/src/components/llm_chatter_topbar/llm_chat_topbar.scss",
+
+            "llm_thread/static/src/components/llm_chatter/llm_chatter_interface.js",
+            "llm_thread/static/src/components/llm_chatter/llm_chatter.js",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
-            "llm_thread/static/src/components/message/message.xml",
-            "llm_thread/static/src/components/message/message.scss",
+            "llm_thread/static/src/components/llm_chatter/llm_chatter.scss",
+            "llm_thread/static/src/components/llm_chatter/llm_chatter_interface.scss",
+
+            # Form Button Widget
+            "llm_thread/static/src/components/llm_form_button/llm_form_button.js",
+            "llm_thread/static/src/components/llm_form_button/llm_form_button.xml",
+
             # Streaming indicator component
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.js",
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.xml",
+            "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.scss",
+
             # Client Actions
             "llm_thread/static/src/llm_chat_client_action.js",
-            # Styles
-            (
-                "after",
-                "web/static/src/scss/pre_variables.scss",
-                "llm_thread/static/src/components/llm_chat/llm_chat.scss",
-            ),
-            (
-                "after",
-                "web/static/src/scss/pre_variables.scss",
-                "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.scss",
-            ),
+            "llm_thread/static/src/llm_message_actions.js",
         ],
     },
     "images": [

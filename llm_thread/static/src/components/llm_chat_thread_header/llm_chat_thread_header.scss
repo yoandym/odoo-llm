@@ -1,31 +1,240 @@
-.o_ThreadViewTopbar {
-  // Only keep styles that are specific to our use case and not covered by Odoo's classes
-  .o_ThreadViewTopbar_threadName {
-    max-width: 180px; // Limit thread name width on mobile
+// llm_chat_thread_header.scss
 
-    @include media-breakpoint-up(sm) {
-      max-width: none;
+.o_LLMChatThreadHeader {
+    min-height: 56px;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+    &_title {
+
+        // Ensure proper flex layout for thread name and actions
+        >div {
+            width: 100%;
+        }
+
+        h5 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #212529;
+
+            &.cursor-pointer {
+                &:hover {
+                    color: #0066cc;
+                }
+            }
+        }
+
+        input {
+            min-width: 200px;
+            font-weight: 600;
+        }
     }
-  }
 
-  .o_ThreadViewTopbar_threadDescription {
-    display: inline-flex;
-    align-items: center;
-    font-size: 13px;
-    max-width: 200px; // Limit description width
+    // Thread actions dropdown - always visible
+    .o_thread_actions {
+        .dropdown-toggle {
+            padding: 4px 8px;
 
-    @include media-breakpoint-down(sm) {
-      font-size: 12px;
-      max-width: 150px; // More constrained on mobile
+            &:hover {
+                background-color: #f8f9fa;
+            }
+        }
+
+        // Style the dropdown items
+        .dropdown-menu {
+            border: 1px solid #dee2e6;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+            .dropdown-item {
+                padding: 8px 16px;
+
+                &:hover {
+                    background-color: #f8f9fa;
+                }
+
+                &.text-danger:hover {
+                    background-color: rgba(220, 53, 69, 0.1);
+                    color: #dc3545;
+                }
+
+                i {
+                    width: 16px;
+                }
+            }
+        }
     }
-  }
 
-  .o_ThreadViewTopbar_providerName {
-    color: $info;
-  }
+    &_controls {
+        .btn {
+            border: 1px solid #dee2e6;
+            background-color: white;
 
-  .o_ThreadViewTopbar_modelName {
-    color: $primary;
-    min-width: 0; // Enable truncation
-  }
+            &:hover:not(:disabled) {
+                background-color: #f8f9fa;
+                border-color: #adb5bd;
+            }
+
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+        }
+
+        .dropdown-toggle {
+            &::after {
+                display: none; // Hide default caret
+            }
+        }
+    }
+
+    &_dropdown {
+        max-height: 400px;
+        overflow-y: auto;
+
+        .dropdown-item {
+            &.active {
+                background-color: #0066cc;
+                color: white;
+            }
+        }
+    }
+
+    // Unified dropdown styling for all dropdowns
+    .dropdown {
+        .dropdown-toggle {
+            // Ensure consistent styling with Odoo Dropdown component
+            border: 1px solid #dee2e6;
+            background-color: white;
+
+            &:hover:not(:disabled) {
+                background-color: #f8f9fa;
+                border-color: #adb5bd;
+            }
+
+            &:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            // Hide Bootstrap's default caret
+            &::after {
+                display: none;
+            }
+        }
+
+        .dropdown-menu {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border: 1px solid #dee2e6;
+
+            .form-control {
+                &:focus {
+                    border-color: #0066cc;
+                    box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+                }
+            }
+
+            .dropdown-item {
+                padding: 0.5rem 1rem;
+
+                &:hover:not(.active) {
+                    background-color: #f8f9fa;
+                }
+
+                &.active {
+                    background-color: #0066cc;
+                    color: white;
+                }
+            }
+        }
+    }
+
+    // Tools dropdown - Very specific targeting
+    .o_LLMChatThreadHeader_controls .dropdown-menu {
+        // Ensure tools dropdown has minimum width for checkboxes
+        &.dropdown-menu-end {
+            min-width: 300px; // Increased width to ensure no clipping
+            padding: 0; // Remove default padding to let form-check handle it
+            overflow: visible; // Ensure content isn't clipped
+        }
+
+        // Target form-check specifically within dropdown menus
+        .form-check {
+            padding: 0.75rem 1.25rem !important; // More generous padding with !important
+            margin: 0 !important; // Reset all margins
+            cursor: pointer;
+            display: flex !important;
+            align-items: flex-start;
+            border: none;
+            background: none;
+            width: 100%;
+            position: relative;
+            min-height: 2.5rem; // Ensure minimum height
+
+            &:hover {
+                background-color: #f8f9fa !important;
+            }
+
+            .form-check-input {
+                cursor: pointer;
+                margin: 0.125rem 0.75rem 0 0 !important; // Explicit margins with !important
+                flex-shrink: 0;
+                position: relative;
+                z-index: 1;
+                left: 0 !important; // Ensure it's not pushed off-screen
+                min-width: 1rem;
+                min-height: 1rem;
+
+                &:checked {
+                    background-color: #0066cc;
+                    border-color: #0066cc;
+                }
+
+                &:focus {
+                    box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+                }
+            }
+
+            .form-check-label {
+                cursor: pointer;
+                margin: 0 !important;
+                line-height: 1.5;
+                flex: 1;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: auto;
+                padding-left: 0 !important; // Remove any default label padding
+
+                small {
+                    font-size: 0.8rem;
+                    opacity: 0.8;
+                }
+            }
+        }
+    }
+
+    // Badge styling
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.4rem;
+        font-weight: normal;
+    }
+}
+
+// Mobile responsive
+@media (max-width: 767.98px) {
+    .o_LLMChatThreadHeader {
+        padding: 0.5rem !important;
+
+        &_title {
+            h5 {
+                font-size: 1rem;
+            }
+        }
+
+        .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+    }
 }

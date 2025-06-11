@@ -27,10 +27,9 @@
                 <sheet>
                     <div class="oe_title">
                         <label for="name" class="oe_edit_only" />
-                        <h1><field
-                name="name"
-                placeholder="e.g. retrieve_records"
-              /></h1>
+                        <h1>
+                            <field name="name" placeholder="e.g. retrieve_records" />
+                        </h1>
                     </div>
                     <group>
                         <group string="Basic Configuration">
@@ -38,45 +37,23 @@
                             <field name="default" />
                             <field name="active" />
                             <field name="requires_user_consent" />
-                            <field
-                name="server_action_id"
-                attrs="{'invisible': [('implementation', '!=', 'server_action')],
-                                          'required': [('implementation', '=', 'server_action')]}"
-                options="{'no_create': True}"
-                domain="[('state', '!=', False)]"
-              />
+                            <field name="server_action_id" invisible="implementation != 'server_action'" required="implementation == 'server_action'" options="{'no_create': True}" domain="[('state', '!=', False)]" />
                         </group>
                         <group string="Tool Annotations">
-                            <field
-                name="title"
-                placeholder="Human-readable title for the tool"
-              />
+                            <field name="title" placeholder="Human-readable title for the tool" />
 
                             <field name="read_only_hint" />
-                            <field
-                name="idempotent_hint"
-                attrs="{'invisible': [('read_only_hint', '=', True)]}"
-              />
-                            <field
-                name="destructive_hint"
-                attrs="{'invisible': [('read_only_hint', '=', True)]}"
-              />
+                            <field name="idempotent_hint" invisible="read_only_hint == True" />
+                            <field name="destructive_hint" invisible="read_only_hint == True" />
                             <field name="open_world_hint" />
                         </group>
                     </group>
                     <notebook>
                         <page string="Description">
-                            <field
-                name="description"
-                placeholder="Describe what this tool does and when to use it"
-              />
+                            <field name="description" placeholder="Describe what this tool does and when to use it" />
                         </page>
                         <page string="Input Schema">
-                            <field
-                name="input_schema"
-                widget="ace"
-                options="{'mode': 'text'}"
-                placeholder="{
+                            <field name="input_schema" widget="ace" placeholder="{
   'type': 'object',
   'properties': {
     'param1': {
@@ -85,10 +62,11 @@
     }
   },
   'required': ['param1']
-}"
-              />
+}" />
                             <div class="alert alert-info" role="alert">
-                                <p><strong>About the Input Schema:</strong></p>
+                                <p>
+                                    <strong>About the Input Schema:</strong>
+                                </p>
                                 <p
                 >This JSON schema defines the parameters accepted by this tool. If left empty, the schema will be automatically generated from the implementation's execute method signature and type hints.</p>
                                 <p
@@ -114,32 +92,12 @@
                 <field name="name" />
                 <field name="implementation" />
                 <field name="title" />
-                <filter
-          string="Default Tools"
-          name="default"
-          domain="[('default', '=', True)]"
-        />
-                <filter
-          string="Active"
-          name="active"
-          domain="[('active', '=', True)]"
-        />
-                <filter
-          string="Read-Only"
-          name="read_only"
-          domain="[('read_only_hint', '=', True)]"
-        />
-                <filter
-          string="Requires Consent"
-          name="requires_consent"
-          domain="[('requires_user_consent', '=', True)]"
-        />
+                <filter string="Default Tools" name="default" domain="[('default', '=', True)]" />
+                <filter string="Active" name="active" domain="[('active', '=', True)]" />
+                <filter string="Read-Only" name="read_only" domain="[('read_only_hint', '=', True)]" />
+                <filter string="Requires Consent" name="requires_consent" domain="[('requires_user_consent', '=', True)]" />
                 <group expand="0" string="Group By">
-                    <filter
-            string="Implementation"
-            name="group_by_implementation"
-            context="{'group_by': 'implementation'}"
-          />
+                    <filter string="Implementation" name="group_by_implementation" context="{'group_by': 'implementation'}" />
                 </group>
             </search>
         </field>

@@ -4,15 +4,11 @@ import logging
 
 import emoji
 import markdown2
-
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
-
 from odoo.addons.llm_mail_message_subtypes.const import (
-    LLM_ASSISTANT_SUBTYPE_XMLID,
-    LLM_TOOL_RESULT_SUBTYPE_XMLID,
-    LLM_USER_SUBTYPE_XMLID,
-)
+    LLM_ASSISTANT_SUBTYPE_XMLID, LLM_TOOL_RESULT_SUBTYPE_XMLID,
+    LLM_USER_SUBTYPE_XMLID)
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -95,7 +91,7 @@ class LLMThread(models.Model):
         """Set default title if not provided"""
         for vals in vals_list:
             if not vals.get("name"):
-                vals["name"] = f"Chat with {self.model_id.name}"
+                vals["name"] = f"Chat with {self.model_id.name}"  # type: ignore
         return super().create(vals_list)
 
     def _post_message(self, **kwargs):
@@ -113,8 +109,17 @@ class LLMThread(models.Model):
             kwargs.get("tool_name"),
         )
         post_vals = self.build_post_vals(subtype_xmlid, body, author_id, email_from)
+        
+        # Additional debug logging
+        _logger.info("HTML Encoding Debug - About to call message_post with body: %s", post_vals.get("body"))
+        
         message = self.message_post(**post_vals)
+        
+        # Check what body was actually stored
+        _logger.info("HTML Encoding Debug - Message body after message_post: %s", message.body)
+        
         extra_vals = self.build_update_vals(**kwargs)
+        
         if extra_vals:
             message.write(extra_vals)
         return message
@@ -205,7 +210,7 @@ class LLMThread(models.Model):
             # orchestrate via hooks
             last = self._init_message(user_message_body, **kwargs)
             if user_message_body:
-                yield {"type": "message_create", "message": last.message_format()[0]}
+                yield {"type": "message_create", "message": last.message_format()[0]}  # type: ignore
             while self._should_continue(last):
                 last = yield from self._next_step(last)
             return last
@@ -305,6 +310,50 @@ class LLMThread(models.Model):
         """Writes values using a new, immediately committed cursor."""
         return record_in_new_env.write(vals)
 
+    def send_message(self, message_content):
+        """Send a user message to the thread and trigger AI response.
+
+        Args:
+            message_content (str): The message content to send
+
+        Returns:
+            dict: Success status and message info
+        """
+
+        try:
+            self.ensure_one()
+
+            # Post the user message
+            message = self._post_message(
+                subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
+                body=message_content,
+                author_id=self.env.user.partner_id.id,
+            )
+
+            # Trigger AI response generation in the background
+            # We don't pass user_message_body since we already posted it
+            try:
+                
+                generation_result = list(self.generate(None))  # Convert generator to list to fully execute it
+                
+            except Exception as gen_error:
+                # Log the generation error but don't fail the message sending
+                _logger.error("Failed to generate AI response for thread %s: %s", self.id, gen_error)
+            
+            return {
+                'success': True,
+                'message_id': message.id,
+                'message': 'Message sent successfully'
+            }
+            
+        except Exception as e:
+            _logger.error("Failed to send message to thread %s: %s", self.id, e)
+            return {
+                'success': False,
+                'error': str(e),
+                'message': 'Failed to send message'
+            }
+
     @api.ondelete(at_uninstall=False)
     def _unlink_llm_thread(self):
         unlink_ids = [record.id for record in self]
@@ -332,9 +381,25 @@ class LLMThread(models.Model):
         return None
 
     @api.model
+    def _process_message_body(self, body):
+        """Process message body content - keep as plain text to avoid HTML encoding issues."""
+        if not body:
+            return body
+            
+        # Just apply emoji processing, no HTML conversion
+        return emoji.demojize(body)
+
+    @api.model
     def build_post_vals(self, subtype_xmlid, body, author_id, email_from):
+        # Debug logging to track HTML encoding issue
+        original_body = body
+        processed_body = self._process_message_body(body)
+        
+        _logger.info("HTML Encoding Debug - Original body: %s", original_body)
+        _logger.info("HTML Encoding Debug - Processed body: %s", processed_body)
+        
         return {
-            "body": markdown2.markdown(emoji.demojize(body)),
+            "body": processed_body,
             "message_type": "comment",
             "subtype_xmlid": subtype_xmlid,
             "author_id": author_id,

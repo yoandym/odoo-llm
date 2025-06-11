@@ -1,80 +1,55 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <t
-    t-name="llm_thread.Chatter"
-    t-inherit="mail.Chatter"
-    t-inherit-mode="extension"
-    owl="1"
-  >
-        <!-- Replace the entire content of the Chatter div -->
-        <xpath expr="//div[hasclass('o_Chatter')]" position="replace">
-            <t t-if="chatter">
-                <div
-          class="o_Chatter position-relative flex-grow-1 flex-column d-flex w-100 bg-view"
-          t-attf-class="{{ className }}"
-          t-ref="root"
-        >
-                    <!-- Always keep the topbar -->
-                    <ChatterTopbar
-            t-if="chatter.topbar"
-            className="'o_Chatter_topbar'"
-            record="chatter.topbar"
-          />
-                    <!-- Conditional content based on is_chatting_with_llm -->
-                    <t
-            t-if="chatter.is_chatting_with_llm and chatter.llmChatThread"
-          >
-                        <!-- AI Chat Mode: Only show LLMChatThread -->
-                        <LLMChatThread
-              className="'o_Chatter_thread flex-grow-1'"
-              record="chatter.llmChatThread"
-              threadView="chatter.llmChatThreadView"
-            />
-                    </t>
-                    <t t-else="">
-                        <!-- Normal Mode: Show full original content minus topbar -->
-                        <t t-if="chatter.dropZoneView">
-                            <DropZone
-                className="'o_Chatter_dropZone'"
-                record="chatter.dropZoneView"
-              />
-                        </t>
-                        <div class="o_Chatter_fixedPanel">
-                            <t t-if="chatter.composerView">
-                                <Composer
-                  className="'o_Chatter_composer border-bottom'"
-                  classNameObj="{ 'o-bordered': chatter.hasExternalBorder }"
-                  record="chatter.composerView"
-                />
-                            </t>
-                        </div>
-                        <div
-              class="o_Chatter_scrollPanel overflow-auto flex-grow-1"
-              t-on-scroll="chatter.onScrollScrollPanel"
-              t-ref="scrollPanel"
-            >
-                            <t t-if="chatter.attachmentBoxView">
-                                <AttachmentBox
-                  className="'o_Chatter_attachmentBox'"
-                  record="chatter.attachmentBoxView"
-                />
-                            </t>
-                            <t t-if="chatter.activityBoxView">
-                                <ActivityBox
-                  className="'o_Chatter_activityBox'"
-                  record="chatter.activityBoxView"
-                />
-                            </t>
-                            <t t-if="chatter.threadView">
-                                <ThreadView
-                  className="'o_Chatter_thread'"
-                  record="chatter.threadView"
-                />
-                            </t>
-                        </div>
-                    </t>
-                </div>
-            </t>
+
+    <!-- Extend Chatter template to add AI Chat button -->
+    <t t-name="mail.Chatter" t-inherit="mail.Chatter" t-inherit-mode="extension" owl="1">
+        <!-- Add AI Chat button after Activities button -->
+        <xpath expr="//button[hasclass('o-mail-Chatter-activity')]" position="after">
+            <button class="o-mail-Chatter-aiChat btn text-nowrap ms-1" t-att-class="{
+                'btn-primary active': state.isChattingWithLLM,
+                'btn-secondary': !state.isChattingWithLLM,
+                'my-2': !props.compactHeight
+            }" t-on-click="toggleLLMChat" t-att-disabled="state.isInitializingLLM" title="Toggle AI Chat">
+                <t t-if="state.isInitializingLLM">
+                    <i class="fa fa-spinner fa-spin me-1"></i>
+                    <span>Loading...</span>
+                </t>
+                <t t-elif="state.isChattingWithLLM">
+                    <i class="fa fa-times me-1"></i>
+                    <span>Exit AI</span>
+                </t>
+                <t t-else="">
+                    <i class="fa fa-robot me-1"></i>
+                    <span>AI Chat</span>
+                </t>
+            </button>
+        </xpath>
+
+        <!-- Add LLM content area -->
+        <xpath expr="//div[hasclass('o-mail-Chatter-content')]" position="after">
+            <div t-if="state.isChattingWithLLM" class="o-mail-Chatter-content o-mail-Chatter-llmContent" style="height: 600px; display: flex; flex-direction: column; min-height: 0;">
+                <LLMChatThread thread="state.llmThread" t-if="state.llmThread" />
+            </div>
+        </xpath>
+
+        <!-- Hide normal content when in LLM mode -->
+        <xpath expr="//div[hasclass('o-mail-Chatter-content') and not(hasclass('o-mail-Chatter-llmContent'))]" position="attributes">
+            <attribute name="t-att-style">state.isChattingWithLLM ? 'display: none;' : ''</attribute>
         </xpath>
     </t>
+
+    <!-- Simple template for standalone chatter button -->
+    <t t-name="llm_thread.ChatterLLMButton" owl="1">
+        <button t-att-class="props.className or 'btn btn-secondary text-nowrap'" t-att-disabled="state.isOpening" t-on-click="openLLMChat" title="Open AI Chat">
+            <t t-if="state.isOpening">
+                <i class="fa fa-spinner fa-spin me-1" />
+                <span>Loading...</span>
+            </t>
+            <t t-else="">
+                <i class="fa fa-robot me-1" />
+                <span>AI Chat</span>
+            </t>
+        </button>
+    </t>
+
 </templates>
