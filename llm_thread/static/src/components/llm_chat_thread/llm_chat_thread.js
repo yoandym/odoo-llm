@@ -697,11 +697,8 @@ export class LLMChatThread extends Component {
             message: message,
             thread: this.state.thread,
             className: "mb-3",
-            env: {
-                threadView: {
-                    threadComponent: this,
-                },
-            },
+            hasActions: true,
+            showDates: true,
         };
     }
 }
