@@ -6,8 +6,6 @@ import { useService } from "@web/core/utils/hooks";
 import { onMounted } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 
-// Re-enabling patch to test if it causes the issue
-console.log("[LLM_PROMPT] Patch file loaded, re-enabling patch for testing");
 
 patch(LLMChatThreadHeader.prototype, {
   setup() {
@@ -34,9 +32,7 @@ patch(LLMChatThreadHeader.prototype, {
           if (!this.llmPromptService.isLoaded) {
             this.state.isLoadingPrompts = true;
             await this.llmPromptService.loadPrompts();
-          } else {
-            console.log("[LLM_PROMPT] Service already loaded");
-          }
+          } 
         } catch (error) {
           console.error("[LLM_PROMPT] Error in onMounted:", error);
         } finally {

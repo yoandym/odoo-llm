@@ -13,7 +13,6 @@ export const llmAssistantService = {
     dependencies: ["orm", "rpc", "notification"],
 
     start(env, { orm, rpc, notification }) {
-        console.log("LLM Assistant Service: Starting...");
 
         // Service state
         const state = reactive({
@@ -30,7 +29,6 @@ export const llmAssistantService = {
          * @returns {Promise<Array>} Array of assistant objects
          */
         async function loadAssistants() {
-            console.log("LLM Assistant Service: Loading assistants...");
             try {
                 // Fetch assistants with their basic data
                 const assistantResult = await orm.searchRead(
@@ -39,8 +37,6 @@ export const llmAssistantService = {
                     ["name", "default_values", "prompt_id"],
                     { order: "name" }
                 );
-
-                console.log("LLM Assistant Service: Loaded", assistantResult.length, "assistants");
 
                 // Extract prompt IDs
                 const promptIds = assistantResult
@@ -120,7 +116,6 @@ export const llmAssistantService = {
          * @returns {Promise<Object>} Result object
          */
         async function setThreadAssistant(threadId, assistantId) {
-            console.log("LLM Assistant Service: Setting assistant", assistantId, "for thread", threadId);
             try {
                 const result = await rpc("/llm/thread/set_assistant", {
                     thread_id: threadId,
@@ -199,11 +194,8 @@ export const llmAssistantService = {
             assistantCache.clear();
         }
 
-        console.log("LLM Assistant Service: Started successfully");
-
         // Set up event listeners for bus-based integration
         env.bus.addEventListener("llm_chat:initializing", (event) => {
-            console.log("LLM Assistant Service: Chat initializing, adding assistant loading promise");
             const assistantLoadPromise = loadAssistants();
             event.detail.promises.push(assistantLoadPromise);
         });
