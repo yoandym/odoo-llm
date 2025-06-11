@@ -21,21 +21,19 @@ export class LLMChatSidebar extends Component {
   };
 
   setup() {
-    console.log("Sidebar: Component setup called");
     // Use services
     this.llmChatService = useService("llm_chat");
+    // Use useState to make the service reactive in this component
+    this.llmChat = useState(this.llmChatService);
+
     this.uiService = useService("ui"); // For device detection
     this.notificationService = useService("notification");
 
-    // Direct access to the llmChat store
-    this.llmChat = this.llmChatService;
-    console.log("Sidebar: Service accessed:", this.llmChat);
 
     // Component state
     this.state = useState({
       isCreatingThread: false,
     });
-    console.log("Sidebar: Setup complete");
   }
 
   /**
@@ -73,12 +71,11 @@ export class LLMChatSidebar extends Component {
     this.state.isCreatingThread = true;
     try {
       const name = _t("New Chat %s", new Date().toLocaleString());
-      const thread = await this.llmChat.createThread({name});
+      const thread = await this.llmChat.createThread({ name });
       await this.llmChat.selectThread(thread.id);
 
       // Notify parent component about thread selection
       if (this.props.onThreadSelect && this.llmChat.activeThread) {
-        console.log("Sidebar: Calling onThreadSelect callback with:", this.llmChat.activeThread);
         this.props.onThreadSelect(this.llmChat.activeThread);
       }
 

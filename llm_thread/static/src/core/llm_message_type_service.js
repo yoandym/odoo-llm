@@ -41,7 +41,7 @@ const llmMessageTypeService = {
             },
             onClick: async (component) => {
                 const message = component.props.message;
-                // Implement retry logic
+                // TODO: Implement retry logic
                 console.log("Retry message:", message.id);
             },
         });

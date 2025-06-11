@@ -29,20 +29,16 @@ export class LLMChatThreadHeader extends Component {
     };
 
     setup() {
-        console.log("🔵 BASE LLMChatThreadHeader setup() called", {
-            thread: this.props.thread,
-            timestamp: new Date().toISOString()
-        });
 
         // Services
         this.llmChatService = useService("llm_chat");
+        // Use useState to make the service reactive in this component
+        this.llmChat = useState(this.llmChatService);
+
         this.notificationService = useService("notification");
         this.uiService = useService("ui");
         this.orm = useService("orm");
         this.dialogService = useService("dialog");
-
-        // Direct access to llmChat store
-        this.llmChat = this.llmChatService;
 
         // Refs
         this.threadNameInputRef = useRef("threadNameInput");
@@ -390,9 +386,6 @@ export class LLMChatThreadHeader extends Component {
                         _t("Thread deleted successfully"),
                         { type: "success" }
                     );
-
-                    // refresh the thread list
-                    await this.llmChat.loadThreads([], true);
 
 
                 } catch (error) {

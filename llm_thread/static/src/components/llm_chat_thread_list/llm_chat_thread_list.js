@@ -16,39 +16,23 @@ export class LLMChatThreadList extends Component {
         this.llmChatService = useService("llm_chat");
         this.notification = useService("notification");
 
-        // Direct access to the llmChat store
-        this.llmChat = this.llmChatService;
+        // Use useState to make the service reactive in this component
+        this.llmChat = useState(this.llmChatService);
 
-        // Component state
+        // Component state - only for component-specific state, not data from service
         this.state = useState({
             isLoading: false,
             loadingThreadId: null,
-            threads: this.llmChat.orderedThreads,
         });
-
-        // Watch for service changes to trigger re-renders
-        this.env.bus.addEventListener("llm_chat:threads_changed", this._onThreadsChanged.bind(this));
-
-
-        this.env.bus.addEventListener("llm_chat:thread_selected", () => {
-            // The reactive service will automatically trigger re-renders
-        });
-
     }
 
     /**
-     * Get the ordered threads directly from the service
+     * Get the ordered threads directly from the reactive service
+     * This ensures automatic reactivity when threads change
      */
     get threads() {
-        return this.state.threads;
-    }
-
-    /**
-     * react to changes in threads - force component update
-     */
-    _onThreadsChanged(event) {
-        // Force a re-render by updating a state property
-        this.state.isLoading = this.state.isLoading;
+        const threads = this.llmChat.orderedThreads || [];
+        return threads;
     }
 
     /**
@@ -56,7 +40,6 @@ export class LLMChatThreadList extends Component {
      */
     get activeThread() {
         const active = this.llmChat.activeThread;
-        console.log("ThreadList: activeThread getter called, returning:", active?.id, active?.name);
         return active;
     }
 
@@ -64,7 +47,9 @@ export class LLMChatThreadList extends Component {
      * Check if there are no threads
      */
     get hasNoThreads() {
-        return this.threads.length === 0;
+        const threads = this.threads;
+        const hasNone = !threads || threads.length === 0;
+        return hasNone;
     }
 
     /**

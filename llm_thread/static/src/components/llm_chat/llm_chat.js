@@ -19,24 +19,18 @@ export class LLMChat extends Component {
 
   setup() {
     // Use the LLM chat service
-    this.llmChat = useService("llm_chat");
+    this.llmChatService = useService("llm_chat");
+    // Use useState to make the service reactive in this component
+    this.llmChat = useState(this.llmChatService);
 
     // Use other necessary services
     this.uiService = useService("ui");
     this.notificationService = useService("notification");
 
-    // Component state
+    // Component state - only store component-specific state, not data from service
     this.state = useState({
       isLoading: false,
       isSidebarVisible: !this.uiService.isSmall, // Default open on desktop
-      // Track active thread ID locally to force updates
-      activeThreadId: this.llmChat.activeThread?.id || null,
-    });
-
-    // Listen for thread selection events from the service
-    this.env.bus.addEventListener("llm_chat:thread_selected", (ev) => {
-      console.log("LLMChat: Thread selected event received", ev.detail);
-      this.state.activeThreadId = ev.detail.threadId;
     });
 
     // Initialize on mount
@@ -66,39 +60,32 @@ export class LLMChat extends Component {
     }
   }
 
+  /**
+   * Get active thread directly from reactive service
+   */
   get activeThread() {
-    // First try to get from the service's activeThread
-    const serviceActiveThread = this.llmChat.activeThread;
-
-    // If service has an active thread, use it and update local state
-    if (serviceActiveThread && serviceActiveThread.id !== this.state.activeThreadId) {
-      this.state.activeThreadId = serviceActiveThread.id;
-    }
-
-    // Use service active thread as primary source
-    if (serviceActiveThread) {
-      console.log("LLMChat: Active thread from service", serviceActiveThread.id, serviceActiveThread.name);
-      return serviceActiveThread;
-    }
-
-    // Fallback: use state.activeThreadId to find thread
-    if (this.state.activeThreadId) {
-      const thread = this.llmChat.threads.find(t => t.id === this.state.activeThreadId);
-      console.log("LLMChat: Active thread from state", thread?.id, thread?.name);
-      return thread || null;
-    }
-
-    return null;
+    const active = this.llmChat.activeThread;
+    return active;
   }
 
+  /**
+   * Get threads directly from reactive service
+   */
   get threads() {
-    return this.llmChat.orderedThreads;
+    const threads = this.llmChat.orderedThreads;
+    return threads;
   }
 
+  /**
+   * Get LLM models directly from reactive service
+   */
   get llmModels() {
     return this.llmChat.llmModels;
   }
 
+  /**
+   * Get default model directly from reactive service
+   */
   get defaultModel() {
     return this.llmChat.defaultLLMModel;
   }
@@ -136,11 +123,6 @@ export class LLMChat extends Component {
     if (!this.llmChat.isInitialized) {
       await this.initialize();
     }
-
-    // Set initial active thread ID
-    if (this.llmChat.activeThread) {
-      this.state.activeThreadId = this.llmChat.activeThread.id;
-    }
   }
 
   /**
@@ -149,10 +131,6 @@ export class LLMChat extends Component {
    * this is just for UI actions like closing the sidebar
    */
   onThreadSelected(thread) {
-    console.log("LLMChat: Thread selected callback", thread.id);
-
-    // Update local state to ensure reactivity
-    this.state.activeThreadId = thread.id;
 
     // Close sidebar on mobile
     if (this.isMobile) {
@@ -161,9 +139,9 @@ export class LLMChat extends Component {
   }
 
   async onCreateNewThread() {
-    const name = _t("New Chat %s", new Date().toLocaleString()); 
-    const thread = await this.llmChat.createThread({name});
-    await this.selectThread(thread.id);
+    const name = _t("New Chat %s", new Date().toLocaleString());
+    const thread = await this.llmChat.createThread({ name });
+    await this.llmChat.selectThread(thread.id);
   }
 
   async onRefreshThread(threadId) {

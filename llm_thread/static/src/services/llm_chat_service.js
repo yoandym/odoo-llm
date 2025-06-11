@@ -287,23 +287,9 @@ export const LLMChatService = {
                             // If this is the active thread, update it too
                             if (this.activeThread && this.activeThread.id === threadId) {
                                 Object.assign(this.activeThread, mappedThreadData);
-
-                                // Emit event for active thread changes
-                                env.bus.trigger("llm_chat:active_thread_updated", {
-                                    threadId: threadId,
-                                    thread: this.activeThread,
-                                    updatedFields: mappedThreadData
-                                });
                             }
 
-                            // Emit general thread update event
-                            env.bus.trigger("llm_chat:thread_updated", {
-                                threadId: threadId,
-                                thread: this.threads[threadIndex],
-                                updatedFields: mappedThreadData
-                            });
-
-                            // Emit thread refreshed event
+                            // Emit thread refreshed event for extensions
                             env.bus.trigger("llm_chat:thread_refreshed", {
                                 threadId,
                                 thread: this.threads[threadIndex],
@@ -320,13 +306,6 @@ export const LLMChatService = {
                     const thread = this.threads.find(t => t.id === threadId);
                     if (thread) {
                         this.activeThread = thread;
-
-                        // Dispatch event for component reactivity
-                        env.bus.trigger("llm_chat:thread_selected", {
-                            threadId: thread.id,
-                            thread: thread,
-                            activeThread: this.activeThread
-                        });
                     } else {
                         console.error("Thread not found in threads list");
                     }
@@ -355,6 +334,7 @@ export const LLMChatService = {
                 },
 
                 async createThread({ name, model, res_id }) {
+
                     let defaultModel = this.defaultLLMModel;
 
                     if (!defaultModel) {
@@ -427,14 +407,9 @@ export const LLMChatService = {
                         res_id: threadDetails[0].res_id,
                     };
 
-
-
                     // Add to threads list
                     // Replace entire array to ensure reactivity
                     this.threads = [thread, ...this.threads];
-
-                    // Dispatch event for component reactivity
-                    env.bus.trigger("llm_chat:threads_changed", { threads: this.threads });
 
                     return thread;
                 },
@@ -666,7 +641,8 @@ export const LLMChatService = {
                         // Remove from local threads array
                         const threadIndex = this.threads.findIndex(t => t.id === numericThreadId);
                         if (threadIndex !== -1) {
-                            this.threads.splice(threadIndex, 1);
+                            // Create new array without the deleted thread to ensure reactivity
+                            this.threads = this.threads.filter(t => t.id !== numericThreadId);
                         }
 
                         // If this was the active thread, clear it and select another

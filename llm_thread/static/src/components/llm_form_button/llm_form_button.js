@@ -82,4 +82,3 @@ registry.category("view_widgets").add("llm_chat_button", {
     component: LLMFormButton,
 });
 
-console.log("[LLM] Form button widget registered");

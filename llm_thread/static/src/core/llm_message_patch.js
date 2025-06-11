@@ -41,9 +41,6 @@ patch(Message.prototype, {
             // Remove outer wrapper tags if they exist
             const unwrapped = decoded.replace(/^<p>(.+)<\/p>$/s, '$1');
 
-            console.log('HTML Decoding Debug - Original:', content);
-            console.log('HTML Decoding Debug - Decoded:', unwrapped);
-
             return unwrapped;
         }
 

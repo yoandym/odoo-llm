@@ -46,7 +46,6 @@ patch(Chatter.prototype, {
 
         // Only refresh if this chatter is for the same record
         if (currentRecord.model === model && currentRecord.id === res_id) {
-            console.log("[LLM] Refreshing chatter for record:", model, res_id);
             // Trigger a refresh of the chatter messages
             if (this.thread) {
                 this.thread.fetchData();
@@ -60,7 +59,6 @@ patch(Chatter.prototype, {
      * Toggle between normal chatter and LLM chat mode
      */
     async toggleLLMChat() {
-        console.log("[LLM] Toggle LLM chat called");
 
         // Get thread information from various sources
         const recordInfo = this.getThreadInfo();
@@ -90,7 +88,6 @@ patch(Chatter.prototype, {
     getThreadInfo() {
         // Try multiple ways to get record information from Chatter
         const thread = this.thread || this.props.thread || this.state?.thread;
-        console.log("[LLM] Mail thread found:", thread);
 
         // Initialize with undefined
         let recordModel = undefined;
@@ -101,25 +98,21 @@ patch(Chatter.prototype, {
             // For mail threads, model/res_id contain the record information
             recordModel = thread.model;
             recordId = thread.res_id;
-            console.log("[LLM] From mail thread - Model:", recordModel, "ID:", recordId);
         }
 
         // If still not found, try to get from chatter props directly
         if (!recordModel || !recordId) {
             recordModel = this.props?.threadModel;
             recordId = this.props?.threadId;
-            console.log("[LLM] From chatter props - Model:", recordModel, "ID:", recordId);
         }
 
         // Try to get from action context if still not found
         if (!recordModel || !recordId) {
             const action = this.actionService.currentController?.action;
-            console.log("[LLM] Current action:", action);
 
             if (action?.res_model && action?.res_id) {
                 recordModel = action.res_model;
                 recordId = action.res_id;
-                console.log("[LLM] Got from action - Model:", recordModel, "ID:", recordId);
             }
         }
 
@@ -133,11 +126,9 @@ patch(Chatter.prototype, {
             if (urlModel && urlId) {
                 recordModel = urlModel;
                 recordId = parseInt(urlId);
-                console.log("[LLM] Got from URL - Model:", recordModel, "ID:", recordId);
             }
         }
 
-        console.log("[LLM] Final record model:", recordModel, "Record ID:", recordId);
 
         return {
             model: recordModel,
@@ -150,7 +141,6 @@ patch(Chatter.prototype, {
      * Enter LLM chat mode
      */
     async enterLLMMode(recordInfo) {
-        console.log("[LLM] Entering LLM mode with record info:", recordInfo);
 
         if (this.state.isInitializingLLM) return;
 
@@ -169,7 +159,6 @@ patch(Chatter.prototype, {
                 throw new Error("Failed to create AI chat thread");
             }
 
-            console.log("[LLM] LLM thread created/found:", llmThread);
 
             // Select the thread
             await llmChat.selectThread(llmThread.id);
@@ -178,7 +167,6 @@ patch(Chatter.prototype, {
             this.state.llmThread = llmThread;
             this.state.isChattingWithLLM = true;
 
-            console.log("[LLM] Successfully entered LLM mode");
 
         } catch (error) {
             console.error("[LLM] Failed to initialize LLM chat:", error);
@@ -200,7 +188,6 @@ patch(Chatter.prototype, {
      * Exit LLM chat mode
      */
     exitLLMMode() {
-        console.log("[LLM] Exiting LLM mode...");
 
         // Reset state - this will trigger template re-render
         this.state.isChattingWithLLM = false;
@@ -213,7 +200,6 @@ patch(Chatter.prototype, {
      * This is called from the LLMChatThread component
      */
     async sendLLMMessage(message) {
-        console.log("[LLM] Sending message:", message);
 
         if (!this.state.llmThread) {
             console.error("[LLM] No LLM thread available");
@@ -233,7 +219,6 @@ patch(Chatter.prototype, {
             // Send the message using the chat service
             await llmChat.sendMessage(this.state.llmThread.id, message);
 
-            console.log("[LLM] Message sent successfully");
 
         } catch (error) {
             console.error("[LLM] Failed to send message:", error);

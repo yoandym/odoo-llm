@@ -14,7 +14,7 @@
       <!-- Thread List -->
       <t t-else="">
         <div class="o_LLMChatThreadList_items">
-          <t t-foreach="state.threads" t-as="thread" t-key="thread.id">
+          <t t-foreach="threads" t-as="thread" t-key="thread.id">
             <div class="o_LLMChatSidebar_item d-flex align-items-center px-3 py-2 cursor-pointer" t-att-class="{
                                 'o-active': isThreadActive(thread.id),
                                 'opacity-50': isThreadLoading(thread.id)

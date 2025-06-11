@@ -113,7 +113,6 @@ export class LLMChatterInterface extends Component {
         }
 
         try {
-            console.log("[LLM] Loading messages for thread:", this.props.thread.id);
 
             const messages = await this.llmChatService.getMessages(this.props.thread.id);
             this.state.messages = messages || [];
@@ -122,7 +121,6 @@ export class LLMChatterInterface extends Component {
             // Render messages
             this.renderMessages();
 
-            console.log("[LLM] Loaded messages:", this.state.messages);
 
         } catch (error) {
             console.error("[LLM] Failed to load messages:", error);
@@ -283,7 +281,7 @@ export class LLMChatterInterface extends Component {
                 }
             }
         } catch (e) {
-            console.log("[LLM] Date parsing error for:", dateField, e);
+            console.error("[LLM] Date parsing error for:", dateField, e);
         }
 
         return 'Recent';
