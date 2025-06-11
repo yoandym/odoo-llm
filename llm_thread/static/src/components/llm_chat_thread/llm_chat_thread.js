@@ -45,17 +45,26 @@ export class LLMChatThread extends Component {
             hasMoreMessages: true,
             streamingMessageId: null,
             thread: null,
+            // Add persistent composer state
+            composerState: {
+                textInputContent: "",
+                attachments: [],
+                mentionedChannels: [],
+                mentionedPartners: [],
+                cannedResponses: [],
+                isFocused: false,
+                forceCursorMove: false,
+                selection: { start: 0, end: 0, direction: "none" },
+                message: null,
+            }
         });
 
         // Current thread ID - properly extracted
         this.currentThreadId = null;
         if (this.props.thread?.id) {
-            console.log("Setup - props.thread:", this.props.thread);
-            console.log("Setup - props.thread.id:", this.props.thread.id);
-            console.log("Setup - typeof props.thread.id:", typeof this.props.thread.id);
-            
+
             let threadId = this.props.thread.id;
-            
+
             // Handle Symbol or special objects
             if (threadId && typeof threadId === 'object' && threadId.toString) {
                 const idStr = threadId.toString();
@@ -68,12 +77,11 @@ export class LLMChatThread extends Component {
             } else if (typeof threadId === 'string') {
                 threadId = parseInt(threadId, 10);
             }
-            
+
             if (threadId && !isNaN(threadId)) {
                 this.currentThreadId = threadId;
             }
-            
-            console.log("Setup - final currentThreadId:", this.currentThreadId);
+
         }
 
         // Setup event listeners
@@ -97,13 +105,10 @@ export class LLMChatThread extends Component {
         // Handle thread changes
         onWillUpdateProps(async (nextProps) => {
             if (nextProps.thread?.id) {
-                console.log("onWillUpdateProps - nextProps.thread:", nextProps.thread);
-                console.log("onWillUpdateProps - nextProps.thread.id:", nextProps.thread.id);
-                console.log("onWillUpdateProps - typeof nextProps.thread.id:", typeof nextProps.thread.id);
-                
+
                 // Extract and normalize the thread ID
                 let nextThreadId = nextProps.thread.id;
-                
+
                 // Handle Symbol or special objects
                 if (nextThreadId && typeof nextThreadId === 'object' && nextThreadId.toString) {
                     const idStr = nextThreadId.toString();
@@ -116,15 +121,13 @@ export class LLMChatThread extends Component {
                 } else if (typeof nextThreadId === 'string') {
                     nextThreadId = parseInt(nextThreadId, 10);
                 }
-                
+
                 // Validate
                 if (!nextThreadId || isNaN(nextThreadId)) {
                     console.error("Failed to extract valid thread ID from nextProps:", nextProps.thread);
                     return;
                 }
-                
-                console.log("onWillUpdateProps - nextThreadId:", nextThreadId, "currentThreadId:", this.currentThreadId);
-                
+
                 // Check if it's a different thread
                 if (nextThreadId !== this.currentThreadId) {
                     this.currentThreadId = nextThreadId;
@@ -152,13 +155,10 @@ export class LLMChatThread extends Component {
      * Initialize thread and load messages
      */
     async initializeThread(threadData) {
-        console.log("initializeThread - threadData:", threadData);
-        console.log("initializeThread - threadData.id:", threadData.id);
-        console.log("initializeThread - typeof threadData.id:", typeof threadData.id);
-        
+
         // Extract thread ID properly
         let threadId = threadData.id;
-        
+
         // Handle Symbol or special objects
         if (threadId && typeof threadId === 'object' && threadId.toString) {
             // Try to get string representation
@@ -171,12 +171,12 @@ export class LLMChatThread extends Component {
         } else if (Array.isArray(threadId)) {
             threadId = threadId[0];
         }
-        
+
         // Ensure it's a number
         if (typeof threadId === 'string') {
             threadId = parseInt(threadId, 10);
         }
-        
+
         // Validate
         if (!threadId || isNaN(threadId)) {
             console.error("Failed to extract valid thread ID from:", threadData);
@@ -185,11 +185,10 @@ export class LLMChatThread extends Component {
             });
             return;
         }
-        
+
         // Store the numeric thread ID
         this.currentThreadId = threadId;
-        console.log("initializeThread - final threadId:", threadId);
-        
+
         // Create thread object for Odoo's mail system
         this.state.thread = this.store.Thread.insert({
             id: threadId,
@@ -287,23 +286,17 @@ export class LLMChatThread extends Component {
      * Process raw messages from server
      */
     processMessages(rawMessages) {
-        console.log("processMessages - rawMessages:", rawMessages);
-        
+
         // Create Message objects in store
         const processedMessages = rawMessages.map(msgData => {
-            console.log("Processing message:", msgData);
-            
+
             // First check if message already exists
             let message = this.store.Message.get(msgData.id);
-            
+
             if (!message) {
                 // Prepare author data
                 let authorData = msgData.author_id;
-                if (authorData && typeof authorData === 'object' && !Array.isArray(authorData)) {
-                    // Handle Symbol or special object
-                    console.log("Author data is object:", authorData, "type:", typeof authorData);
-                }
-                
+
                 // Create new message with safe data
                 const messageData = {
                     id: msgData.id,
@@ -312,7 +305,7 @@ export class LLMChatThread extends Component {
                     datetime: msgData.date, // Ensure datetime is set
                     thread: this.state.thread,
                 };
-                
+
                 // Add author if it's in the correct format
                 if (Array.isArray(authorData) && authorData.length >= 2) {
                     messageData.author = {
@@ -320,7 +313,7 @@ export class LLMChatThread extends Component {
                         name: authorData[1],
                     };
                 }
-                
+
                 try {
                     message = this.store.Message.insert(messageData);
                 } catch (error) {
@@ -328,7 +321,7 @@ export class LLMChatThread extends Component {
                     return null;
                 }
             }
-            
+
             // Add custom fields that aren't part of standard Message model
             try {
                 message.subtype_xmlid = msgData.subtype_xmlid;
@@ -342,7 +335,7 @@ export class LLMChatThread extends Component {
             } catch (error) {
                 console.error("Error adding custom fields:", error, "message:", message);
             }
-            
+
             return message;
         }).filter(msg => msg !== null);
 
@@ -433,10 +426,9 @@ export class LLMChatThread extends Component {
      * Handle new message creation
      */
     handleMessageCreated(messageData) {
-        console.log("handleMessageCreated - messageData:", messageData);
-        
+
         let message = this.store.Message.get(messageData.id);
-        
+
         if (!message) {
             // Prepare safe message data
             const safeMessageData = {
@@ -444,7 +436,7 @@ export class LLMChatThread extends Component {
                 body: messageData.body || '',
                 thread: this.state.thread,
             };
-            
+
             // Add datetime - ensure it's a proper date string
             if (messageData.date) {
                 safeMessageData.date = messageData.date;
@@ -455,7 +447,7 @@ export class LLMChatThread extends Component {
                 safeMessageData.date = now;
                 safeMessageData.datetime = now;
             }
-            
+
             // Handle author data safely
             if (messageData.author_id) {
                 if (Array.isArray(messageData.author_id) && messageData.author_id.length >= 2) {
@@ -468,9 +460,7 @@ export class LLMChatThread extends Component {
             } else if (messageData.author) {
                 safeMessageData.author = messageData.author;
             }
-            
-            console.log("Creating message with data:", safeMessageData);
-            
+
             try {
                 message = this.store.Message.insert(safeMessageData);
             } catch (error) {
@@ -478,7 +468,7 @@ export class LLMChatThread extends Component {
                 return;
             }
         }
-        
+
         // Add custom fields safely
         try {
             // Only add non-symbol, serializable fields
@@ -533,7 +523,7 @@ export class LLMChatThread extends Component {
         if (!message.datetime && message.date) {
             message.datetime = message.date;
         }
-        
+
         this.state.messages.push(message);
 
         requestAnimationFrame(() => {
@@ -577,7 +567,7 @@ export class LLMChatThread extends Component {
         const message = this.state.messages.find(m => m.id === messageData.id);
         if (message) {
             Object.assign(message, messageData);
-            
+
             if (this.shouldAutoScroll()) {
                 requestAnimationFrame(() => {
                     this.scrollToBottom({ smooth: true });
@@ -645,18 +635,9 @@ export class LLMChatThread extends Component {
      * Get composer state
      */
     get composerState() {
-        return {
-            textInputContent: "",
-            thread: this.state.thread || this.props.thread,
-            attachments: [],
-            mentionedChannels: [],
-            mentionedPartners: [],
-            cannedResponses: [],
-            isFocused: false,
-            forceCursorMove: false,
-            selection: { start: 0, end: 0, direction: "none" },
-            message: null,
-        };
+        // Update thread reference in composer state
+        this.state.composerState.thread = this.state.thread || this.props.thread;
+        return this.state.composerState;
     }
 
     /**
