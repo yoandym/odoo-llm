@@ -18,11 +18,6 @@ patch(Message.prototype, {
             expandedToolCalls: {},
         });
 
-        // Debug logging for HTML encoding issue
-        if (this.props.message) {
-            console.log('Message Patch Debug - Message body:', this.props.message.body);
-            console.log('Message Patch Debug - Full message object:', this.props.message);
-        }
     },
 
     /**
