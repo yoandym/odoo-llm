@@ -15,7 +15,6 @@ export class LLMChatThreadList extends Component {
         // Services
         this.llmChatService = useService("llm_chat");
         this.notification = useService("notification");
-        this.busService = useService("bus");
 
         // Direct access to the llmChat store
         this.llmChat = this.llmChatService;
@@ -28,10 +27,10 @@ export class LLMChatThreadList extends Component {
         });
 
         // Watch for service changes to trigger re-renders
-        this.busService.addEventListener("llm_chat:threads_changed", this._onThreadsChanged.bind(this));
+        this.env.bus.addEventListener("llm_chat:threads_changed", this._onThreadsChanged.bind(this));
 
 
-        this.busService.addEventListener("llm_chat:thread_selected", () => {
+        this.env.bus.addEventListener("llm_chat:thread_selected", () => {
             // The reactive service will automatically trigger re-renders
         });
 

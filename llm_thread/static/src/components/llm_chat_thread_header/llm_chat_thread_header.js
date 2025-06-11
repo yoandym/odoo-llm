@@ -40,7 +40,6 @@ export class LLMChatThreadHeader extends Component {
         this.uiService = useService("ui");
         this.orm = useService("orm");
         this.dialogService = useService("dialog");
-        this.busService = useService("bus");
 
         // Direct access to llmChat store
         this.llmChat = this.llmChatService;
