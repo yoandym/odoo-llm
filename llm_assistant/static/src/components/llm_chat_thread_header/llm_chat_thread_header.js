@@ -37,12 +37,6 @@ patch(LLMChatThreadHeader.prototype, {
 
         // Load assistants on component mount
         onMounted(async () => {
-            console.log("Assistant patch: onMounted - Initial thread data:", {
-                threadId: this.props.thread?.id,
-                assistantId: this.props.thread?.assistantId,
-                selectedAssistantId: this.state.selectedAssistantId
-            });
-
             try {
                 await this.loadAssistants();
 
@@ -63,18 +57,7 @@ patch(LLMChatThreadHeader.prototype, {
             const threadChanged = nextProps.thread?.id !== this.props.thread?.id;
             const assistantChanged = nextProps.thread?.assistantId !== this.props.thread?.assistantId;
 
-            console.log("onWillUpdateProps debug:", {
-                threadChanged,
-                assistantChanged,
-                currentThreadId: this.props.thread?.id,
-                nextThreadId: nextProps.thread?.id,
-                currentAssistantId: this.props.thread?.assistantId,
-                nextAssistantId: nextProps.thread?.assistantId,
-                currentStateAssistantId: this.state.selectedAssistantId
-            });
-
             if (threadChanged || assistantChanged) {
-                console.log("Updating component state due to props change");
                 // Thread or assistant has changed, update our state
                 this.state.selectedAssistantId = nextProps.thread?.assistantId || null;
 
@@ -106,11 +89,6 @@ patch(LLMChatThreadHeader.prototype, {
 
         // Only process if this is our current thread
         if (this.props.thread?.id === threadId) {
-            console.log("Thread refreshed event received:", {
-                threadId,
-                assistantId: updatedFields.assistantId,
-                toolIds: updatedFields.tool_ids
-            });
 
             // Update assistant state if changed
             if (updatedFields.assistantId !== undefined) {
@@ -130,11 +108,6 @@ patch(LLMChatThreadHeader.prototype, {
 
         // Only process if this is our current thread
         if (this.props.thread?.id === threadId) {
-            console.log("Thread updated event received:", {
-                threadId,
-                assistantId: updatedFields.assistantId,
-                toolIds: updatedFields.tool_ids
-            });
 
             // Update assistant state if changed
             if (updatedFields.assistantId !== undefined) {
@@ -154,11 +127,6 @@ patch(LLMChatThreadHeader.prototype, {
 
         // Only process if this is our current thread
         if (this.props.thread?.id === threadId) {
-            console.log("Active thread updated event received:", {
-                threadId,
-                assistantId: updatedFields.assistantId,
-                toolIds: updatedFields.tool_ids
-            });
 
             // Update assistant state if changed
             if (updatedFields.assistantId !== undefined) {
@@ -224,11 +192,6 @@ patch(LLMChatThreadHeader.prototype, {
      * @param {Object} assistant - The selected assistant
      */
     async onSelectAssistant(assistant) {
-        console.log("onSelectAssistant called:", {
-            assistantId: assistant.id,
-            currentState: this.state.selectedAssistantId,
-            threadId: this.props.thread.id
-        });
 
         if (assistant.id === this.state.selectedAssistantId) return;
 
@@ -270,48 +233,25 @@ patch(LLMChatThreadHeader.prototype, {
      * Clear the selected assistant
      */
     async onClearAssistant() {
-        console.log("onClearAssistant called:", {
-            currentState: this.state.selectedAssistantId,
-            threadId: this.props.thread.id
-        });
 
         const previousAssistantId = this.state.selectedAssistantId;
         const previousSelectedToolIds = [...this.state.selectedToolIds];
         this.state.selectedAssistantId = null;
 
         try {
-            console.log("Calling setThreadAssistant with false...");
             // Clear assistant from thread
             const result = await this.llmAssistantService.setThreadAssistant(
                 this.props.thread.id,
                 false
             );
-            console.log("setThreadAssistant result:", result);
 
             // Refresh thread to get updated dropdowns data from backend
             if (this.llmChatService?.refreshThread) {
-                console.log("Refreshing thread...");
                 // Explicitly request assistant_id field to ensure it's fetched
                 const refreshResult = await this.llmChatService.refreshThread(this.props.thread.id, ["assistant_id"]);
-                console.log("Thread refresh result:", refreshResult);
-                console.log("Thread after refresh:", {
-                    threadId: this.props.thread.id,
-                    assistantId: this.props.thread.assistantId,
-                    toolIds: this.props.thread.tool_ids
-                });
             } else {
                 console.warn("llmChatService.refreshThread not available");
             }
-
-            // Double-check by logging the thread data again after a short delay
-            setTimeout(() => {
-                console.log("Thread data after timeout:", {
-                    threadId: this.props.thread.id,
-                    assistantId: this.props.thread.assistantId,
-                    toolIds: this.props.thread.tool_ids,
-                    componentState: this.state.selectedAssistantId
-                });
-            }, 100);
 
         } catch (error) {
             // Revert on error
@@ -343,11 +283,6 @@ patch(LLMChatThreadHeader.prototype, {
 
             this.state.selectedToolIds = [...toolIds];
 
-            console.log("Synced tools from thread:", {
-                threadId: currentThread.id,
-                assistantId: currentThread.assistantId,
-                toolIds: toolIds
-            });
         } else {
             this.state.selectedToolIds = [];
         }
