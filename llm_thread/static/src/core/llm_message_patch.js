@@ -3,7 +3,7 @@
 import { Message } from "@mail/core/common/message";
 import { patch } from "@web/core/utils/patch";
 import { useState } from "@odoo/owl";
-import { markup } from "@odoo/owl";
+import { markup, useEffect } from "@odoo/owl";
 
 /**
  * Patch Odoo's Message component to add LLM-specific functionality
@@ -18,13 +18,37 @@ patch(Message.prototype, {
             expandedToolCalls: {},
         });
 
+        this.cachedProcessedBody = this._getInitialCachedProcessedBody();
+
+        useEffect(() => {
+          // When streaming ends, update cachedProcessedBody
+          if (!this.isStreaming) {
+            const body = this.props.message?.body;
+            const decodedBody = this._decodeHtmlContent(body);
+            this.cachedProcessedBody = decodedBody && decodedBody.includes('<')
+              ? markup(decodedBody)
+              : decodedBody;
+
+            console.log("✅ cachedProcessedBody updated after streaming ended");
+          }
+        }, () => [this.isStreaming]);
+
         // Debug logging for HTML encoding issue
         if (this.props.message) {
             console.log('Message Patch Debug - Message body:', this.props.message.body);
             console.log('Message Patch Debug - Full message object:', this.props.message);
         }
     },
-
+    /**
+     * Cache processed Body
+     */
+    _getInitialCachedProcessedBody() {
+      const body = this.props.message?.body;
+      const decodedBody = this._decodeHtmlContent(body);
+      return decodedBody && decodedBody.includes('<')
+        ? markup(decodedBody)
+        : decodedBody;
+    },
     /**
      * Decode HTML entities and fix double-encoded HTML
      */

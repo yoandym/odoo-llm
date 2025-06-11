@@ -25,7 +25,11 @@
 
         <!-- Override message body rendering to handle HTML content properly -->
         <xpath expr="//t[@t-elif='message.body']" position="replace">
-            <t t-elif="message.body" t-out="processedBody"/>
+            <t t-elif="message.body">
+                <t t-isolate="true">
+                    <div class="o-ai-message-body" t-raw="isStreaming ? processedBody : cachedProcessedBody"/>
+                </t>
+            </t>
         </xpath>
 
         <!-- Add tool calls and streaming indicator inside message content -->
