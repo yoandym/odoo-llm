@@ -115,7 +115,7 @@ export const LLMChatService = {
                         ? ["llm.thread", this.initActiveId]
                         : this.initActiveId.split("_");
 
-                    const thread = this.threads.find(t => t.id === Number(id) && t.model === model);
+                    const thread = this.threads.find(t => t.id === Number(id));
 
                     if (!thread && this.threads.length > 0) {
                         this.selectThread(this.threads[0].id);
@@ -137,10 +137,16 @@ export const LLMChatService = {
                 },
 
                 threadToActiveId(thread) {
-                    return `${thread.model}_${thread.id}`;
+                    return `llm.thread_${thread.id}`;
                 },
 
-                async loadThreads(additionalFields = []) {
+                async loadThreads(additionalFields = [], forceReload = false) {
+                    // Skip if threads already loaded and not forcing reload
+                    if (this.threads.length > 0 && !forceReload) {
+                        console.warn("🔍 Threads already loaded, skipping reload");
+                        return;
+                    }
+
                     const THREAD_SEARCH_FIELDS = [
                         "name",
                         "message_ids",
@@ -180,9 +186,9 @@ export const LLMChatService = {
                 },
 
                 _mapThreadDataFromServer(threadData) {
+
                     const mappedData = {
                         id: threadData.id,
-                        model: "llm.thread",
                         name: threadData.name,
                         message_needaction_counter: 0,
                         creator: threadData.create_uid
@@ -190,11 +196,12 @@ export const LLMChatService = {
                             : undefined,
                         isServerPinned: true,
                         updatedAt: threadData.write_date,
-                        relatedThreadModel: threadData.model,
-                        relatedThreadId: threadData.res_id,
+                        model: threadData.model,
+                        res_id: threadData.res_id,
                         tool_ids: threadData.tool_ids || [],
                         selectedToolIds: threadData.tool_ids || [],
                     };
+
 
                     if (threadData.model_id && threadData.provider_id) {
                         mappedData.llmModel = {
@@ -205,7 +212,6 @@ export const LLMChatService = {
                                 name: threadData.provider_id[1],
                             },
                         };
-                        console.log("Thread mapped with model:", mappedData.llmModel);
                     }
 
                     // Handle assistant data if present
@@ -288,7 +294,6 @@ export const LLMChatService = {
                                     thread: this.activeThread,
                                     updatedFields: mappedThreadData
                                 });
-                                console.log("Emitted llm_chat:active_thread_updated event for thread:", threadId);
                             }
 
                             // Emit general thread update event
@@ -297,7 +302,6 @@ export const LLMChatService = {
                                 thread: this.threads[threadIndex],
                                 updatedFields: mappedThreadData
                             });
-                            console.log("Emitted llm_chat:thread_updated event for thread:", threadId);
 
                             // Emit thread refreshed event
                             env.bus.trigger("llm_chat:thread_refreshed", {
@@ -313,13 +317,9 @@ export const LLMChatService = {
                 },
 
                 async selectThread(threadId) {
-                    console.log("SelectThread called with ID:", threadId);
-                    console.log("Available threads:", this.threads.map(t => ({ id: t.id, name: t.name })));
-                    const thread = this.threads.find(t => t.id === threadId && t.model === "llm.thread");
-                    console.log("Found thread:", thread);
+                    const thread = this.threads.find(t => t.id === threadId);
                     if (thread) {
                         this.activeThread = thread;
-                        console.log("Set active thread:", this.activeThread);
 
                         // Dispatch event for component reactivity
                         env.bus.trigger("llm_chat:thread_selected", {
@@ -327,9 +327,8 @@ export const LLMChatService = {
                             thread: thread,
                             activeThread: this.activeThread
                         });
-                        console.log("Dispatched llm_chat:thread_selected event");
                     } else {
-                        console.log("Thread not found in threads list");
+                        console.error("Thread not found in threads list");
                     }
                 },
 
@@ -353,10 +352,9 @@ export const LLMChatService = {
                         default: model.default,
                     }));
 
-                    console.log("Loaded LLM models:", this.llmModels.map(m => ({ id: m.id, name: m.name, default: m.default })));
                 },
 
-                async createThread({ name, relatedThreadModel, relatedThreadId }) {
+                async createThread({ name, model, res_id }) {
                     let defaultModel = this.defaultLLMModel;
 
                     if (!defaultModel) {
@@ -377,7 +375,6 @@ export const LLMChatService = {
 
                     // Get default tools
                     const defaultTools = await this.getDefaultTools();
-                    console.log("Default tools found:", defaultTools);
 
                     const threadData = {
                         name,
@@ -390,16 +387,12 @@ export const LLMChatService = {
                         threadData.tool_ids = [[6, 0, defaultTools.map(tool => tool.id)]];
                     }
 
-                    if (relatedThreadModel && relatedThreadId) {
-                        threadData.model = relatedThreadModel;
-                        threadData.res_id = relatedThreadId;
+                    if (model && res_id) {
+                        threadData.model = model;
+                        threadData.res_id = res_id;
                     }
 
-                    console.log("Creating thread with data:", threadData);
-                    console.log("Using default model:", defaultModel);
-
                     const threadId = await orm.create("llm.thread", [threadData]);
-                    console.log("Created thread ID:", threadId);
 
                     // Handle both array return and single ID return
                     const actualThreadId = Array.isArray(threadId) ? threadId[0] : threadId;
@@ -407,7 +400,7 @@ export const LLMChatService = {
                     const threadDetails = await orm.read(
                         "llm.thread",
                         [actualThreadId],
-                        ["name", "model_id", "provider_id", "write_date", "tool_ids"]
+                        ["name", "model_id", "provider_id", "write_date", "tool_ids", "model", "res_id"]
                     );
 
                     if (!threadDetails || !threadDetails[0]) {
@@ -423,7 +416,6 @@ export const LLMChatService = {
 
                     const thread = {
                         id: actualThreadId,
-                        model: "llm.thread",
                         name: threadDetails[0].name,
                         message_needaction_counter: 0,
                         isServerPinned: true,
@@ -431,44 +423,41 @@ export const LLMChatService = {
                         updatedAt: threadDetails[0].write_date,
                         tool_ids: threadDetails[0].tool_ids || [],
                         selectedToolIds: threadDetails[0].tool_ids || [],
-                        ...(relatedThreadModel && { relatedThreadModel }),
-                        ...(relatedThreadId && { relatedThreadId }),
+                        model: threadDetails[0].model,
+                        res_id: threadDetails[0].res_id,
                     };
 
-                    console.log("Created thread object:", thread);
+
 
                     // Add to threads list
-                    console.log("Threads before adding:", this.threads.length);
                     // Replace entire array to ensure reactivity
                     this.threads = [thread, ...this.threads];
-                    console.log("Threads after adding:", this.threads.length);
-                    console.log("New thread added at index 0:", this.threads[0]);
 
                     // Dispatch event for component reactivity
                     env.bus.trigger("llm_chat:threads_changed", { threads: this.threads });
-                    console.log("Dispatched llm_chat:threads_changed event");
 
                     return thread;
                 },
 
-                async ensureThread({ relatedThreadModel, relatedThreadId } = {}) {
+                async ensureThread({ model, res_id } = {}) {
+
                     if (this.llmModels.length === 0) {
                         await this.loadLLMModels();
                     }
 
-                    if (this.threads.length === 0) {
-                        await this.loadThreads();
-                    }
+                    // Force reload threads to ensure we have fresh data from database
+                    await this.loadThreads([], true);
 
                     if (!this.tools || this.tools.length === 0) {
                         await this.loadTools();
                     }
 
-                    if (relatedThreadModel && relatedThreadId) {
+                    if (model && res_id) {
+
                         const existingThread = this.threads.find(
                             thread =>
-                                thread.relatedThreadModel === relatedThreadModel &&
-                                thread.relatedThreadId === relatedThreadId
+                                thread.model === model &&
+                                thread.res_id === res_id
                         );
 
                         if (existingThread) {
@@ -476,11 +465,11 @@ export const LLMChatService = {
                         }
 
                         try {
-                            const name = _t("New Chat for %s %s", relatedThreadModel, relatedThreadId);
+                            const name = _t("New Chat for %s %s", model, res_id);
                             return await this.createThread({
                                 name,
-                                relatedThreadModel,
-                                relatedThreadId,
+                                model,
+                                res_id,
                             });
                         } catch (error) {
                             console.error("Failed to create thread for related model:", error);
@@ -619,7 +608,6 @@ export const LLMChatService = {
                  */
                 async setThreadAssistant(threadId, assistantId) {
                     try {
-                        console.log(`Setting assistant ${assistantId} for thread ${threadId}`);
 
                         await orm.write("llm.thread", [threadId], {
                             assistant_id: assistantId
@@ -628,7 +616,6 @@ export const LLMChatService = {
                         // Refresh thread to get updated data including tools
                         await this.refreshThread(threadId);
 
-                        console.log(`Successfully set assistant ${assistantId} for thread ${threadId}`);
 
                         return true;
                     } catch (error) {
@@ -643,7 +630,6 @@ export const LLMChatService = {
                  */
                 async clearThreadAssistant(threadId) {
                     try {
-                        console.log(`Clearing assistant for thread ${threadId}`);
 
                         await orm.write("llm.thread", [threadId], {
                             assistant_id: false
@@ -652,7 +638,6 @@ export const LLMChatService = {
                         // Refresh thread to get updated data
                         await this.refreshThread(threadId);
 
-                        console.log(`Successfully cleared assistant for thread ${threadId}`);
 
                         return true;
                     } catch (error) {
@@ -671,9 +656,6 @@ export const LLMChatService = {
                 get orderedThreads() {
                     if (!this.threads) return [];
 
-                    console.log("OrderedThreads: Raw threads count:", this.threads.length);
-                    console.log("OrderedThreads: Raw thread IDs:", this.threads.map(t => t.id));
-
                     const ordered = [...this.threads].sort((a, b) => {
                         const dateA = a.updatedAt
                             ? new Date(a.updatedAt.replace(" ", "T"))
@@ -684,7 +666,6 @@ export const LLMChatService = {
                         return dateB - dateA;
                     });
 
-                    console.log("OrderedThreads: Sorted thread IDs:", ordered.map(t => t.id));
                     return ordered;
                 },
 
@@ -703,13 +684,11 @@ export const LLMChatService = {
 
                 get defaultLLMModel() {
                     if (!this.llmModels || !Array.isArray(this.llmModels) || (!this.llmModels.length > 0)) {
-                        console.log("DefaultLLMModel: No models available");
                         return null;
                     }
 
                     // Find the model with default: true
                     const defaultModel = this.llmModels.find(m => m && m.default === true);
-                    console.log("Found default model:", defaultModel);
 
                     // Fallback to first model if no default is set
                     const result = defaultModel || this.llmModels[0];

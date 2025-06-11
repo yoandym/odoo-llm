@@ -1,0 +1,72 @@
+// llm_message_actions.scss
+// Styling for LLM-specific message actions
+
+// Styling for notes posted from LLM messages to record chatters
+.llm-note-header {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border-left: 4px solid #007bff;
+    border-radius: 3px;
+    font-size: 0.9rem;
+
+    strong {
+        color: #495057;
+        font-weight: 600;
+    }
+
+    small {
+        color: #6c757d;
+        font-size: 0.8rem;
+    }
+}
+
+.llm-note-content {
+    padding: 0;
+
+    // Preserve formatting from LLM messages
+    p {
+        margin-bottom: 0.5rem;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    // Style code blocks if they exist
+    pre,
+    code {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 3px;
+        padding: 0.25rem 0.5rem;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    }
+
+    pre {
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    // Style lists
+    ul,
+    ol {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+
+    li {
+        margin-bottom: 0.25rem;
+    }
+}
+
+// Style for the message action button itself
+.o-mail-Message-actions .fa-sticky-note-o {
+    color: #6c757d;
+
+    &:hover {
+        color: #007bff;
+    }
+}

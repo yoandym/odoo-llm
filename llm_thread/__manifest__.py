@@ -27,7 +27,7 @@ business.
 Contact: support@apexive.com
     """,
     "category": "Productivity, Discuss",
-    "version": "17.0.1.1.2",
+    "version": "17.0.1.1.3",
     "depends": ["base", "mail", "web", "llm", "llm_tool", "llm_mail_message_subtypes"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
@@ -78,10 +78,6 @@ Contact: support@apexive.com
             # Removed llm_chat_message_list - using Odoo's ThreadView
             # Removed llm_message - using Odoo's Message with patches
 
-            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.js",
-            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.xml",
-            "llm_thread/static/src/components/llm_chat_composer_text_input/llm_chat_composer_text_input.scss",
-
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
@@ -104,6 +100,7 @@ Contact: support@apexive.com
             # Client Actions
             "llm_thread/static/src/llm_chat_client_action.js",
             "llm_thread/static/src/llm_message_actions.js",
+            "llm_thread/static/src/llm_message_actions.scss",
         ],
     },
     "images": [

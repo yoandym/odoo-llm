@@ -32,6 +32,26 @@ patch(Chatter.prototype, {
             llmThread: null,
             isInitializingLLM: false,
         });
+
+        // Listen for chatter refresh events from LLM message actions
+        this.env.bus.addEventListener("chatter:refresh", this._onChatterRefreshRequested.bind(this));
+    },
+
+    /**
+     * Handle chatter refresh requests from LLM message actions
+     */
+    _onChatterRefreshRequested(event) {
+        const { model, res_id } = event.detail;
+        const currentRecord = this.getThreadInfo();
+
+        // Only refresh if this chatter is for the same record
+        if (currentRecord.model === model && currentRecord.id === res_id) {
+            console.log("[LLM] Refreshing chatter for record:", model, res_id);
+            // Trigger a refresh of the chatter messages
+            if (this.thread) {
+                this.thread.fetchData();
+            }
+        }
     },
 
 
@@ -43,10 +63,10 @@ patch(Chatter.prototype, {
         console.log("[LLM] Toggle LLM chat called");
 
         // Get thread information from various sources
-        const threadInfo = this.getThreadInfo();
+        const recordInfo = this.getThreadInfo();
 
-        if (!threadInfo.model || !threadInfo.id) {
-            console.warn("[LLM] No valid thread information available");
+        if (!recordInfo.model || !recordInfo.id) {
+            console.warn("[LLM] No valid record information available");
             this.notificationService.add(
                 _t("Unable to start AI chat - no record context found"),
                 {
@@ -60,7 +80,7 @@ patch(Chatter.prototype, {
         if (this.state.isChattingWithLLM) {
             this.exitLLMMode();
         } else {
-            await this.enterLLMMode(threadInfo);
+            await this.enterLLMMode(recordInfo);
         }
     },
 
@@ -68,54 +88,69 @@ patch(Chatter.prototype, {
      * Get thread information from various sources
      */
     getThreadInfo() {
-        // Try multiple ways to get thread information from Chatter
+        // Try multiple ways to get record information from Chatter
         const thread = this.thread || this.props.thread || this.state?.thread;
-        console.log("[LLM] Thread found:", thread);
+        console.log("[LLM] Mail thread found:", thread);
 
-        // If no thread from component, try to get it from props
-        let threadModel = thread?.model || this.props?.threadModel;
-        let threadId = thread?.id || this.props?.threadId;
+        // Initialize with undefined
+        let recordModel = undefined;
+        let recordId = undefined;
+
+        // First, try to get from chatter's thread data (this is the record context)
+        if (thread) {
+            // For mail threads, model/res_id contain the record information
+            recordModel = thread.model;
+            recordId = thread.res_id;
+            console.log("[LLM] From mail thread - Model:", recordModel, "ID:", recordId);
+        }
+
+        // If still not found, try to get from chatter props directly
+        if (!recordModel || !recordId) {
+            recordModel = this.props?.threadModel;
+            recordId = this.props?.threadId;
+            console.log("[LLM] From chatter props - Model:", recordModel, "ID:", recordId);
+        }
 
         // Try to get from action context if still not found
-        if (!threadModel || !threadId) {
+        if (!recordModel || !recordId) {
             const action = this.actionService.currentController?.action;
             console.log("[LLM] Current action:", action);
 
             if (action?.res_model && action?.res_id) {
-                threadModel = action.res_model;
-                threadId = action.res_id;
-                console.log("[LLM] Got from action - Model:", threadModel, "ID:", threadId);
+                recordModel = action.res_model;
+                recordId = action.res_id;
+                console.log("[LLM] Got from action - Model:", recordModel, "ID:", recordId);
             }
         }
 
         // Try to get from URL or environment
-        if (!threadModel || !threadId) {
+        if (!recordModel || !recordId) {
             // Try to get from browser URL
             const urlParams = new URLSearchParams(window.location.search);
             const urlModel = urlParams.get('model');
             const urlId = urlParams.get('id');
 
             if (urlModel && urlId) {
-                threadModel = urlModel;
-                threadId = parseInt(urlId);
-                console.log("[LLM] Got from URL - Model:", threadModel, "ID:", threadId);
+                recordModel = urlModel;
+                recordId = parseInt(urlId);
+                console.log("[LLM] Got from URL - Model:", recordModel, "ID:", recordId);
             }
         }
 
-        console.log("[LLM] Final thread model:", threadModel, "Thread ID:", threadId);
+        console.log("[LLM] Final record model:", recordModel, "Record ID:", recordId);
 
         return {
-            model: threadModel,
-            id: threadId,
-            ...thread
+            model: recordModel,
+            id: recordId,
+            mailThread: thread
         };
     },
 
     /**
      * Enter LLM chat mode
      */
-    async enterLLMMode(thread) {
-        console.log("[LLM] Entering LLM mode with thread:", thread);
+    async enterLLMMode(recordInfo) {
+        console.log("[LLM] Entering LLM mode with record info:", recordInfo);
 
         if (this.state.isInitializingLLM) return;
 
@@ -126,8 +161,8 @@ patch(Chatter.prototype, {
 
             // Ensure thread for the current record
             const llmThread = await llmChat.ensureThread({
-                relatedThreadModel: thread.model,
-                relatedThreadId: thread.id,
+                model: recordInfo.model,
+                res_id: recordInfo.id,
             });
 
             if (!llmThread) {
@@ -286,8 +321,8 @@ export class ChatterLLMButton extends Component {
 
             // Ensure thread exists
             const thread = await llmChat.ensureThread({
-                relatedThreadModel: this.props.record.resModel,
-                relatedThreadId: this.props.record.resId,
+                model: this.props.record.resModel,
+                res_id: this.props.record.resId,
             });
 
             if (thread) {

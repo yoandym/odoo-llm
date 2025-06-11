@@ -46,8 +46,8 @@ export class LLMFormButton extends Component {
 
             // Ensure thread exists
             const thread = await llmChat.ensureThread({
-                relatedThreadModel: this.props.record.resModel,
-                relatedThreadId: this.props.record.resId || this.props.record.data.id,
+                model: this.props.record.model,
+                res_id: this.props.record.resId || this.props.record.data.id,
             });
 
             if (thread) {

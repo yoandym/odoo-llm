@@ -2,6 +2,7 @@
 
 import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
+import { _t } from "@web/core/l10n/translation";
 
 
 export class LLMChatThreadList extends Component {
@@ -14,6 +15,7 @@ export class LLMChatThreadList extends Component {
         // Services
         this.llmChatService = useService("llm_chat");
         this.notification = useService("notification");
+        this.busService = useService("bus");
 
         // Direct access to the llmChat store
         this.llmChat = this.llmChatService;
@@ -26,20 +28,28 @@ export class LLMChatThreadList extends Component {
         });
 
         // Watch for service changes to trigger re-renders
-        this.env.bus.addEventListener("llm_chat:threads_changed", this._onThreadsChanged.bind(this));
+        this.busService.addEventListener("llm_chat:threads_changed", this._onThreadsChanged.bind(this));
 
 
-        this.env.bus.addEventListener("llm_chat:thread_selected", () => {
+        this.busService.addEventListener("llm_chat:thread_selected", () => {
             // The reactive service will automatically trigger re-renders
         });
 
     }
 
     /**
-     * react to changes in threads
+     * Get the ordered threads directly from the service
+     */
+    get threads() {
+        return this.state.threads;
+    }
+
+    /**
+     * react to changes in threads - force component update
      */
     _onThreadsChanged(event) {
-        this.state.threads = this.llmChat.orderedThreads;
+        // Force a re-render by updating a state property
+        this.state.isLoading = this.state.isLoading;
     }
 
     /**
@@ -55,7 +65,7 @@ export class LLMChatThreadList extends Component {
      * Check if there are no threads
      */
     get hasNoThreads() {
-        return this.state.threads.length === 0;
+        return this.threads.length === 0;
     }
 
     /**
@@ -101,11 +111,11 @@ export class LLMChatThreadList extends Component {
     }
 
     /**
-     * Check if a thread is active
+     * Check if a thread is the active/selected thread
      */
     isThreadActive(threadId) {
-        const isActive = this.activeThread?.id === threadId;
-        console.log(`ThreadList: isThreadActive(${threadId}) = ${isActive}, activeThread:`, this.activeThread?.id);
-        return isActive;
+        return this.activeThread && this.activeThread.id === threadId;
     }
+
+
 }
