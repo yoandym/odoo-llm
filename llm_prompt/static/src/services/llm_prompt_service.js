@@ -22,7 +22,6 @@ export const LLMPromptService = {
 
         // Set up event listeners for bus-based integration
         env.bus.addEventListener("llm_chat:initializing", (event) => {
-            console.log("LLM Prompt Service: Chat initializing, adding prompt loading promise");
             const promptLoadPromise = service.initialize();
             event.detail.promises.push(promptLoadPromise);
         });
@@ -55,20 +54,16 @@ export const LLMPromptService = {
              * Load prompts from the server
              */
             async loadPrompts() {
-                console.log("[LLM_PROMPT_SERVICE] loadPrompts called, isLoaded:", store.isLoaded);
                 if (store.isLoaded) {
-                    console.log("[LLM_PROMPT_SERVICE] Already loaded, returning cached prompts:", store.prompts.length);
                     return store.prompts;
                 }
 
                 try {
-                    console.log("[LLM_PROMPT_SERVICE] Making ORM call to load prompts");
                     const result = await orm.searchRead(
                         "llm.prompt",
                         [],
                         ["name", "input_schema_json", "description"]
                     );
-                    console.log("[LLM_PROMPT_SERVICE] ORM call completed, result:", result);
 
                     store.prompts = result.map(prompt => ({
                         id: prompt.id,
@@ -76,13 +71,10 @@ export const LLMPromptService = {
                         description: prompt.description || "",
                         inputSchemaJson: prompt.input_schema_json || "{}",
                     }));
-                    console.log("[LLM_PROMPT_SERVICE] Mapped prompts:", store.prompts);
 
                     store.isLoaded = true;
-                    console.log("[LLM_PROMPT_SERVICE] Set isLoaded to true");
                     return store.prompts;
                 } catch (error) {
-                    console.error("[LLM_PROMPT_SERVICE] Error loading prompts:", error);
                     notification.add(
                         _t("Failed to load prompts"),
                         { type: "danger" }
@@ -134,7 +126,6 @@ export const LLMPromptService = {
              * Initialize the service (called by dependent services)
              */
             async initialize() {
-                console.log("[LLM_PROMPT_SERVICE] initialize() called");
                 return this.loadPrompts();
             },
         };
@@ -143,5 +134,4 @@ export const LLMPromptService = {
     },
 };
 
-console.log("[LLM_PROMPT_SERVICE] Registering llm_prompt service in registry");
 registry.category("services").add("llm_prompt", LLMPromptService);
