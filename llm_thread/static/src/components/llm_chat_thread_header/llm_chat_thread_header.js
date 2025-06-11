@@ -40,6 +40,7 @@ export class LLMChatThreadHeader extends Component {
         this.uiService = useService("ui");
         this.orm = useService("orm");
         this.dialogService = useService("dialog");
+        this.busService = useService("bus");
 
         // Direct access to llmChat store
         this.llmChat = this.llmChatService;
@@ -374,8 +375,8 @@ export class LLMChatThreadHeader extends Component {
             body: _t("Are you sure you want to delete this thread? This action cannot be undone."),
             confirm: async () => {
                 try {
-                    // Delete the thread
-                    await this.orm.unlink("llm.thread", [this.props.thread.id]);
+                    // use the service to delete the thread
+                    await this.llmChat.deleteThread(this.props.thread.id);
 
                     // Notify success
                     this.notificationService.add(
@@ -383,14 +384,8 @@ export class LLMChatThreadHeader extends Component {
                         { type: "success" }
                     );
 
-                    // Refresh the thread list in llmChat service
-                    await this.llmChat.loadThreads();
-
-                    // Manually trigger the threads changed event to update the sidebar
-                    this.env.bus.trigger("llm_chat:threads_changed", { threads: this.llmChat.threads });
-
                     // If this was the active thread, select another thread or create a new one
-                    if (this.llmChat.activeThread && this.llmChat.activeThread.id === this.props.thread.id) {
+                    /* if (this.llmChat.activeThread && this.llmChat.activeThread.id === this.props.thread.id) {
                         const remainingThreads = this.llmChat.threads || [];
                         if (remainingThreads.length > 0) {
                             // Select the first available thread
@@ -399,13 +394,17 @@ export class LLMChatThreadHeader extends Component {
                         } else {
                             // No threads left, create a new one
                             const newThread = await this.llmChat.createThread({
-                                name: this.env._t("New Chat")
+                                name: _t("New Chat")
                             });
                             if (newThread) {
                                 await this.llmChat.selectThread(newThread.id);
                             }
                         }
-                    }
+                    } */
+
+                    // refresh the thread list
+                    await this.llmChat.loadThreads(forceReload = true);
+
                 } catch (error) {
                     console.error("Failed to delete thread:", error);
                     this.notificationService.add(
