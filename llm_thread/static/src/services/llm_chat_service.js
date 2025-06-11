@@ -646,6 +646,46 @@ export const LLMChatService = {
                     }
                 },
 
+                /**
+                 * Delete a thread
+                 * @param {number} threadId - Thread ID to delete
+                 */
+                async deleteThread(threadId) {
+                    try {
+                        // Ensure we have a valid thread ID
+                        if (!threadId || (typeof threadId !== 'number' && isNaN(parseInt(threadId)))) {
+                            throw new Error("Invalid thread ID provided");
+                        }
+
+                        // Convert to number if string
+                        const numericThreadId = typeof threadId === 'string' ? parseInt(threadId, 10) : threadId;
+
+                        // Delete the thread from database
+                        await orm.unlink("llm.thread", [numericThreadId]);
+
+                        // Remove from local threads array
+                        const threadIndex = this.threads.findIndex(t => t.id === numericThreadId);
+                        if (threadIndex !== -1) {
+                            this.threads.splice(threadIndex, 1);
+                        }
+
+                        // If this was the active thread, clear it and select another
+                        if (this.activeThread && this.activeThread.id === numericThreadId) {
+                            this.activeThread = null;
+
+                            // Select first available thread if any exist
+                            if (this.threads.length > 0) {
+                                await this.selectThread(this.threads[0].id);
+                            }
+                        }
+
+                        return true;
+                    } catch (error) {
+                        console.error("Error deleting thread:", error);
+                        throw error;
+                    }
+                },
+
                 // Computed properties
                 get activeId() {
                     return this.activeThread

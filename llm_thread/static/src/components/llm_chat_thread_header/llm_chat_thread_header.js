@@ -374,8 +374,16 @@ export class LLMChatThreadHeader extends Component {
             body: _t("Are you sure you want to delete this thread? This action cannot be undone."),
             confirm: async () => {
                 try {
-                    // use the service to delete the thread
-                    await this.llmChat.deleteThread(this.props.thread.id);
+                    // Extract thread ID properly
+                    let threadId = this.props.thread.id;
+
+                    // Validate thread ID
+                    if (!threadId || isNaN(threadId)) {
+                        throw new Error("Invalid thread ID");
+                    }
+
+                    // Use the service to delete the thread
+                    await this.llmChat.deleteThread(threadId);
 
                     // Notify success
                     this.notificationService.add(
@@ -383,31 +391,14 @@ export class LLMChatThreadHeader extends Component {
                         { type: "success" }
                     );
 
-                    // If this was the active thread, select another thread or create a new one
-                    /* if (this.llmChat.activeThread && this.llmChat.activeThread.id === this.props.thread.id) {
-                        const remainingThreads = this.llmChat.threads || [];
-                        if (remainingThreads.length > 0) {
-                            // Select the first available thread
-                            const nextThread = remainingThreads[0];
-                            await this.llmChat.selectThread(nextThread.id);
-                        } else {
-                            // No threads left, create a new one
-                            const newThread = await this.llmChat.createThread({
-                                name: _t("New Chat")
-                            });
-                            if (newThread) {
-                                await this.llmChat.selectThread(newThread.id);
-                            }
-                        }
-                    } */
-
                     // refresh the thread list
-                    await this.llmChat.loadThreads(forceReload = true);
+                    await this.llmChat.loadThreads([], true);
+
 
                 } catch (error) {
                     console.error("Failed to delete thread:", error);
                     this.notificationService.add(
-                        _t("Failed to delete thread"),
+                        _t("Failed to delete thread: %s", error.message || "Unknown error"),
                         { type: "danger" }
                     );
                 }
