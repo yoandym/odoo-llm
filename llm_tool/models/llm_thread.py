@@ -109,14 +109,12 @@ class LLMProvider(models.Model):
                             break
 
                     if not has_system_message:
-                        # Insert a new system message using the list format for content
+                        # Insert a new system message - use simple string format for better compatibility
                         params["messages"].insert(
                             0,
                             {
                                 "role": "system",
-                                "content": [
-                                    {"type": "text", "text": consent_instruction}
-                                ],
+                                "content": consent_instruction,
                             },
                         )
 
