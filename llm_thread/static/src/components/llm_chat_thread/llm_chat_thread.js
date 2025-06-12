@@ -197,6 +197,12 @@ export class LLMChatThread extends Component {
             displayName: threadData.name || threadData.display_name || "LLM Chat",
         });
 
+        // Add custom fields for related document linking (needed for message actions)
+        if (threadData.model && threadData.res_id) {
+            this.state.thread.model = threadData.model;
+            this.state.thread.res_id = threadData.res_id;
+        } 
+
         // Load messages
         await this.loadMessages();
     }
