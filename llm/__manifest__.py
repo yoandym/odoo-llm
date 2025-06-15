@@ -23,6 +23,8 @@
         "views/llm_publisher_views.xml",
         "views/llm_menu_views.xml",
     ],
+    "assets": {
+    },
     "license": "LGPL-3",
     "installable": True,
     "images": [
