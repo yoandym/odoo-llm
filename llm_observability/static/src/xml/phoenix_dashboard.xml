@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+
+    <t t-name="llm_observability.PhoenixDashboard" owl="1">
+        <div class="phoenix_dashboard_container" t-ref="dashboard">
+
+            <!-- Header -->
+            <div class="phoenix_header">
+                <h2>LLM Observability Dashboard</h2>
+                <div class="phoenix_status">
+                    <span class="connection_indicator" t-att-class="{'connected': state.connectionStatus === 'connected', 'disconnected': state.connectionStatus !== 'connected'}"/>
+                    <span class="status_badge" t-att-class="getStatusColor(state.connectionStatus)" t-esc="state.connectionStatus"/>
+                    <span t-if="state.environment" class="badge badge-info ml-2" t-esc="state.environment"/>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="phoenix_controls">
+                <button class="btn btn-primary" t-on-click="refreshData" t-att-disabled="state.loading">
+                    <i class="fa fa-refresh" t-att-class="{'fa-spin': state.loading}"/>
+ Refresh
+                </button>
+                <button class="btn btn-secondary" t-on-click="testConnection" t-att-disabled="state.loading">
+                    <i class="fa fa-plug"/>
+ Test Connection
+                </button>
+                <button class="btn btn-secondary" t-on-click="openPhoenixDashboard" t-att-disabled="!state.phoenixAvailable">
+                    <i class="fa fa-external-link"/>
+ Open Phoenix
+                </button>
+                <button class="btn btn-outline-secondary" t-on-click="openConfiguration">
+                    <i class="fa fa-cog"/>
+ Configure
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div t-if="state.loading" class="phoenix_loading">
+                <div class="spinner"></div>
+            </div>
+
+            <!-- Error State -->
+            <div t-if="state.error" class="phoenix_error">
+                <div class="alert alert-danger">
+                    <h4>
+                        <i class="fa fa-exclamation-triangle"/>
+ Error</h4>
+                    <p t-esc="state.error"/>
+                    <button class="btn btn-primary mt-2" t-on-click="refreshData">
+                        <i class="fa fa-refresh"/>
+ Retry
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div t-if="!state.loading and !state.error" class="phoenix_content">
+
+                <!-- Metrics Cards -->
+                <div t-if="state.tracesData" class="phoenix_metrics">
+                    <!-- Integration Status Message -->
+                    <div t-if="state.tracesData.message" class="alert alert-info mb-3">
+                        <i class="fa fa-info-circle"/>
+                        <span t-esc="state.tracesData.message"/>
+                    </div>
+
+                    <div class="metric_card success">
+                        <h3 t-esc="formatNumber(state.tracesData.total_traces)"/>
+                        <p>Total Traces</p>
+                    </div>
+
+                    <div class="metric_card success">
+                        <h3 t-esc="state.tracesData.success_rate.toFixed(1) + '%'"/>
+                        <p>Success Rate</p>
+                    </div>
+
+                    <div class="metric_card warning">
+                        <h3 t-esc="formatDuration(state.tracesData.avg_duration_ms)"/>
+                        <p>Avg Duration</p>
+                    </div>
+
+                    <div class="metric_card">
+                        <h3 t-esc="formatNumber(state.tracesData.total_tokens)"/>
+                        <p>Total Tokens</p>
+                    </div>
+
+                    <div class="metric_card" t-if="state.tracesData.total_cost_usd > 0">
+                        <h3 t-esc="formatCost(state.tracesData.total_cost_usd)"/>
+                        <p>Total Cost</p>
+                    </div>
+
+                    <div class="metric_card danger" t-if="state.tracesData.error_traces > 0">
+                        <h3 t-esc="formatNumber(state.tracesData.error_traces)"/>
+                        <p>Errors</p>
+                    </div>
+                </div>
+
+                <!-- Phoenix Dashboard Embed -->
+                <div t-if="state.phoenixAvailable and state.connectionStatus === 'connected'" class="phoenix_iframe_container">
+                    <div class="chart_container">
+                        <h3 class="chart_title">
+                            <i class="fa fa-line-chart"/>
+ Phoenix Observability Dashboard
+                            <span class="badge badge-success ml-2">Live</span>
+                        </h3>
+                        <!-- Iframe will be loaded here by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Configuration Needed -->
+                <div t-if="!state.phoenixAvailable" class="phoenix_error">
+                    <div class="alert alert-warning">
+                        <h4>
+                            <i class="fa fa-cog"/>
+ Configuration Required</h4>
+                        <p>Phoenix observability platform is not configured or not available.</p>
+                        <p>Please configure Phoenix to start monitoring your LLM interactions.</p>
+                        <button class="btn btn-primary mt-2" t-on-click="openConfiguration">
+                            <i class="fa fa-cog"/>
+ Configure Phoenix
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Connection Error -->
+                <div t-if="state.phoenixAvailable and state.connectionStatus !== 'connected'" class="phoenix_error">
+                    <div class="alert alert-danger">
+                        <h4>
+                            <i class="fa fa-unlink"/>
+ Connection Error</h4>
+                        <p>Unable to connect to Phoenix observability platform.</p>
+                        <p>Please check that Phoenix is running and accessible.</p>
+                        <div class="mt-2">
+                            <button class="btn btn-primary mr-2" t-on-click="testConnection">
+                                <i class="fa fa-plug"/>
+ Test Connection
+                            </button>
+                            <button class="btn btn-secondary" t-on-click="openConfiguration">
+                                <i class="fa fa-cog"/>
+ Check Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tracing Status -->
+                <div t-if="state.phoenixAvailable" class="chart_container">
+                    <h3 class="chart_title">
+                        <i class="fa fa-info-circle"/>
+ Tracing Status
+                    </h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p>
+                                <strong>Environment:</strong>
+                                <span class="badge badge-info" t-esc="state.environment"/>
+                            </p>
+                            <p>
+                                <strong>Tracing:</strong>
+                                <span t-if="state.fullstackTracingEnabled" class="badge badge-success">Enabled</span>
+                                <span t-else="" class="badge badge-warning">Disabled</span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p>
+                                <strong>Phoenix URL:</strong>
+                                <a t-att-href="state.phoenixUrl" target="_blank" t-esc="state.phoenixUrl"/>
+                            </p>
+                            <p>
+                                <strong>Last Check:</strong>
+                                <span t-esc="new Date().toLocaleString()"/>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </t>
+
+</templates>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Phoenix Dashboard Action -->
+    <record model="ir.actions.client" id="action_phoenix_dashboard">
+        <field name="name">Phoenix Dashboard</field>
+        <field name="tag">phoenix_dashboard</field>
+    </record>
+
+    <!-- Phoenix Not Configured Template -->
+    <template id="phoenix_not_configured">
+        <t t-call="web.layout">
+            <div class="container mt-4">
+                <div class="alert alert-warning">
+                    <h3>Phoenix Observability Not Configured</h3>
+                    <p>Phoenix observability platform is not configured or not available.</p>
+                    <p>Please contact your system administrator to set up Phoenix integration.</p>
+                    <a href="/web#action=llm_observability.action_phoenix_config" class="btn btn-primary">
+                        Go to Configuration
+                    </a>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Phoenix Embed Template -->
+    <template id="phoenix_embed">
+        <t t-call="web.layout">
+            <div class="phoenix_embed_page">
+                <div class="phoenix_header">
+                    <h2>Phoenix Observability Dashboard</h2>
+                    <div class="phoenix_status">
+                        <span class="badge" t-att-class="{'badge-success': connection_status == 'connected', 'badge-danger': connection_status != 'connected'}">
+                            <t t-esc="connection_status.title()"/>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="phoenix_iframe_container" t-if="phoenix_url and connection_status == 'connected'">
+                    <iframe src="/llm_observability/phoenix_embed" class="phoenix_full_iframe" frameborder="0">
+                    </iframe>
+                </div>
+
+                <div class="alert alert-danger" t-if="connection_status != 'connected'">
+                    <h4>Phoenix Connection Error</h4>
+                    <p>Unable to connect to Phoenix observability platform.</p>
+                    <p>Please check the configuration and ensure Phoenix is running.</p>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>

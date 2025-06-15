@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Default Phoenix Configuration -->
+    <record model="phoenix.config" id="default_phoenix_config">
+        <field name="name">Default Phoenix Configuration</field>
+        <field name="phoenix_url">http://phoenix:6006</field>
+        <field name="otlp_endpoint">http://phoenix:4317</field>
+        <field name="is_active" eval="True"/>
+        <field name="environment">development</field>
+        <field name="trace_sampling_rate">1.0</field>
+    </record>
+
+
+</odoo>

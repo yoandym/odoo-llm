@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Phoenix Configuration Tree View -->
+    <record model="ir.ui.view" id="phoenix_config_tree_view">
+        <field name="name">phoenix.config.tree</field>
+        <field name="model">phoenix.config</field>
+        <field name="arch" type="xml">
+            <tree string="Observability Configurations" decoration-success="is_active and connection_status == 'connected'" decoration-warning="is_active and connection_status == 'disconnected'" decoration-danger="is_active and connection_status == 'error'">
+                <field name="name"/>
+                <field name="llm_observability_strategy" string="LLM Strategy"/>
+                <field name="phoenix_url" string="Phoenix Endpoint" invisible="llm_observability_strategy != 'llamaindex'"/>
+                <field name="otlp_endpoint" string="OTLP Endpoint" />
+                <field name="environment"/>
+                <field name="connection_status" widget="badge" decoration-success="connection_status == 'connected'" decoration-danger="connection_status == 'error'" decoration-warning="connection_status == 'disconnected'"/>
+                <field name="is_active" string="Active"/>
+                <field name="enable_fullstack_tracing" string="Full-Stack"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Phoenix Configuration Form View -->
+    <record model="ir.ui.view" id="phoenix_config_form_view">
+        <field name="name">phoenix.config.form</field>
+        <field name="model">phoenix.config</field>
+        <field name="arch" type="xml">
+            <form string="Observability Configuration">
+                <header>
+                    <button name="test_connection" string="Test Connection" type="object" class="btn-primary" icon="fa-plug"/>
+                    <field name="connection_status" widget="badge" decoration-success="connection_status == 'connected'" decoration-danger="connection_status == 'error'" decoration-warning="connection_status == 'disconnected'"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Configuration Name"/>
+                        </h1>
+                    </div>
+
+                    <!-- Main Configuration -->
+                    <group>
+                        <field name="llm_observability_strategy" string="LLM Observability Strategy"/>
+                    </group>
+
+                    <!-- Strategy Information (full width) -->
+                    <div invisible="llm_observability_strategy != 'llamaindex'">
+                        <div class="alert alert-info alert-dismissible fade show" role="alert" style="margin: 16px 0; padding: 20px; border-left: 4px solid #0dcaf0;">
+                            <h5 class="alert-heading mb-3">🔥 LlamaIndex + Phoenix Strategy</h5>
+                            <p class="mb-2">Rich LLM insights with automatic evaluation metrics, token usage tracking, and RAG pipeline analysis.</p>
+                            <hr class="my-3"/>
+                            <p class="mb-0">
+                                <small class="text-muted">Traces are sent to the OTLP endpoint, while the interactive dashboard is accessible via the Phoenix URL.</small>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div invisible="llm_observability_strategy != 'opentelemetry'">
+                        <div class="alert alert-info alert-dismissible fade show" role="alert" style="margin: 16px 0; padding: 20px; border-left: 4px solid #0dcaf0;">
+                            <h5 class="alert-heading mb-3">📡 OpenTelemetry (Generic) Strategy</h5>
+                            <p class="mb-2">Standard distributed tracing compatible with any OTLP backend such as Phoenix, Jaeger, DataDog, New Relic, and more.</p>
+                            <hr class="my-3"/>
+                            <p class="mb-0">
+                                <small class="text-muted">Provides vendor-neutral observability with broad ecosystem compatibility.</small>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Main Configuration -->
+                    <group col="4">
+
+                        <field name="environment" string="Environment"/>
+                        <field name="is_active" string="Active Configuration"/>
+                        <field name="trace_sampling_rate" string="Sampling Rate (0.0-1.0)"/>
+                    </group>
+
+
+
+                    <!-- Endpoint Configuration (both strategies need OTLP) -->
+                    <group string="Endpoint Configuration" col="2">
+                        <field name="phoenix_url" string="Phoenix Web UI" placeholder="e.g., http://phoenix:6006" invisible="llm_observability_strategy != 'llamaindex'"/>
+                        <field name="otlp_endpoint" string="OTLP Tracing Endpoint" placeholder="e.g., http://phoenix:4317 or http://jaeger:4317"/>
+                    </group>
+
+                    <!-- Full-Stack Tracing Option -->
+                    <separator string="🕸️ Full-Stack Tracing"/>
+                    <group>
+                        <field name="enable_fullstack_tracing" string="Enable end-to-end tracing" help="Uses OpenTelemetry for end-to-end tracing from web requests to database operations and LLM calls"/>
+                    </group>
+
+                    <group invisible="not enable_fullstack_tracing" string="Components to Trace" col="3">
+                        <group><field name="enable_web_tracing" string="🌐 Web Requests"/></group>
+                        <group><field name="enable_database_tracing" string="🗄️ Database Operations"/></group>
+                        <group><field name="enable_external_api_tracing" string="🔌 External API Calls"/></group>
+                    </group>
+
+                    <!-- Connection Details (only show when there's status info) -->
+                    <group string="Connection Details" invisible="connection_status == 'disconnected' and not last_check" col="2">
+                        <field name="last_check" readonly="1"/>
+                        <field name="error_message" readonly="1" invisible="connection_status != 'error'" widget="text" colspan="2"/>
+                    </group>
+
+                    <!-- Status Alert -->
+                    <div class="alert alert-warning" role="alert" invisible="is_active">
+                        <strong>⚠️ Configuration Inactive:</strong> 
+                        This configuration is not active. Enable "Active Configuration" or archive unused configurations.
+                    </div>
+
+                    <div class="alert alert-success" role="alert" invisible="not is_active">
+                        <strong>✅ Observability Active:</strong> 
+                        LLM tracing with <field name="llm_observability_strategy" readonly="1"/>
+ strategy
+                    <span invisible="not enable_fullstack_tracing"> + full-stack tracing</span> enabled.
+                </div>
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<!-- Observability Configuration Action -->
+<record model="ir.actions.act_window" id="action_phoenix_config">
+    <field name="name">Observability Configuration</field>
+    <field name="res_model">phoenix.config</field>
+    <field name="view_mode">tree,form</field>
+    <field name="view_id" ref="phoenix_config_tree_view"/>
+    <field name="help" type="html">
+        <div class="oe_empty_state_help">
+            <h2>Configure LLM Observability</h2>
+            <p>
+                    Set up observability for your LLM operations with either:
+            </p>
+            <ul>
+                <li>
+                    <strong>LlamaIndex + Phoenix:</strong> Rich LLM insights, evaluation metrics, and RAG analysis</li>
+                <li>
+                    <strong>OpenTelemetry:</strong> Generic tracing compatible with any OTLP backend</li>
+            </ul>
+            <p>
+                    Full-stack tracing (web → database → LLM → response) is always available with OpenTelemetry.
+            </p>
+        </div>
+    </field>
+</record>
+
+</odoo>

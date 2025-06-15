@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+
+<odoo>
+
+    <!-- Menu Items -->
+    <menuitem id="menu_llm_observability_root" name="LLM Observability" parent="llm.menu_llm_root" sequence="85"/>
+
+    <menuitem id="menu_phoenix_dashboard" name="Phoenix Dashboard" parent="menu_llm_observability_root" action="action_phoenix_dashboard" sequence="10"/>
+
+
+
+    <!-- Configuration Menu -->
+    <menuitem id="llm_observability_configuration_menu" name="Observability Configuration" parent="llm.menu_llm_config" sequence="35" />
+
+    <!-- Configuration Sub-menus -->
+    <menuitem id="menu_phoenix_config" name="Observability Settings" parent="llm_observability_configuration_menu" action="action_phoenix_config" sequence="30" groups="llm_observability.group_llm_observability_manager"/>
+
+</odoo>

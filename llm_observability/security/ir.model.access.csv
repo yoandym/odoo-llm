@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_phoenix_config_user,phoenix.config.user,model_phoenix_config,llm_observability.group_llm_observability_user,1,0,0,0
+access_phoenix_config_manager,phoenix.config.manager,model_phoenix_config,llm_observability.group_llm_observability_manager,1,1,1,1

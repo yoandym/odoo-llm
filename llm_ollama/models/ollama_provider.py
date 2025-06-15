@@ -4,17 +4,226 @@ import logging
 import uuid
 
 import ollama
-
 from odoo import api, models
 
 from ..utils.ollama_message_validator import OllamaMessageValidator
 from ..utils.ollama_tool_call_id_utils import OllamaToolCallIdUtils
 
+# Import base observability mixin directly
+try:
+    from odoo.addons.llm_observability.models.mixins.base_observability_mixin import \
+        BaseObservabilityMixin
+    _has_base_observability = True
+except ImportError:
+    _has_base_observability = False
+    class BaseObservabilityMixin:
+        pass
+
 _logger = logging.getLogger(__name__)
+
+# Debug logging only for base observability
+_logger.info(f"llm_ollama: _has_base_observability = {_has_base_observability}")
 
 
 class LLMProvider(models.Model):
     _inherit = "llm.provider"
+    
+    # Class variable to track instrumentation state
+    _llamaindex_instrumented = False
+    
+    def _get_observability_strategy(self):
+        """Get the current observability strategy from Phoenix config"""
+        try:
+            phoenix_config = self.env['phoenix.config'].get_active_config()
+            if phoenix_config:
+                return phoenix_config.llm_observability_strategy
+        except Exception:
+            pass
+        return 'opentelemetry'  # Default fallback
+    
+    def _init_llamaindex_observability(self):
+        """Initialize LlamaIndex observability using Phoenix OpenTelemetry instrumentation"""
+        try:
+            phoenix_config = self.env['phoenix.config'].get_active_config()
+            if not phoenix_config or phoenix_config.llm_observability_strategy != 'llamaindex':
+                return False
+            
+            # Check if already instrumented to avoid multiple setups
+            if LLMProvider._llamaindex_instrumented:
+                _logger.debug("LlamaIndex instrumentation already active")
+                return True
+                
+            # Import Phoenix OTEL and LlamaIndex instrumentation
+            import os
+
+            from openinference.instrumentation.llama_index import \
+                LlamaIndexInstrumentor
+            from phoenix.otel import register
+
+            # Set Phoenix collector endpoint as environment variable
+            phoenix_url = phoenix_config.phoenix_url if hasattr(phoenix_config, 'phoenix_url') else 'http://phoenix:6006'
+            os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = phoenix_url
+            
+            # Register Phoenix tracer provider and instrument LlamaIndex (only once)
+            tracer_provider = register(set_global_tracer_provider=False)  # Prevent override warnings
+            LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
+            
+            # Mark as instrumented
+            LLMProvider._llamaindex_instrumented = True
+            
+            _logger.info(f"LlamaIndex instrumentation initialized with Phoenix at {phoenix_url}")
+            return True
+            
+        except ImportError as e:
+            _logger.debug(f"LlamaIndex Phoenix instrumentation not available: {e}")
+            return False
+        except Exception as e:
+            _logger.debug(f"Failed to initialize LlamaIndex observability: {e}")
+            return False
+    
+    def _init_opentelemetry_tracing(self):
+        """Initialize OpenTelemetry tracing"""
+        phoenix_config = self.env['phoenix.config'].get_active_config()
+        if not phoenix_config or not phoenix_config.enable_fullstack_tracing:
+            return None
+            
+        try:
+            # Try to import OpenTelemetry
+            from opentelemetry import trace
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
+                OTLPSpanExporter
+            from opentelemetry.sdk.resources import Resource
+            from opentelemetry.sdk.trace import TracerProvider
+            from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+            # Check if we already have a tracer configured
+            current_tracer = trace.get_tracer_provider()
+            if hasattr(current_tracer, 'get_tracer'):
+                # Already configured, just get a tracer
+                module_name = 'llm_ollama'
+                return current_tracer.get_tracer(
+                    instrumenting_module_name=module_name,
+                    instrumenting_library_version="1.0.0"
+                )
+            
+            # Configure resource
+            module_name = 'llm_ollama'
+            service_name = f"odoo-llm-{module_name}"
+            resource = Resource.create({
+                "service.name": service_name,
+                "service.version": "1.0.0",
+                "deployment.environment": getattr(phoenix_config, 'environment', 'development'),
+                "service.namespace": "odoo-llm",
+            })
+            
+            # Set up tracer provider
+            provider = TracerProvider(resource=resource)
+            trace.set_tracer_provider(provider)
+            
+            # Configure OTLP exporter
+            otlp_exporter = OTLPSpanExporter(
+                endpoint=phoenix_config.otlp_endpoint,
+                insecure=True
+            )
+            
+            # Add span processor
+            span_processor = BatchSpanProcessor(otlp_exporter)
+            provider.add_span_processor(span_processor)
+            
+            return trace.get_tracer(
+                instrumenting_module_name=module_name,
+                instrumenting_library_version="1.0.0"
+            )
+            
+        except ImportError:
+            _logger.debug("OpenTelemetry not available")
+            return None
+        except Exception as e:
+            _logger.debug(f"Could not initialize OpenTelemetry: {e}")
+            return None
+    
+    def _extract_metrics(self, result, operation_name, args, kwargs):
+        """Extract metrics for observability"""
+        # Add Ollama-specific metrics extraction here
+        metrics = {}
+        
+        try:
+            if operation_name == "chat_completion":
+                # Basic token estimation for Ollama
+                if isinstance(result, dict) and 'message' in result:
+                    content = result['message'].get('content', '')
+                    if content:
+                        metrics['output_tokens'] = len(content) // 4  # Rough estimation
+                        
+                # Add input token estimation
+                if len(args) > 0 and isinstance(args[0], list):
+                    input_text = ""
+                    for msg in args[0]:
+                        if isinstance(msg, dict) and 'content' in msg:
+                            input_text += msg['content']
+                    if input_text:
+                        metrics['input_tokens'] = len(input_text) // 4
+                        
+                if 'input_tokens' in metrics and 'output_tokens' in metrics:
+                    metrics['total_tokens'] = metrics['input_tokens'] + metrics['output_tokens']
+                    
+            elif operation_name == "embedding":
+                if isinstance(result, list):
+                    metrics['embeddings_count'] = len(result)
+                    if result and isinstance(result[0], list):
+                        metrics['embedding_dimension'] = len(result[0])
+                        
+        except Exception as e:
+            _logger.debug(f"Error extracting Ollama metrics: {e}")
+        
+        return metrics
+    
+    def _get_trace_attributes(self, operation_name, args, kwargs):
+        """Get trace attributes for observability"""
+        attributes = {}
+        
+        try:
+            # Add Ollama-specific attributes
+            attributes['llm.provider.type'] = 'ollama'
+            
+            # Extract model information
+            model = kwargs.get('model')
+            if not model and len(args) > 1:
+                model = args[1]
+            
+            if model:
+                model_name = str(model.name if hasattr(model, 'name') else model)
+                attributes['ollama.model.full_name'] = model_name
+                attributes['llm.model'] = model_name
+                
+                # Detect model family
+                model_lower = model_name.lower()
+                if 'llama' in model_lower:
+                    attributes['ollama.model.family'] = 'llama'
+                elif 'mistral' in model_lower:
+                    attributes['ollama.model.family'] = 'mistral'
+                elif 'qwen' in model_lower:
+                    attributes['ollama.model.family'] = 'qwen'
+                elif 'deepseek' in model_lower:
+                    attributes['ollama.model.family'] = 'deepseek'
+                else:
+                    attributes['ollama.model.family'] = 'other'
+            
+            # Add operation-specific attributes
+            if operation_name == "chat_completion":
+                if kwargs.get('tools'):
+                    attributes['ollama.tools.enabled'] = True
+                    attributes['ollama.tools.count'] = len(kwargs['tools'])
+                
+                attributes['ollama.streaming'] = kwargs.get('stream', False)
+                
+                if kwargs.get('system_prompt'):
+                    attributes['ollama.system_prompt.length'] = len(kwargs['system_prompt'])
+                    
+        except Exception as e:
+            _logger.debug(f"Error getting Ollama trace attributes: {e}")
+        
+        return attributes
 
     @api.model
     def _get_available_services(self):
@@ -24,6 +233,11 @@ class LLMProvider(models.Model):
     def ollama_get_client(self):
         """Get Ollama client instance"""
         return ollama.Client(host=self.api_base or "http://localhost:11434")
+
+    @property
+    def client(self):
+        """Property to access the Ollama client"""
+        return self.ollama_get_client()
 
     # Ollama specific implementation
     def ollama_format_tools(self, tools):
@@ -106,9 +320,85 @@ class LLMProvider(models.Model):
         system_prompt=None,
         **kwargs,
     ):
-        """Send chat messages using Ollama with tools support"""
-        model = self.get_model(model, "chat")
+        """Send chat messages using Ollama with strategy-based observability"""
+        _logger.info(f"ollama_chat called with model={model}, stream={stream}")
+        
+        # Check observability strategy
+        strategy = self._get_observability_strategy()
+        _logger.info(f"Using observability strategy: {strategy}")
+        
+        if strategy == 'llamaindex':
+            # Use LlamaIndex observability for rich LLM data
+            if self._init_llamaindex_observability():
+                _logger.info("LlamaIndex observability active - executing with rich LLM tracing")
+                return self._ollama_chat_with_llamaindex(messages, model, stream, tools, system_prompt, **kwargs)
+            else:
+                _logger.info("LlamaIndex observability failed, falling back to OpenTelemetry")
+        
+        # Fall back to OpenTelemetry observability
+        if _has_base_observability:
+            # Initialize OpenTelemetry
+            tracer = self._init_opentelemetry_tracing()
+            
+            if tracer:
+                # Start span and execute method with observability
+                operation_name = "chat_completion"
+                
+                try:
+                    from opentelemetry import context as otel_context
+                    from opentelemetry import trace as otel_trace
 
+                    # Start span
+                    span = tracer.start_span(f"llm_ollama.{operation_name}")
+                    ctx = otel_trace.set_span_in_context(span)
+                    token = otel_context.attach(ctx)
+                    
+                    # Set span attributes
+                    span.set_attribute("llm.provider", "ollama")
+                    span.set_attribute("llm.operation", operation_name)
+                    
+                    # Add custom attributes
+                    trace_attrs = self._get_trace_attributes(operation_name, (messages,), kwargs)
+                    for key, value in trace_attrs.items():
+                        span.set_attribute(key, value)
+                    
+                    try:
+                        # Execute the actual method
+                        result = self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
+                        
+                        # Extract and set metrics
+                        metrics = self._extract_metrics(result, operation_name, (messages,), kwargs)
+                        for key, value in metrics.items():
+                            if key in ['input_tokens', 'output_tokens', 'total_tokens']:
+                                span.set_attribute(f"llm.usage.{key}", value)
+                            else:
+                                span.set_attribute(key, value)
+                        
+                        return result
+                        
+                    except Exception as e:
+                        span.record_exception(e)
+                        span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
+                        raise
+                    
+                    finally:
+                        span.end()
+                        if token:
+                            otel_context.detach(token)
+                            
+                except Exception as e:
+                    _logger.debug(f"Error in observability wrapper: {e}")
+                    # Fall back to non-observability execution
+                    return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
+            else:
+                return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
+        else:
+            return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
+    
+    def _ollama_chat_impl(self, messages, model=None, stream=False, tools=None, system_prompt=None, **kwargs):
+        """Internal implementation of ollama_chat"""
+        model = self.get_model(model, "chat")
+        
         params = self._prepare_chat_params(
             model, messages, stream, tools=tools, system_prompt=system_prompt
         )
@@ -279,16 +569,75 @@ class LLMProvider(models.Model):
         return assembled_tool_calls
 
     def ollama_embedding(self, texts, model=None):
-        """Generate embeddings using Ollama"""
-        model = self.get_model(model, "embedding")
+        """Generate embeddings using Ollama with hybrid observability"""
+        _logger.info(f"ollama_embedding called with model={model}")
+        
+        # Apply observability manually for embeddings
+        if _has_base_observability:
+            tracer = self._init_opentelemetry_tracing()
+            
+            if tracer:
+                operation_name = "embedding"
+                
+                try:
+                    from opentelemetry import context as otel_context
+                    from opentelemetry import trace as otel_trace
 
+                    # Start span
+                    span = tracer.start_span(f"llm_ollama.{operation_name}")
+                    ctx = otel_trace.set_span_in_context(span)
+                    token = otel_context.attach(ctx)
+                    
+                    # Set span attributes
+                    span.set_attribute("llm.provider", "ollama")
+                    span.set_attribute("llm.operation", operation_name)
+                    
+                    # Add custom attributes
+                    trace_attrs = self._get_trace_attributes(operation_name, (texts,), {"model": model})
+                    for key, value in trace_attrs.items():
+                        span.set_attribute(key, value)
+                    
+                    try:
+                        result = self._ollama_embedding_impl(texts, model)
+                        
+                        # Extract and set metrics
+                        metrics = self._extract_metrics(result, operation_name, (texts,), {"model": model})
+                        for key, value in metrics.items():
+                            span.set_attribute(key, value)
+                        
+                        return result
+                        
+                    except Exception as e:
+                        span.record_exception(e)
+                        span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
+                        raise
+                    
+                    finally:
+                        span.end()
+                        if token:
+                            otel_context.detach(token)
+                            
+                except Exception as e:
+                    _logger.debug(f"Error in embedding observability: {e}")
+                    return self._ollama_embedding_impl(texts, model)
+            else:
+                return self._ollama_embedding_impl(texts, model)
+        else:
+            return self._ollama_embedding_impl(texts, model)
+    
+    def _ollama_embedding_impl(self, texts, model=None):
+        """Internal implementation of ollama_embedding"""
+        model = self.get_model(model, "embedding")
+        
         # Ensure texts is a list
         if isinstance(texts, str):
-            texts = [texts]
+            texts_list = [texts]
+        else:
+            texts_list = texts
 
         # Get embeddings for each text
         embeddings = []
-        for text in texts:
+        for text in texts_list:
             response = self.client.embed(model=model.name, input=[text])
             embeddings.append(response["embeddings"][0])
         return embeddings
@@ -352,10 +701,238 @@ class LLMProvider(models.Model):
 
         # Add all other messages, properly formatted
         for message in messages:
-            formatted_msg = self._dispatch("format_message", record=message)
+            # Handle both dict messages and record messages
+            if isinstance(message, dict):
+                # Direct dict message, use as-is but validate format
+                formatted_msg = message
+            else:
+                # Record message, use dispatch
+                try:
+                    formatted_msg = self._dispatch("format_message", record=message)
+                except Exception as e:
+                    _logger.warning(f"Error formatting message via dispatch: {e}, skipping message")
+                    formatted_msg = None
+            
             if formatted_msg is not None:
                 formatted_messages.append(formatted_msg)
 
         # Validate and clean messages
         validator = OllamaMessageValidator(formatted_messages)
         return validator.validate_and_clean()
+
+    def _ollama_chat_with_llamaindex(self, messages, model=None, stream=False, tools=None, system_prompt=None, **kwargs):
+        """Execute chat using LlamaIndex Ollama LLM for proper LlamaIndex tracing"""
+        try:
+            from llama_index.llms.ollama import Ollama as LlamaIndexOllama
+
+            # Get model info
+            model_record = self.get_model(model, "chat")
+            
+            # Get the configured API base URL from the provider
+            api_base = self.api_base or "http://host.docker.internal:11434"
+            _logger.info(f"LlamaIndex Ollama - Provider api_base: '{self.api_base}'")
+            _logger.info(f"LlamaIndex Ollama - Using effective API base: {api_base}")
+            _logger.info(f"LlamaIndex Ollama - Model: {model_record.name}")
+            
+            # Create LlamaIndex Ollama LLM with model-configured parameters
+            try:
+                llm = LlamaIndexOllama(
+                    model=model_record.name,
+                    base_url=api_base,
+                    temperature=model_record.temperature,
+                    request_timeout=model_record.request_timeout,
+                    # Use model's configured context window to prevent auto-detection
+                    context_window=model_record.context_window,
+                )
+                
+                _logger.info(f"LlamaIndex Ollama LLM created successfully with base_url: {api_base}")
+                _logger.info(f"Using model parameters - context_window: {model_record.context_window}, temperature: {model_record.temperature}")
+                    
+            except Exception as e:
+                _logger.error(f"Failed to create LlamaIndex Ollama LLM: {e}")
+                _logger.error(f"API Base used: {api_base}")
+                raise
+            
+            # Convert messages to a single prompt for LlamaIndex
+            # Note: LlamaIndex Ollama wrapper expects a single prompt string
+            prompt_parts = []
+            if system_prompt:
+                prompt_parts.append(f"System: {system_prompt}")
+            
+            for msg in messages:
+                # Handle both dictionary messages and Odoo record messages
+                if isinstance(msg, dict):
+                    # Dictionary message (from API calls)
+                    role = msg.get('role', 'user')
+                    content = msg.get('content', '')
+                else:
+                    # Odoo record message (from LLM thread system)
+                    # Use the formatted message from the dispatch system
+                    try:
+                        formatted_msg = self._dispatch("format_message", record=msg)
+                        if formatted_msg and isinstance(formatted_msg, dict):
+                            role = formatted_msg.get('role', 'user')
+                            content = formatted_msg.get('content', '')
+                        else:
+                            # Fallback for Odoo records
+                            role = getattr(msg, 'role', 'user')
+                            content = getattr(msg, 'body', '') or getattr(msg, 'content', '')
+                    except Exception as e:
+                        _logger.warning(f"Error formatting message via dispatch: {e}, using fallback")
+                        # Fallback for Odoo records
+                        role = getattr(msg, 'role', 'user')
+                        content = getattr(msg, 'body', '') or getattr(msg, 'content', '')
+                
+                if role == 'system':
+                    prompt_parts.append(f"System: {content}")
+                elif role == 'user':
+                    prompt_parts.append(f"User: {content}")
+                elif role == 'assistant':
+                    prompt_parts.append(f"Assistant: {content}")
+            
+            prompt = "\n".join(prompt_parts)
+            
+            # Add instruction for response format
+            prompt += "\nAssistant:"
+            
+            _logger.info(f"Using LlamaIndex Ollama LLM with prompt length: {len(prompt)}")
+            
+            if stream:
+                # For streaming, use LlamaIndex streaming
+                response_gen = llm.stream_complete(prompt)
+                
+                # Convert LlamaIndex streaming response to our format
+                def convert_stream():
+                    for chunk in response_gen:
+                        if hasattr(chunk, 'delta') and chunk.delta:
+                            yield {"content": chunk.delta}
+                        elif hasattr(chunk, 'text') and chunk.text:
+                            yield {"content": chunk.text}
+                
+                return convert_stream()
+            else:
+                # Non-streaming completion
+                response = llm.complete(prompt)
+                
+                # Convert LlamaIndex response to our format
+                content = response.text if hasattr(response, 'text') else str(response)
+                
+                # Return in generator format like the original implementation
+                def response_generator():
+                    yield {
+                        "role": "assistant",
+                        "content": content
+                    }
+                
+                return response_generator()
+                
+        except ImportError:
+            _logger.warning("LlamaIndex Ollama LLM not available, falling back to regular implementation")
+            return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
+        except Exception as e:
+            _logger.error(f"Error in LlamaIndex chat: {e}")
+            # Fall back to regular implementation
+            return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
+
+    def _prepare_chat_params(self, model_record, messages, stream, tools=None, system_prompt=None, **kwargs):
+        """Prepare parameters for Ollama chat API call"""
+        
+        # Format messages for Ollama
+        formatted_messages = self.ollama_format_messages(messages, system_prompt)
+        
+        # Build base parameters using model configuration
+        params = {
+            "model": model_record.name,
+            "messages": formatted_messages,
+            "stream": stream,
+            "options": {
+                "temperature": model_record.temperature,
+                "num_ctx": model_record.context_window,
+                "top_p": model_record.top_p,
+                "top_k": model_record.top_k,
+                "repeat_penalty": model_record.repeat_penalty,
+            }
+        }
+        
+        # Add max_tokens if specified (not all models support this)
+        if model_record.max_tokens and model_record.max_tokens > 0:
+            params["options"]["num_predict"] = model_record.max_tokens
+        
+        # Add custom parameters from the legacy parameters text field
+        # These can override or add to the dedicated field values
+        if model_record.parameters:
+            try:
+                import json
+                custom_params = json.loads(model_record.parameters)
+                if isinstance(custom_params, dict):
+                    # Update options with custom parameters (custom params take precedence)
+                    params["options"].update(custom_params)
+                    _logger.info(f"Applied custom parameters from model.parameters field: {custom_params}")
+            except (json.JSONDecodeError, ValueError) as e:
+                _logger.warning(f"Invalid JSON in model.parameters field: {e}")
+        
+        # Add tools if provided
+        if tools:
+            params["tools"] = self.ollama_format_tools(tools)
+        
+        _logger.info(f"Ollama chat params - model: {model_record.name}, temperature: {model_record.temperature}, "
+                    f"context_window: {model_record.context_window}, stream: {stream}")
+        
+        return params
+
+class LightweightOllamaLLM:
+    """Lightweight wrapper around Ollama client for LlamaIndex compatibility"""
+    
+    def __init__(self, model, base_url, temperature=0.7, request_timeout=60.0):
+        import ollama
+        self.model = model
+        self.base_url = base_url
+        self.temperature = temperature
+        self.request_timeout = request_timeout
+        self.client = ollama.Client(host=base_url, timeout=request_timeout)
+        
+    def stream_complete(self, prompt):
+        """Stream completion using regular Ollama client"""
+        try:
+            response = self.client.chat(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+                options={"temperature": self.temperature}
+            )
+            
+            # Convert Ollama response to LlamaIndex-like format
+            for chunk in response:
+                if chunk.get("message", {}).get("content"):
+                    # Create a simple response object
+                    class StreamResponse:
+                        def __init__(self, text):
+                            self.delta = text
+                            self.text = text
+                    
+                    yield StreamResponse(chunk["message"]["content"])
+                    
+        except Exception as e:
+            _logger.error(f"Error in lightweight Ollama streaming: {e}")
+            raise
+    
+    def complete(self, prompt):
+        """Non-streaming completion using regular Ollama client"""
+        try:
+            response = self.client.chat(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                stream=False,
+                options={"temperature": self.temperature}
+            )
+            
+            # Create a simple response object
+            class CompleteResponse:
+                def __init__(self, text):
+                    self.text = text
+            
+            return CompleteResponse(response["message"]["content"] or "")
+            
+        except Exception as e:
+            _logger.error(f"Error in lightweight Ollama completion: {e}")
+            raise
