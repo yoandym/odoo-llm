@@ -5,15 +5,15 @@ import requests
 from odoo import http
 from odoo.http import request
 
-# Import hybrid observability for web tracing
+# Import OpenTelemetry observability for web tracing
 try:
-    from odoo.addons.llm_observability.models.mixins.hybrid_observability_mixin import \
-        HybridObservabilityMixin
-    _has_hybrid_observability = True
+    from odoo.addons.llm_observability.models.mixins.opentelemetry_observability_mixin import \
+        OpenTelemetryObservabilityMixin as ObservabilityMixin
+    _has_observability = True
 except ImportError:
-    _has_hybrid_observability = False
+    _has_observability = False
     # Create dummy mixin
-    class HybridObservabilityMixin:
+    class ObservabilityMixin:
         def with_web_tracing(self, endpoint_name):
             def decorator(func):
                 return func
@@ -236,7 +236,7 @@ class PhoenixController(http.Controller):
     def get_dashboard_data(self, **kwargs) -> Dict[str, Any]:
         """Get dashboard data for the observability interface"""
         # For now, skip the hybrid observability integration to avoid errors
-        # TODO: Fix the HybridObservabilityMixin integration properly
+        # TODO: Fix the OpenTelemetry observability integration properly
         return self._get_dashboard_data_impl(**kwargs)
     
     def _get_dashboard_data_impl(self, **kwargs) -> Dict[str, Any]:

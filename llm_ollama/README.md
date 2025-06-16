@@ -7,9 +7,10 @@ This module integrates Ollama with the Odoo LLM framework, providing access to l
 - Connect to Ollama with proper configuration
 - Support for various open-source models (Llama, Mistral, Vicuna, etc.)
 - Text generation capabilities
-- Function calling support
+- Native function calling support (no LlamaIndex dependencies)
 - Automatic model discovery
 - Local deployment for privacy and control
+- OpenTelemetry-based observability (when enabled)
 
 ## Configuration
 
@@ -24,10 +25,12 @@ This module integrates Ollama with the Odoo LLM framework, providing access to l
 
 This module extends the base LLM integration framework with Ollama-specific implementations:
 
-- Implements the Ollama API client with proper configuration
-- Provides model mapping between Ollama formats and Odoo LLM formats
-- Supports function calling capabilities
-- Handles streaming responses
+- Direct Ollama API integration (no LlamaIndex dependencies)
+- Native tool calling support using Ollama's function calling format
+- Comprehensive OpenTelemetry tracing for all operations
+- Model mapping between Ollama formats and Odoo LLM formats
+- Handles streaming and non-streaming responses
+- Token estimation and usage tracking
 
 ## Dependencies
 

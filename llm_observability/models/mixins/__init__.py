@@ -1,1 +1,1 @@
-from . import base_observability_mixin
+from . import base_observability_mixin, opentelemetry_observability_mixin

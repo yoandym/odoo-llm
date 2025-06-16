@@ -1,51 +1,47 @@
 # Ollama Observability Integration
 
-This document explains how observability is integrated into the `llm_ollama` module using the Hybrid Approach.
+This document explains how observability is integrated into the `llm_ollama` module using OpenTelemetry.
 
 ## Architecture Overview
 
-The observability integration follows a hybrid approach that:
-- Keeps `llm_ollama` independent (no hard dependency on `llm_observability`)
-- Automatically enables observability features when `llm_observability` is installed
-- Provides Ollama-specific metrics and trace attributes
+The observability integration uses OpenTelemetry directly to:
+- Provide comprehensive tracing for all LLM operations
+- Track tool usage, streaming, and all LLM interactions
+- Support distributed tracing when connected to observability platforms like Phoenix
+- Work independently without external dependencies
 
-## Files Structure
+## Observability Strategy
 
-```
-llm_observability/
-├── models/
-│   └── mixins/
-│       └── base_observability_mixin.py  # Base functionality
-│
-llm_ollama/
-├── models/
-│   ├── ollama_provider.py              # Main provider (uses mixin)
-│   └── ollama_observability.py         # Ollama-specific observability
-```
+The Ollama provider implements direct OpenTelemetry tracing:
+- **No LlamaIndex**: Removed all LlamaIndex dependencies and observability
+- **Direct OpenTelemetry**: Uses OpenTelemetry SDK directly for tracing
+- **Comprehensive Coverage**: Traces all LLM operations including tools, messages, and streaming
+- **Zero Dependencies**: Works with or without external observability platforms
 
 ## How It Works
 
-### 1. Base Observability (in llm_observability)
+### 1. OpenTelemetry Integration
 
-The `BaseObservabilityMixin` provides:
-- Trace record creation and updates
-- OpenTelemetry integration
-- `@with_observability` decorator
-- Common metrics extraction framework
+The provider includes:
+- Direct OpenTelemetry span creation for all operations
+- Custom trace attributes for Ollama-specific data
+- Token estimation and model family detection
+- Tool execution tracking
+- Streaming vs non-streaming differentiation
 
-### 2. Ollama-Specific Implementation
+### 2. Trace Coverage
 
-The `OllamaObservabilityMixin` extends the base with:
-- Ollama-specific metric extraction (token estimation, model family detection)
-- Custom trace attributes (quantization, model tags, streaming info)
-- Graceful fallback when base is not available
+All LLM access is traced:
+- Chat completions (streaming and non-streaming)
+- Tool calls and executions
+- Embedding generation
+- Model information and parameters
 
-### 3. Provider Integration
+### 3. Graceful Degradation
 
-The Ollama provider:
-- Imports and inherits from `OllamaObservabilityMixin`
-- Uses `@with_observability` decorator on key methods
-- Works normally if observability is not available
+- Observability works when `llm_observability` module is available
+- Provider functions normally without observability
+- No hard dependencies on external tracing systems
 
 ## Usage
 
@@ -60,87 +56,99 @@ response = provider.chat(messages, model='llama2')
 ### With llm_observability Module
 
 ```python
-# Same code, but now creates traces automatically
+# Same code, but now creates OpenTelemetry traces automatically
 provider = env['llm.provider'].search([('service', '=', 'ollama')])
 response = provider.chat(messages, model='llama2')
 
-# Traces are available in the UI
-# Navigate to: LLM Observability > LLM Traces
+# If Phoenix is configured, traces are sent automatically
+# Local debugging shows trace info in logs
 ```
 
 ## Key Features
 
-### Automatic Trace Creation
-- Every LLM operation creates a trace record
-- Traces include timing, status, and error information
+### OpenTelemetry Tracing
+- Direct OpenTelemetry span creation for all operations
+- Comprehensive attribute collection
+- Distributed tracing support when configured
 
 ### Ollama-Specific Metrics
-- Token estimation (since Ollama doesn't provide counts)
+- Token estimation (input/output/total tokens)
 - Model family detection (llama, mistral, codellama, etc.)
-- Quantization detection from model tags
-- Tool usage tracking
+- Model configuration tracking (temperature, context window, etc.)
+- Tool usage and execution tracking
 - Streaming vs non-streaming detection
 
-### OpenTelemetry Integration
-- Full distributed tracing support
-- Sends traces to Phoenix when configured
-- Includes custom Ollama attributes
+### Tool Execution Tracing
+- Tracks all tool calls and executions
+- Records tool parameters and results
+- Monitors tool performance and errors
 
 ### Error Handling
-- All errors are caught and recorded
-- Provider continues to work even if observability fails
+- All errors are recorded in spans
+- Provider continues to work even if tracing fails
+- Graceful degradation when observability is unavailable
 
 ## Testing
 
-Run the test script to verify the integration:
+Test the integration in Odoo shell:
 
 ```bash
 # In Odoo shell
 ./odoo-bin shell -d your_database
 
-# Then in the shell
-exec(open('/path/to/llm_ollama/scripts/test_ollama_observability.py').read())
+# Test chat with tracing
+provider = env['llm.provider'].search([('service', '=', 'ollama')])
+messages = [{'role': 'user', 'content': 'Hello!'}]
+response = provider.chat(messages)
+# Check logs for OpenTelemetry trace information
 ```
 
-## Adding Observability to New Methods
+## Implementation Details
 
-To add observability to a new Ollama method:
+The observability is implemented directly in the provider methods:
 
+### Chat Method Tracing
 ```python
-@OllamaObservabilityMixin.with_observability("operation_name")
-def ollama_new_method(self, param1, model=None, **kwargs):
-    """Your new method with automatic observability"""
-    # Method implementation
-    pass
+def ollama_chat(self, messages, model=None, stream=False, tools=None, **kwargs):
+    """Send chat messages using Ollama with OpenTelemetry observability"""
+    if _has_base_observability:
+        tracer = self._init_opentelemetry_tracing()
+        if tracer:
+            # Create span with comprehensive attributes
+            span = tracer.start_span("llm_ollama.chat_completion")
+            span.set_attribute("llm.provider", "ollama")
+            span.set_attribute("llm.streaming", stream)
+            span.set_attribute("llm.tools_count", len(tools) if tools else 0)
+            # ... execute operation and capture metrics
 ```
 
-## Customizing Metrics
-
-Override `_extract_metrics` in `OllamaObservabilityMixin` to add new metrics:
-
-```python
-def _extract_metrics(self, result, operation_name, args, kwargs):
-    metrics = super()._extract_metrics(result, operation_name, args, kwargs)
-    
-    # Add your custom metrics
-    if operation_name == "your_operation":
-        metrics['custom_metric'] = extract_custom_value(result)
-    
-    return metrics
-```
+### Custom Metrics Extraction
+The provider includes methods for extracting Ollama-specific metrics:
+- `_extract_metrics()`: Token estimation and operation metrics
+- `_get_trace_attributes()`: Model information and parameters
 
 ## Benefits
 
-1. **No Dependencies**: `llm_ollama` works without `llm_observability`
-2. **Automatic Enhancement**: Install `llm_observability` to get features
-3. **Provider-Specific**: Each provider can customize their observability
-4. **Maintainable**: Clear separation of concerns
-5. **Extensible**: Easy to add new metrics or attributes
+1. **No Dependencies**: Works without external observability libraries
+2. **LlamaIndex-Free**: Completely removed LlamaIndex dependencies that caused tool issues
+3. **Comprehensive Tracing**: All LLM operations including tools are traced
+4. **Direct Integration**: Uses OpenTelemetry directly for maximum compatibility
+5. **Maintainable**: Clean, simple implementation without complex abstractions
+6. **Tool-Compatible**: Ensures tool calling works correctly without LlamaIndex interference
 
-## Next Steps
+## Architecture Benefits
 
-To add observability to other providers:
-1. Create a similar observability mixin in the provider module
-2. Inherit from `BaseObservabilityMixin` if available
-3. Add provider-specific metrics and attributes
-4. Decorate methods with `@with_observability`
+- **Simplified**: Removed complex LlamaIndex integration that broke tools
+- **Reliable**: Direct OpenTelemetry ensures consistent tracing
+- **Compatible**: Works with all Ollama features including tool calling
+- **Performant**: Minimal overhead compared to LlamaIndex wrappers
+- **Debuggable**: Clear trace attributes and logging for troubleshooting
+
+## Migration from LlamaIndex
+
+This implementation completely removes LlamaIndex:
+- No more LlamaIndex tool conversion issues
+- No more schema conflicts between LlamaIndex and Ollama
+- No more complex fallback logic
+- Direct tool support using native Ollama format
+- Cleaner error handling and debugging

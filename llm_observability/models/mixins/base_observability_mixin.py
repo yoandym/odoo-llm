@@ -52,7 +52,8 @@ class BaseObservabilityMixin:
                 OTLPSpanExporter
             from opentelemetry.sdk.resources import Resource
             from opentelemetry.sdk.trace import TracerProvider
-            from opentelemetry.sdk.trace.export import BatchSpanProcessor
+            from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
+                                                        SimpleSpanProcessor)
 
             # Check if we already have a tracer configured
             current_tracer = trace.get_tracer_provider()
@@ -84,8 +85,22 @@ class BaseObservabilityMixin:
                 insecure=True  # TODO: Make this configurable for production
             )
             
-            # Add span processor with sampling
-            span_processor = BatchSpanProcessor(otlp_exporter)
+            # Add span processor based on environment
+            if phoenix_config.environment == 'development' or phoenix_config.force_simple_processor:
+                # Use SimpleSpanProcessor for immediate visibility in development
+                span_processor = SimpleSpanProcessor(otlp_exporter)
+                _logger.debug(f"Using SimpleSpanProcessor for {module_name} tracing (Development)")
+            else:
+                # Use BatchSpanProcessor for production and staging
+                span_processor = BatchSpanProcessor(
+                    otlp_exporter,
+                    max_queue_size=phoenix_config.queue_size,
+                    export_timeout_millis=phoenix_config.export_timeout,
+                    max_export_batch_size=phoenix_config.batch_size,
+                    schedule_delay_millis=phoenix_config.export_interval
+                )
+                _logger.debug(f"Using BatchSpanProcessor for {module_name} tracing ({phoenix_config.environment})")
+            
             provider.add_span_processor(span_processor)
             
             return trace.get_tracer(

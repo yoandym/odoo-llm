@@ -18,7 +18,8 @@ try:
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
+                                                SimpleSpanProcessor)
     from opentelemetry.sdk.trace.sampling import TraceIdRatioBasedSampler
     from opentelemetry.trace.status import Status, StatusCode
     OTEL_AVAILABLE = True
@@ -68,8 +69,30 @@ class FullStackTracingService:
                 insecure=True  # Use insecure for local development
             )
             
-            # Add span processor
-            span_processor = BatchSpanProcessor(otlp_exporter)
+            # Choose span processor based on environment and configuration
+            if phoenix_config.environment == 'development' or phoenix_config.force_simple_processor:
+                # Use SimpleSpanProcessor for immediate visibility in development
+                span_processor = SimpleSpanProcessor(otlp_exporter)
+                processor_type = "SimpleSpanProcessor"
+                reason = "Development Environment" if phoenix_config.environment == 'development' else "Forced by Configuration"
+                _logger.info(f"🔭 OpenTelemetry: Using {processor_type} ({reason})")
+                _logger.info("   ⚡ Spans will be exported immediately for instant visibility")
+                if phoenix_config.environment != 'development':
+                    _logger.warning("   ⚠️  Simple processor forced in non-development environment - this may impact performance!")
+            else:
+                # Use BatchSpanProcessor for production and staging
+                span_processor = BatchSpanProcessor(
+                    otlp_exporter,
+                    max_queue_size=phoenix_config.queue_size,
+                    export_timeout_millis=phoenix_config.export_timeout,
+                    max_export_batch_size=phoenix_config.batch_size,
+                    schedule_delay_millis=phoenix_config.export_interval
+                )
+                processor_type = "BatchSpanProcessor"
+                _logger.info(f"🔭 OpenTelemetry: Using {processor_type} ({phoenix_config.environment.title()} Environment)")
+                _logger.info(f"   📦 Batch config: size={phoenix_config.batch_size}, interval={phoenix_config.export_interval}ms")
+                _logger.info(f"   🗂️  Queue config: max_size={phoenix_config.queue_size}, timeout={phoenix_config.export_timeout}ms")
+            
             tracer_provider.add_span_processor(span_processor)
             
             # Set global tracer provider
@@ -129,7 +152,7 @@ class FullStackTracingService:
                 _logger.debug(f"Could not extract trace context: {e}")
         
         with self._tracer.start_as_current_span(
-            operation_name, 
+            operation_name,
             context=context,
             attributes=attributes
         ) as span:

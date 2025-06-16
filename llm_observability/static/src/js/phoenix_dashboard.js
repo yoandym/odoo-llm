@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, onWillStart, onMounted, useRef, useState } from "@odoo/owl";
+import { Component, onWillStart, onMounted, onWillUnmount, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
@@ -12,6 +12,7 @@ export class PhoenixDashboard extends Component {
         this.rpc = useService("rpc");
         this.notification = useService("notification");
         this.dashboardRef = useRef("dashboard");
+        this.isMounted = false;
 
         this.state = useState({
             loading: true,
@@ -30,11 +31,25 @@ export class PhoenixDashboard extends Component {
         });
 
         onMounted(() => {
+            this.isMounted = true;
             this.setupAutoRefresh();
+        });
+
+        onWillUnmount(() => {
+            this.isMounted = false;
+            if (this.state.refreshInterval) {
+                clearInterval(this.state.refreshInterval);
+                this.state.refreshInterval = null;
+            }
         });
     }
 
     async loadDashboardData() {
+        // Check if component is still mounted before making RPC calls
+        if (!this.isMounted && this.isMounted !== undefined) {
+            return;
+        }
+
         try {
             this.state.loading = true;
             this.state.error = null;
@@ -42,6 +57,11 @@ export class PhoenixDashboard extends Component {
             const data = await this.rpc("/llm_observability/dashboard_data", {
                 date_range: 7
             });
+
+            // Check again after async operation
+            if (!this.isMounted && this.isMounted !== undefined) {
+                return;
+            }
 
             if (data.error) {
                 this.state.error = data.error;
@@ -62,13 +82,18 @@ export class PhoenixDashboard extends Component {
             }
 
         } catch (error) {
-            console.error("Error loading dashboard data:", error);
-            this.state.error = error.message || "Failed to load dashboard data";
-            this.notification.add(_t("Failed to load dashboard data"), {
-                type: "danger",
-            });
+            // Only show error if component is still mounted
+            if (this.isMounted || this.isMounted === undefined) {
+                console.error("Error loading dashboard data:", error);
+                this.state.error = error.message || "Failed to load dashboard data";
+                this.notification.add(_t("Failed to load dashboard data"), {
+                    type: "danger",
+                });
+            }
         } finally {
-            this.state.loading = false;
+            if (this.isMounted || this.isMounted === undefined) {
+                this.state.loading = false;
+            }
         }
     }
 
@@ -105,9 +130,16 @@ export class PhoenixDashboard extends Component {
     }
 
     setupAutoRefresh() {
-        // Refresh data every 30 seconds
+        // Clear any existing interval
+        if (this.state.refreshInterval) {
+            clearInterval(this.state.refreshInterval);
+        }
+
+        // Refresh data every 30 seconds, but only if component is still mounted
         this.state.refreshInterval = setInterval(() => {
-            this.loadDashboardData();
+            if (this.isMounted) {
+                this.loadDashboardData();
+            }
         }, 30000);
     }
 
@@ -186,12 +218,6 @@ export class PhoenixDashboard extends Component {
                 return 'danger';
             default:
                 return 'warning';
-        }
-    }
-
-    willUnmount() {
-        if (this.state.refreshInterval) {
-            clearInterval(this.state.refreshInterval);
         }
     }
 }

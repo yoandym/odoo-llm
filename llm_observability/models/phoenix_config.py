@@ -1,9 +1,7 @@
-import json
 import logging
 
 import requests
 from odoo import api, fields, models
-from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -43,19 +41,38 @@ class PhoenixConfig(models.Model):
     last_check = fields.Datetime('Last Check', readonly=True)
     error_message = fields.Text('Error Message', readonly=True)
     
-    # Observability strategy selection
-    llm_observability_strategy = fields.Selection([
-        ('opentelemetry', 'OpenTelemetry (Generic)'),
-        ('llamaindex', 'LlamaIndex (Phoenix-optimized)'),
-    ], string='LLM Observability Strategy',
-       default='llamaindex',  # Default to LlamaIndex for better LLM insights
-       help='Choose observability approach for LLM operations')
-    
     # Tracing settings
     trace_sampling_rate = fields.Float(
         'Trace Sampling Rate',
         default=1.0,
         help='Sampling rate for traces (0.0 to 1.0)'
+    )
+    
+    # Span processor configuration
+    force_simple_processor = fields.Boolean(
+        'Force Simple Processor',
+        default=False,
+        help='Force use of SimpleSpanProcessor even in production (not recommended)'
+    )
+    batch_size = fields.Integer(
+        'Batch Size',
+        default=512,
+        help='Maximum number of spans to batch before exporting (BatchSpanProcessor only)'
+    )
+    export_timeout = fields.Integer(
+        'Export Timeout (ms)',
+        default=30000,
+        help='Timeout in milliseconds for export operations'
+    )
+    queue_size = fields.Integer(
+        'Queue Size',
+        default=2048,
+        help='Maximum number of spans to queue in memory'
+    )
+    export_interval = fields.Integer(
+        'Export Interval (ms)',
+        default=5000,
+        help='Interval in milliseconds between batch exports'
     )
     
     # Full-stack tracing (always OpenTelemetry)
@@ -179,6 +196,10 @@ class PhoenixConfig(models.Model):
             'endpoint': config.otlp_endpoint,
             'sampling_rate': config.trace_sampling_rate,
             'environment': config.environment,
-            'strategy': config.llm_observability_strategy,
             'fullstack_enabled': config.enable_fullstack_tracing,
+            'force_simple_processor': config.force_simple_processor,
+            'batch_size': config.batch_size,
+            'export_timeout': config.export_timeout,
+            'queue_size': config.queue_size,
+            'export_interval': config.export_interval,
         }

@@ -8,8 +8,6 @@
         <field name="arch" type="xml">
             <tree string="Observability Configurations" decoration-success="is_active and connection_status == 'connected'" decoration-warning="is_active and connection_status == 'disconnected'" decoration-danger="is_active and connection_status == 'error'">
                 <field name="name"/>
-                <field name="llm_observability_strategy" string="LLM Strategy"/>
-                <field name="phoenix_url" string="Phoenix Endpoint" invisible="llm_observability_strategy != 'llamaindex'"/>
                 <field name="otlp_endpoint" string="OTLP Endpoint" />
                 <field name="environment"/>
                 <field name="connection_status" widget="badge" decoration-success="connection_status == 'connected'" decoration-danger="connection_status == 'error'" decoration-warning="connection_status == 'disconnected'"/>
@@ -36,108 +34,195 @@
                         </h1>
                     </div>
 
-                    <!-- Main Configuration -->
                     <group>
-                        <field name="llm_observability_strategy" string="LLM Observability Strategy"/>
-                    </group>
-
-                    <!-- Strategy Information (full width) -->
-                    <div invisible="llm_observability_strategy != 'llamaindex'">
-                        <div class="alert alert-info alert-dismissible fade show" role="alert" style="margin: 16px 0; padding: 20px; border-left: 4px solid #0dcaf0;">
-                            <h5 class="alert-heading mb-3">🔥 LlamaIndex + Phoenix Strategy</h5>
-                            <p class="mb-2">Rich LLM insights with automatic evaluation metrics, token usage tracking, and RAG pipeline analysis.</p>
-                            <hr class="my-3"/>
-                            <p class="mb-0">
-                                <small class="text-muted">Traces are sent to the OTLP endpoint, while the interactive dashboard is accessible via the Phoenix URL.</small>
-                            </p>
-                        </div>
-                    </div>
-
-                    <div invisible="llm_observability_strategy != 'opentelemetry'">
-                        <div class="alert alert-info alert-dismissible fade show" role="alert" style="margin: 16px 0; padding: 20px; border-left: 4px solid #0dcaf0;">
-                            <h5 class="alert-heading mb-3">📡 OpenTelemetry (Generic) Strategy</h5>
-                            <p class="mb-2">Standard distributed tracing compatible with any OTLP backend such as Phoenix, Jaeger, DataDog, New Relic, and more.</p>
-                            <hr class="my-3"/>
-                            <p class="mb-0">
-                                <small class="text-muted">Provides vendor-neutral observability with broad ecosystem compatibility.</small>
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Main Configuration -->
-                    <group col="4">
-
-                        <field name="environment" string="Environment"/>
                         <field name="is_active" string="Active Configuration"/>
-                        <field name="trace_sampling_rate" string="Sampling Rate (0.0-1.0)"/>
                     </group>
 
+                    <!-- Tabbed Configuration -->
+                    <notebook>
+                        <!-- Page 1: Connection Details -->
+                        <page string="🔗 Connection Details">
 
+                            <!-- Endpoint Configuration -->
+                            <group string="Endpoint Configuration" col="2">
+                                <field name="phoenix_url" string="Phoenix Web UI" placeholder="e.g., http://phoenix:6006" help="URL to access the Phoenix dashboard for trace visualization and analysis"/>
+                                <field name="otlp_endpoint" string="OTLP Tracing Endpoint" placeholder="e.g., http://phoenix:4317 or http://jaeger:4317" help="OpenTelemetry Protocol endpoint where traces will be sent"/>
+                                <field name="trace_sampling_rate" string="Sampling Rate (0.0-1.0)" help="Fraction of traces to sample. 1.0 = 100% (all traces), 0.1 = 10% (1 in 10 traces)"/>
+                            </group>
 
-                    <!-- Endpoint Configuration (both strategies need OTLP) -->
-                    <group string="Endpoint Configuration" col="2">
-                        <field name="phoenix_url" string="Phoenix Web UI" placeholder="e.g., http://phoenix:6006" invisible="llm_observability_strategy != 'llamaindex'"/>
-                        <field name="otlp_endpoint" string="OTLP Tracing Endpoint" placeholder="e.g., http://phoenix:4317 or http://jaeger:4317"/>
-                    </group>
+                            <!-- Status -->
+                            <group string="Status" invisible="connection_status == 'disconnected' and not last_check" col="2">
+                                <field name="last_check" readonly="1" string="Last Connection Test"/>
+                                <field name="error_message" readonly="1" invisible="connection_status != 'error'" widget="text" colspan="2" string="Connection Error Details"/>
+                            </group>
 
-                    <!-- Full-Stack Tracing Option -->
-                    <separator string="🕸️ Full-Stack Tracing"/>
-                    <group>
-                        <field name="enable_fullstack_tracing" string="Enable end-to-end tracing" help="Uses OpenTelemetry for end-to-end tracing from web requests to database operations and LLM calls"/>
-                    </group>
+                            <!-- Status Alerts -->
+                            <div class="alert alert-warning" role="alert" invisible="is_active">
+                                <strong>⚠️ Configuration Inactive:</strong> 
+                                This configuration is not active. Enable "Active Configuration" or archive unused configurations.
+                            </div>
 
-                    <group invisible="not enable_fullstack_tracing" string="Components to Trace" col="3">
-                        <group><field name="enable_web_tracing" string="🌐 Web Requests"/></group>
-                        <group><field name="enable_database_tracing" string="🗄️ Database Operations"/></group>
-                        <group><field name="enable_external_api_tracing" string="🔌 External API Calls"/></group>
-                    </group>
+                            <div class="alert alert-success" role="alert" invisible="not is_active">
+                                <strong>✅ Observability Active:</strong> 
+                                LLM tracing with OpenTelemetry strategy
+                                <span invisible="not enable_fullstack_tracing"> + full-stack tracing</span> enabled.
+                            </div>
 
-                    <!-- Connection Details (only show when there's status info) -->
-                    <group string="Connection Details" invisible="connection_status == 'disconnected' and not last_check" col="2">
-                        <field name="last_check" readonly="1"/>
-                        <field name="error_message" readonly="1" invisible="connection_status != 'error'" widget="text" colspan="2"/>
-                    </group>
+                        </page>
 
-                    <!-- Status Alert -->
-                    <div class="alert alert-warning" role="alert" invisible="is_active">
-                        <strong>⚠️ Configuration Inactive:</strong> 
-                        This configuration is not active. Enable "Active Configuration" or archive unused configurations.
-                    </div>
+                        <!-- Page 2: Full-Stack Tracing -->
+                        <page string="🕸️ Full-Stack Tracing">
+                            <!-- Full-Stack Tracing Option -->
+                            <group string="Full-Stack Tracing Configuration">
+                                <field name="enable_fullstack_tracing" string="Enable end-to-end tracing" help="Uses OpenTelemetry for end-to-end tracing from web requests to database operations and LLM calls"/>
+                            </group>
 
-                    <div class="alert alert-success" role="alert" invisible="not is_active">
-                        <strong>✅ Observability Active:</strong> 
-                        LLM tracing with <field name="llm_observability_strategy" readonly="1"/>
- strategy
-                    <span invisible="not enable_fullstack_tracing"> + full-stack tracing</span> enabled.
-                </div>
-            </sheet>
-        </form>
-    </field>
-</record>
+                            <!-- Components to Trace -->
+                            <group invisible="not enable_fullstack_tracing" string="Components to Trace" col="3">
+                                <group>
+                                    <field name="enable_web_tracing" string="🌐 Web Requests" help="Trace HTTP requests, controllers, and web framework operations"/>
+                                </group>
+                                <group>
+                                    <field name="enable_database_tracing" string="🗄️ Database Operations" help="Trace SQL queries, ORM operations, and database connections"/>
+                                </group>
+                                <group>
+                                    <field name="enable_external_api_tracing" string="🔌 External API Calls" help="Trace outbound HTTP requests to external services and APIs"/>
+                                </group>
+                            </group>
 
-<!-- Observability Configuration Action -->
-<record model="ir.actions.act_window" id="action_phoenix_config">
-    <field name="name">Observability Configuration</field>
-    <field name="res_model">phoenix.config</field>
-    <field name="view_mode">tree,form</field>
-    <field name="view_id" ref="phoenix_config_tree_view"/>
-    <field name="help" type="html">
-        <div class="oe_empty_state_help">
-            <h2>Configure LLM Observability</h2>
-            <p>
-                    Set up observability for your LLM operations with either:
-            </p>
-            <ul>
-                <li>
-                    <strong>LlamaIndex + Phoenix:</strong> Rich LLM insights, evaluation metrics, and RAG analysis</li>
-                <li>
-                    <strong>OpenTelemetry:</strong> Generic tracing compatible with any OTLP backend</li>
-            </ul>
-            <p>
-                    Full-stack tracing (web → database → LLM → response) is always available with OpenTelemetry.
-            </p>
-        </div>
-    </field>
-</record>
+                            <!-- Full-Stack Tracing Information -->
+                            <div invisible="not enable_fullstack_tracing">
+                                <div class="alert alert-info" role="alert" style="margin: 16px 0;">
+                                    <h5 class="alert-heading">📊 Full-Stack Tracing Benefits</h5>
+                                    <ul class="mb-0">
+                                        <li>
+                                            <strong>Complete Request Journey:</strong> See the full path from user request to LLM response</li>
+                                        <li>
+                                            <strong>Performance Bottlenecks:</strong> Identify slow database queries, API calls, or processing steps</li>
+                                        <li>
+                                            <strong>Error Correlation:</strong> Trace errors across the entire application stack</li>
+                                        <li>
+                                            <strong>Resource Usage:</strong> Monitor CPU, memory, and I/O patterns per request</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div invisible="enable_fullstack_tracing">
+                                <div class="alert alert-warning" role="alert" style="margin: 16px 0;">
+                                    <h5 class="alert-heading">⚠️ Limited Observability</h5>
+                                    <p class="mb-0">Full-stack tracing is disabled. Only LLM operations will be traced. Enable full-stack tracing to get complete visibility into your application's performance.</p>
+                                </div>
+                            </div>
+                        </page>
+
+                        <!-- Page 3: Span Processor Configuration -->
+                        <page string="⚙️ Span Processor Configuration">
+
+                            <group>
+                                <field name="environment" string="Environment"/>
+                                <field name="force_simple_processor" string="Force Simple Processor" invisible="environment == 'development'" help="Force SimpleSpanProcessor even in production (NOT recommended - impacts performance). Use only for debugging or testing purposes."/>
+
+                            </group>
+                            <!-- Processor Selection Info -->
+                            <div class="alert alert-info" role="alert" style="margin: 16px 0;">
+                                <h5 class="alert-heading">📊 Automatic Processor Selection</h5>
+                                <p class="mb-2">The span processor is automatically selected based on your environment:</p>
+                                <ul class="mb-2">
+                                    <li>
+                                        <strong>Development:</strong> SimpleSpanProcessor for immediate span visibility</li>
+                                    <li>
+                                        <strong>Staging/Production:</strong> BatchSpanProcessor for optimal performance</li>
+                                </ul>
+                                <p class="mb-0">
+                                    <strong>Current Selection:</strong>
+                                    <span invisible="environment == 'development' and not force_simple_processor">
+                                        BatchSpanProcessor (for <field name="environment" readonly="1"/>
+ environment)
+                                    </span>
+                                    <span invisible="environment != 'development' and not force_simple_processor">
+                                        SimpleSpanProcessor (for <field name="environment" readonly="1"/>
+ environment)
+                                    </span>
+                                    <span invisible="not force_simple_processor">
+                                        SimpleSpanProcessor (forced override)
+                                    </span>
+                                </p>
+                            </div>
+
+                            <!-- BatchSpanProcessor Settings -->
+                            <group string="Batch Span Processor Settings" col="4" invisible="environment == 'development' or force_simple_processor">
+                                <field name="batch_size" string="Batch Size" help="Maximum number of spans to batch before exporting (default: 512)"/>
+                                <field name="export_interval" string="Export Interval (ms)" help="Maximum time to wait before exporting batched spans (default: 5000ms)"/>
+                                <field name="queue_size" string="Queue Size" help="Maximum number of spans to queue before dropping (default: 2048)"/>
+                                <field name="export_timeout" string="Export Timeout (ms)" help="Maximum time to wait for span export to complete (default: 30000ms)"/>
+                            </group>
+
+                            <!-- Performance Information -->
+                            <div invisible="environment == 'development' or force_simple_processor">
+                                <div class="alert alert-success" role="alert" style="margin: 16px 0;">
+                                    <h5 class="alert-heading">🚀 BatchSpanProcessor Performance</h5>
+                                    <p class="mb-2">BatchSpanProcessor is optimized for production environments:</p>
+                                    <ul class="mb-0">
+                                        <li>
+                                            <strong>Reduced Overhead:</strong> Batches multiple spans in single export operations</li>
+                                        <li>
+                                            <strong>Non-blocking:</strong> Spans are queued and exported asynchronously</li>
+                                        <li>
+                                            <strong>Resilient:</strong> Handles export failures gracefully with retry logic</li>
+                                        <li>
+                                            <strong>Configurable:</strong> Tune batch size and timing for your workload</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div invisible="environment != 'development' and not force_simple_processor">
+                                <div class="alert alert-warning" role="alert" style="margin: 16px 0;">
+                                    <h5 class="alert-heading">⚠️ SimpleSpanProcessor Active</h5>
+                                    <p class="mb-2">SimpleSpanProcessor provides immediate visibility but has performance implications:</p>
+                                    <ul class="mb-0">
+                                        <li>
+                                            <strong>Immediate Export:</strong> Each span is exported individually as soon as it's finished</li>
+                                        <li>
+                                            <strong>Blocking Operations:</strong> May block application threads during export</li>
+                                        <li>
+                                            <strong>Higher Overhead:</strong> More network calls and resource usage</li>
+                                        <li>
+                                            <strong>Development Use:</strong> Best for debugging and development environments</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Observability Configuration Action -->
+    <record model="ir.actions.act_window" id="action_phoenix_config">
+        <field name="name">Observability Configuration</field>
+        <field name="res_model">phoenix.config</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="phoenix_config_tree_view"/>
+        <field name="help" type="html">
+            <div class="oe_empty_state_help">
+                <h2>Configure LLM Observability</h2>
+                <p>
+                Set up comprehensive observability for your LLM operations using OpenTelemetry:
+                </p>
+                <ul>
+                    <li>
+                        <strong>Complete LLM Tracing:</strong> Tool usage, token tracking, and performance metrics</li>
+                    <li>
+                        <strong>Full-Stack Observability:</strong> End-to-end tracing from web requests to LLM responses</li>
+                    <li>
+                        <strong>Compatible Backends:</strong> Works with Phoenix, Jaeger, DataDog, and other OTLP services</li>
+                </ul>
+                <p>
+                All observability is now powered by OpenTelemetry for maximum compatibility and comprehensive insights.
+                </p>
+            </div>
+        </field>
+    </record>
 
 </odoo>

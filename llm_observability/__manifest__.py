@@ -1,26 +1,28 @@
 {
     'name': 'LLM Observability',
-    'version': '17.0.1.0.0',
+    'version': '17.0.1.0.1',
     'summary': 'LLM observability integration with Phoenix and OpenTelemetry',
     'description': """
         LLM Observability Module
         =======================
         
-        This module provides hybrid observability for LLM operations in Odoo with:
+        This module provides comprehensive observability for LLM operations in Odoo with:
         
         Key Features:
-        * Hybrid observability strategy selection (OpenTelemetry or LlamaIndex)
-        * Full-stack tracing (web → database → LLM → response) via OpenTelemetry
+        * OpenTelemetry-based observability for all LLM operations
+        * Full-stack tracing (web → database → LLM → response)
         * Phoenix dashboard integration for LLM-specific insights
-        * Configurable tracing strategies per deployment needs
-        * Enterprise-ready observability with vendor-agnostic options
+        * Tool calling and usage tracking
+        * Token estimation and performance metrics
+        * Compatible with Phoenix, Jaeger, DataDog, and other OTLP backends
         
-        Observability Strategies:
-        * OpenTelemetry (Generic): Compatible with any OTLP backend
-        * LlamaIndex (Phoenix-optimized): Rich LLM insights and evaluation metrics
+        Observability Approach:
+        * Pure OpenTelemetry implementation for maximum compatibility
+        * Comprehensive LLM tracing including tool execution
+        * No external dependencies beyond standard OpenTelemetry
         
-        The module provides both strategies while maintaining full-stack tracing
-        for comprehensive monitoring and debugging capabilities.
+        The module provides enterprise-ready observability with vendor-agnostic
+        OpenTelemetry for comprehensive monitoring and debugging capabilities.
     """,
     'category': 'Extra Tools',
     'author': 'FIME Development Team',
