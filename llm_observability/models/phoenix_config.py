@@ -13,6 +13,12 @@ class PhoenixConfig(models.Model):
     _order = 'name'
 
     name = fields.Char('Configuration Name', required=True)
+    project_name = fields.Char(
+        'Phoenix Project Name',
+        required=True,
+        default='odoo-llm',
+        help='Project name that will appear in Phoenix dashboard for organizing traces'
+    )
     phoenix_url = fields.Char(
         'Phoenix URL',
         required=True,

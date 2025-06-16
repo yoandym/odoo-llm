@@ -55,6 +55,15 @@ class BaseObservabilityMixin:
             from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
                                                         SimpleSpanProcessor)
 
+            # Try to use Phoenix-specific ResourceAttributes for PROJECT_NAME
+            try:
+                from openinference.semconv.resource import ResourceAttributes
+                has_phoenix_attributes = True
+            except ImportError:
+                # Fallback to standard OpenTelemetry ResourceAttributes
+                from opentelemetry.semconv.resource import ResourceAttributes
+                has_phoenix_attributes = False
+
             # Check if we already have a tracer configured
             current_tracer = trace.get_tracer_provider()
             if isinstance(current_tracer, TracerProvider):
@@ -68,12 +77,21 @@ class BaseObservabilityMixin:
             # Configure resource
             module_name = str(getattr(self, '_name', 'provider'))
             service_name = f"odoo-llm-{module_name}"
-            resource = Resource.create({
-                "service.name": service_name,
-                "service.version": "1.0.0",
-                "deployment.environment": phoenix_config.environment,
-                "service.namespace": "odoo-llm",
-            })
+            resource_attrs = {
+                ResourceAttributes.SERVICE_NAME: service_name,
+                ResourceAttributes.SERVICE_VERSION: "1.0.0",
+                ResourceAttributes.DEPLOYMENT_ENVIRONMENT: phoenix_config.environment,
+                ResourceAttributes.SERVICE_NAMESPACE: "odoo-llm",
+            }
+            
+            # Add PROJECT_NAME if Phoenix ResourceAttributes are available
+            if has_phoenix_attributes:
+                resource_attrs[ResourceAttributes.PROJECT_NAME] = phoenix_config.project_name
+            else:
+                _logger.warning(f"Base observability: Phoenix ResourceAttributes not available for {module_name}, using fallback")
+                resource_attrs["project.name"] = phoenix_config.project_name
+                
+            resource = Resource.create(resource_attrs)
             
             # Set up tracer provider
             provider = TracerProvider(resource=resource)

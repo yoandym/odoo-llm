@@ -8,6 +8,7 @@
         <field name="arch" type="xml">
             <tree string="Observability Configurations" decoration-success="is_active and connection_status == 'connected'" decoration-warning="is_active and connection_status == 'disconnected'" decoration-danger="is_active and connection_status == 'error'">
                 <field name="name"/>
+                <field name="project_name" string="Project"/>
                 <field name="otlp_endpoint" string="OTLP Endpoint" />
                 <field name="environment"/>
                 <field name="connection_status" widget="badge" decoration-success="connection_status == 'connected'" decoration-danger="connection_status == 'error'" decoration-warning="connection_status == 'disconnected'"/>
@@ -45,6 +46,7 @@
 
                             <!-- Endpoint Configuration -->
                             <group string="Endpoint Configuration" col="2">
+                                <field name="project_name" string="Phoenix Project Name" placeholder="e.g., odoo-llm" help="Project name that will appear in Phoenix dashboard for organizing traces"/>
                                 <field name="phoenix_url" string="Phoenix Web UI" placeholder="e.g., http://phoenix:6006" help="URL to access the Phoenix dashboard for trace visualization and analysis"/>
                                 <field name="otlp_endpoint" string="OTLP Tracing Endpoint" placeholder="e.g., http://phoenix:4317 or http://jaeger:4317" help="OpenTelemetry Protocol endpoint where traces will be sent"/>
                                 <field name="trace_sampling_rate" string="Sampling Rate (0.0-1.0)" help="Fraction of traces to sample. 1.0 = 100% (all traces), 0.1 = 10% (1 in 10 traces)"/>

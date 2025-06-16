@@ -53,6 +53,15 @@ class LLMProvider(models.Model):
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+            # Try to use Phoenix-specific ResourceAttributes for PROJECT_NAME
+            try:
+                from openinference.semconv.resource import ResourceAttributes
+                has_phoenix_attributes = True
+            except ImportError:
+                # Fallback to standard OpenTelemetry ResourceAttributes
+                from opentelemetry.semconv.resource import ResourceAttributes
+                has_phoenix_attributes = False
+
             # Check if already initialized
             current_provider = trace.get_tracer_provider()
             if hasattr(current_provider, '_resource') and current_provider._resource:
@@ -65,12 +74,21 @@ class LLMProvider(models.Model):
             # Configure resource
             module_name = 'llm_ollama'
             service_name = f"odoo-llm-{module_name}"
-            resource = Resource.create({
-                "service.name": service_name,
-                "service.version": "1.0.0",
-                "deployment.environment": getattr(phoenix_config, 'environment', 'development'),
-                "service.namespace": "odoo-llm",
-            })
+            resource_attrs = {
+                ResourceAttributes.SERVICE_NAME: service_name,
+                ResourceAttributes.SERVICE_VERSION: "1.0.0",
+                ResourceAttributes.DEPLOYMENT_ENVIRONMENT: getattr(phoenix_config, 'environment', 'development'),
+                ResourceAttributes.SERVICE_NAMESPACE: "odoo-llm",
+            }
+            
+            # Add PROJECT_NAME if Phoenix ResourceAttributes are available
+            if has_phoenix_attributes:
+                resource_attrs[ResourceAttributes.PROJECT_NAME] = phoenix_config.project_name
+            else:
+                _logger.warning("🔍 Ollama: Phoenix ResourceAttributes not available, using fallback")
+                resource_attrs["project.name"] = phoenix_config.project_name
+                
+            resource = Resource.create(resource_attrs)
             
             # Set up tracer provider
             provider = TracerProvider(resource=resource)
@@ -452,7 +470,7 @@ class LLMProvider(models.Model):
         system_prompt=None,
         **kwargs,
     ):
-        """Send chat messages using Ollama with OpenTelemetry observability"""
+        """Send chat messages using Ollama with OpenTelemetry observability and nested spans"""
         _logger.info(f"ollama_chat called with model={model}, stream={stream}, tools={len(tools) if tools else 0}")
         
         # Use OpenTelemetry observability for all LLM operations
@@ -461,7 +479,7 @@ class LLMProvider(models.Model):
             tracer = self._init_opentelemetry_tracing()
             
             if tracer:
-                _logger.info("🔍 Ollama: Tracer obtained, creating span")
+                _logger.info("🔍 Ollama: Tracer obtained, creating nested spans")
                 operation_name = "chat_completion"
                 
                 try:
@@ -469,230 +487,175 @@ class LLMProvider(models.Model):
                     from opentelemetry import trace as otel_trace
                     from opentelemetry.trace import SpanKind
 
-                    # Start main LLM operation span with proper semantic conventions
-                    span = tracer.start_span(
-                        name="llm",  # Use semantic convention name
+                    # Start main LLM operation span (Parent span for the entire conversation)
+                    with tracer.start_as_current_span(
+                        name="llm.chat_completion",
                         kind=SpanKind.CLIENT
-                    )
-                    ctx = otel_trace.set_span_in_context(span)
-                    token = otel_context.attach(ctx)
-                    
-                    # Set OpenTelemetry LLM semantic convention attributes
-                    span.set_attribute("llm.system", "ollama")
-                    span.set_attribute("llm.request.type", "completion")
-                    span.set_attribute("llm.request.model", str(model))
-                    span.set_attribute("llm.streaming", stream)
-                    
-                    # GenAI semantic conventions
-                    span.set_attribute("gen_ai.system", "ollama")
-                    span.set_attribute("gen_ai.request.model", str(model))
-                    span.set_attribute("gen_ai.operation.name", "chat")
-                    
-                    # Set input (prompt) attributes
-                    if messages:
-                        # Create input event
-                        span.add_event("llm.content.prompt")
+                    ) as parent_span:
                         
-                        total_input_length = 0
-                        user_messages = []
+                        # Set OpenTelemetry LLM semantic convention attributes on parent span
+                        parent_span.set_attribute("llm.system", "ollama")
+                        parent_span.set_attribute("llm.request.type", "completion")
+                        parent_span.set_attribute("llm.request.model", str(model))
+                        parent_span.set_attribute("llm.streaming", stream)
+                        parent_span.set_attribute("llm.tools_count", len(tools) if tools else 0)
                         
-                        for i, msg in enumerate(messages):
-                            if isinstance(msg, dict):
-                                role = msg.get('role', 'unknown')
-                                content = msg.get('content', '')
-                                content_str = str(content)
-                                total_input_length += len(content_str)
+                        # Add user input attributes
+                        if messages:
+                            parent_span.set_attribute("llm.input.messages_count", len(messages))
+                            # Add user message content (truncated)
+                            user_messages = [msg for msg in messages if isinstance(msg, dict) and msg.get('role') == 'user']
+                            if user_messages:
+                                last_user_msg = user_messages[-1].get('content', '')
+                                parent_span.set_attribute("llm.user_input", str(last_user_msg)[:500])
+                        
+                        parent_span.add_event("llm.request.start")
+                        
+                        # Create nested span for model execution
+                        with tracer.start_as_current_span("llm.model.execution") as execution_span:
+                            execution_span.set_attribute("llm.model", str(model))
+                            execution_span.set_attribute("llm.operation", "chat")
+                            
+                            try:
+                                # Execute the actual method with full tracing
+                                _logger.info("🔍 Ollama: Executing LLM operation with nested spans")
+                                result = self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
                                 
-                                # Set message attributes following semantic conventions
-                                span.set_attribute(f"llm.request.messages.{i}.role", role)
-                                span.set_attribute(f"llm.request.messages.{i}.content", content_str[:1000])
-                                
-                                if role == 'user':
-                                    user_messages.append(content_str)
-                        
-                        # Set aggregate input attributes
-                        if user_messages:
-                            span.set_attribute("input.value", " ".join(user_messages)[:2000])
-                        
-                        # Token estimation
-                        estimated_input_tokens = total_input_length // 4
-                        span.set_attribute("llm.usage.prompt_tokens", estimated_input_tokens)
-                    
-                    # Set tool information
-                    if tools:
-                        tool_names = []
-                        for i, tool in enumerate(tools):
-                            if hasattr(tool, 'name'):
-                                tool_name = str(tool.name)
-                                tool_names.append(tool_name)
-                                span.set_attribute(f"llm.request.tools.{i}.name", tool_name)
-                                if hasattr(tool, 'title'):
-                                    span.set_attribute(f"llm.request.tools.{i}.description", str(tool.title))
-                        span.set_attribute("llm.request.tools", tool_names)
-                    
-                    # Add custom attributes
-                    trace_attrs = self._get_trace_attributes(operation_name, (messages,),
-                                                             {'model': model, 'stream': stream, 'tools': tools, 'system_prompt': system_prompt})
-                    for key, value in trace_attrs.items():
-                        span.set_attribute(key, value)
-                    
-                    try:
-                        # Execute the actual method with full tracing
-                        _logger.info("🔍 Ollama: Executing LLM operation with tracing")
-                        result = self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
-                        result_keys = list(result.keys()) if isinstance(result, dict) else 'not a dict'
-                        _logger.info(f"🔍 Ollama: Result type: {type(result)}, keys: {result_keys}")
-                        
-                        is_streaming = stream and hasattr(result, '__iter__') and not isinstance(result, dict)
-                        
-                        if is_streaming:
-                            # For streaming responses, wrap the generator to capture content
-                            def traced_generator():
-                                full_content = ""
-                                tool_calls = []
-                                try:
-                                    for chunk in result:
-                                        if isinstance(chunk, dict):
-                                            # Extract content from chunk
-                                            if 'message' in chunk and 'content' in chunk['message']:
-                                                full_content += chunk['message']['content']
-                                            # Extract tool calls
-                                            if 'message' in chunk and 'tool_calls' in chunk['message']:
-                                                tool_calls.extend(chunk['message']['tool_calls'])
-                                        yield chunk
-                                    
-                                    # After the generator is exhausted, update span with completion content
-                                    _logger.info("🔍 Ollama: Streaming complete, setting completion attributes")
-                                    _logger.info(f"🔍 Ollama: Full content length: {len(full_content)}")
-                                    _logger.info(f"🔍 Ollama: Tool calls count: {len(tool_calls)}")
-                                    
-                                    # Add completion event
-                                    span.add_event("llm.content.completion")
-                                    
-                                    # Set completion (output) attributes following semantic conventions
-                                    if full_content:
-                                        span.set_attribute("output.value", full_content[:2000])
-                                        span.set_attribute("llm.response.model", str(model))
+                                # Handle streaming vs non-streaming responses with nested spans
+                                if stream:
+                                    # For streaming, create a wrapper generator that handles tracing
+                                    def traced_generator():
+                                        chunk_count = 0
+                                        try:
+                                            for chunk in result:
+                                                chunk_count += 1
+                                                
+                                                # Create completion span for significant chunks
+                                                if isinstance(chunk, dict) and ('content' in chunk or 'tool_calls' in chunk):
+                                                    with tracer.start_as_current_span("llm.chunk.completion") as completion_span:
+                                                        completion_span.set_attribute("llm.streaming", True)
+                                                        completion_span.set_attribute("chunk.number", chunk_count)
+                                                        
+                                                        # Handle tool calls in streaming response
+                                                        if 'tool_calls' in chunk:
+                                                            tool_calls = chunk['tool_calls']
+                                                            completion_span.add_event("llm.tool.calls")
+                                                            completion_span.set_attribute("llm.response.tool_calls", len(tool_calls))
+                                                            parent_span.set_attribute("llm.response.tool_calls", len(tool_calls))
+                                                            
+                                                            # Create nested spans for each tool call
+                                                            for i, tool_call in enumerate(tool_calls):
+                                                                if isinstance(tool_call, dict) and 'function' in tool_call:
+                                                                    tool_name = tool_call['function'].get('name', f'tool_{i}')
+                                                                    
+                                                                    with tracer.start_as_current_span(f"llm.tool.call.{tool_name}") as tool_span:
+                                                                        tool_span.set_attribute("tool.name", tool_name)
+                                                                        tool_span.set_attribute("tool.call_id", tool_call.get('id', f'call_{i}'))
+                                                                        tool_span.set_attribute("tool.streaming", True)
+                                                                        
+                                                                        # Tool arguments
+                                                                        if 'arguments' in tool_call['function']:
+                                                                            args = tool_call['function']['arguments']
+                                                                            tool_span.set_attribute("tool.arguments", str(args)[:500])
+                                                                        
+                                                                        tool_span.add_event("tool.call.requested")
+                                                
+                                                yield chunk
+                                            
+                                            # Final streaming metrics
+                                            execution_span.set_attribute("llm.streaming.chunks_total", chunk_count)
+                                            parent_span.set_attribute("llm.streaming.chunks_total", chunk_count)
                                         
-                                        # Token usage estimation
-                                        estimated_completion_tokens = len(full_content) // 4
-                                        span.set_attribute("llm.usage.completion_tokens", estimated_completion_tokens)
+                                        except Exception as e:
+                                            execution_span.record_exception(e)
+                                            execution_span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
+                                            parent_span.record_exception(e)
+                                            parent_span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
+                                            raise
                                         
-                                        # Calculate total tokens
-                                        prompt_tokens = span.attributes.get("llm.usage.prompt_tokens", 0)
-                                        total_tokens = prompt_tokens + estimated_completion_tokens
-                                        span.set_attribute("llm.usage.total_tokens", total_tokens)
+                                        finally:
+                                            # Extract final metrics for streaming
+                                            try:
+                                                metrics = self._extract_metrics({'streaming': True}, operation_name, (messages,),
+                                                                               {'model': model, 'stream': stream, 'tools': tools})
+                                                for key, value in metrics.items():
+                                                    execution_span.set_attribute(key, value)
+                                                    parent_span.set_attribute(key, value)
+                                            except Exception as e:
+                                                _logger.error(f"🔍 Ollama: Error extracting streaming metrics: {e}")
                                     
-                                    # Set tool call information
-                                    if tool_calls:
-                                        span.add_event("llm.tool.calls")
-                                        span.set_attribute("llm.response.tool_calls", len(tool_calls))
-                                        for i, tool_call in enumerate(tool_calls[:5]):  # Limit to first 5
-                                            if isinstance(tool_call, dict):
-                                                func_name = tool_call.get('function', {}).get('name', '')
-                                                func_args = str(tool_call.get('function', {}).get('arguments', ''))[:500]
-                                                span.set_attribute(f"llm.response.tool_calls.{i}.name", func_name)
-                                                span.set_attribute(f"llm.response.tool_calls.{i}.arguments", func_args)
+                                    return traced_generator()
+                                else:
+                                    # For non-streaming responses, extract metrics immediately
+                                    metrics = self._extract_metrics(result, operation_name, (messages,),
+                                                                    {'model': model, 'stream': stream, 'tools': tools})
+                                    for key, value in metrics.items():
+                                        execution_span.set_attribute(key, value)
+                                        parent_span.set_attribute(key, value)
                                     
-                                except Exception as e:
-                                    _logger.error(f"🔍 Ollama: Error setting final span attributes: {e}")
-                                    span.record_exception(e)
-                                    span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
-                                finally:
-                                    # End span for streaming response
-                                    span.end()
-                                    self._force_flush_spans()
-                                    if token:
-                                        otel_context.detach(token)
+                                    # Create completion span for non-streaming response
+                                    with tracer.start_as_current_span("llm.response.completion") as completion_span:
+                                        completion_span.set_attribute("llm.streaming", False)
+                                        
+                                        if isinstance(result, dict) and 'message' in result:
+                                            completion_span.add_event("llm.content.completion")
+                                            
+                                            message = result['message']
+                                            content = message.get('content', '')
+                                            if content:
+                                                completion_span.set_attribute("output.value", content[:2000])
+                                                completion_span.set_attribute("llm.response.model", str(model))
+                                                parent_span.set_attribute("llm.response.content_length", len(content))
+                                            
+                                            # Handle tool calls for non-streaming with nested spans
+                                            if message.get('tool_calls'):
+                                                tool_calls = message['tool_calls']
+                                                completion_span.add_event("llm.tool.calls")
+                                                completion_span.set_attribute("llm.response.tool_calls", len(tool_calls))
+                                                parent_span.set_attribute("llm.response.tool_calls", len(tool_calls))
+                                                
+                                                # Create nested spans for each tool call
+                                                for i, tool_call in enumerate(tool_calls):
+                                                    if isinstance(tool_call, dict) and 'function' in tool_call:
+                                                        tool_name = tool_call['function'].get('name', f'tool_{i}')
+                                                        
+                                                        with tracer.start_as_current_span(f"llm.tool.call.{tool_name}") as tool_span:
+                                                            tool_span.set_attribute("tool.name", tool_name)
+                                                            tool_span.set_attribute("tool.call_id", tool_call.get('id', f'call_{i}'))
+                                                            tool_span.set_attribute("tool.streaming", False)
+                                                            
+                                                            # Tool arguments
+                                                            if 'arguments' in tool_call['function']:
+                                                                args = tool_call['function']['arguments']
+                                                                tool_span.set_attribute("tool.arguments", str(args)[:500])
+                                                            
+                                                            tool_span.add_event("tool.call.requested")
+                                        
+                                        parent_span.add_event("llm.response.complete")
+                                    
+                                    return result
                             
-                            return traced_generator()
-                        else:
-                            # For non-streaming responses, extract metrics immediately
-                            metrics = self._extract_metrics(result, operation_name, (messages,),
-                                                            {'model': model, 'stream': stream, 'tools': tools})
-                            for key, value in metrics.items():
-                                span.set_attribute(key, value)
-                            
-                            # Set completion attributes for non-streaming response
-                            if isinstance(result, dict) and 'message' in result:
-                                span.add_event("llm.content.completion")
+                            except Exception as e:
+                                execution_span.record_exception(e)
+                                execution_span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
+                                parent_span.record_exception(e)
+                                parent_span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
+                                raise
                                 
-                                message = result['message']
-                                content = message.get('content', '')
-                                if content:
-                                    span.set_attribute("output.value", content[:2000])
-                                    span.set_attribute("llm.response.model", str(model))
-                                    
-                                    # Token usage estimation
-                                    estimated_completion_tokens = len(content) // 4
-                                    span.set_attribute("llm.usage.completion_tokens", estimated_completion_tokens)
-                                    
-                                    # Calculate total tokens
-                                    prompt_tokens = span.attributes.get("llm.usage.prompt_tokens", 0)
-                                    total_tokens = prompt_tokens + estimated_completion_tokens
-                                    span.set_attribute("llm.usage.total_tokens", total_tokens)
+                            finally:
+                                # Force flush spans to ensure they are exported immediately
+                                self._force_flush_spans()
                                 
-                                # Handle tool calls
-                                if message.get('tool_calls'):
-                                    tool_calls = message['tool_calls']
-                                    span.add_event("llm.tool.calls")
-                                    span.set_attribute("llm.response.tool_calls", len(tool_calls))
-                                    for i, tool_call in enumerate(tool_calls[:5]):
-                                        if isinstance(tool_call, dict):
-                                            func_name = tool_call.get('function', {}).get('name', '')
-                                            func_args = str(tool_call.get('function', {}).get('arguments', ''))[:500]
-                                            span.set_attribute(f"llm.response.tool_calls.{i}.name", func_name)
-                                            span.set_attribute(f"llm.response.tool_calls.{i}.arguments", func_args)
-                            
-                            _logger.info(f"🔍 Ollama: Non-streaming span completed with {len(metrics)} metrics")
-                            # End span for non-streaming response
-                            span.end()
-                            self._force_flush_spans()
-                            if token:
-                                otel_context.detach(token)
-                            return result
-                        
-                    except Exception as e:
-                        span.record_exception(e)
-                        span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
-                        # End span on error
-                        span.end()
-                        self._force_flush_spans()
-                        if token:
-                            otel_context.detach(token)
-                        raise
-                            
                 except Exception as e:
                     _logger.warning(f"Error in OpenTelemetry tracing: {e}, executing without tracing")
-                    # Fall back to non-observability execution
                     return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
             else:
-                _logger.info("🔍 Ollama: No tracer available, trying fullstack service")
-                # Try to use the fullstack tracing service as fallback
-                try:
-                    from odoo.addons.llm_observability.services.fullstack_tracing_service import \
-                        fullstack_tracing_service
-                    if fullstack_tracing_service.is_available:
-                        _logger.info("🔍 Ollama: Using fullstack tracing service")
-                        with fullstack_tracing_service.trace_operation("llm.chat_completion") as span:
-                            if span:
-                                span.set_attribute("llm.provider", "ollama")
-                                span.set_attribute("llm.model", str(model))
-                                span.set_attribute("llm.streaming", stream)
-                                span.set_attribute("llm.tools_count", len(tools) if tools else 0)
-                            return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
-                    else:
-                        _logger.info("🔍 Ollama: Fullstack tracing service not available")
-                except Exception as e:
-                    _logger.warning(f"🔍 Ollama: Fullstack tracing service error: {e}")
-                
-                # Fall back to non-observability execution
-                _logger.debug("OpenTelemetry tracer not available, executing without tracing")
+                _logger.info("🔍 Ollama: No tracer available, falling back to non-observability execution")
                 return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
         else:
             _logger.debug("Observability not available, executing without tracing")
             return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
-    
+
     def _ollama_chat_impl(self, messages, model=None, stream=False, tools=None, system_prompt=None, **kwargs):
         """Internal implementation of ollama_chat"""
         model = self.get_model(model, "chat")

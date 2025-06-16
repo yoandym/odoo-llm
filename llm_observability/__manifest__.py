@@ -34,6 +34,16 @@
         'mail',
         'llm'
     ],
+    'external_dependencies': {
+        'python': [
+            'opentelemetry-api',
+            'opentelemetry-sdk',
+            'opentelemetry-exporter-otlp-proto-grpc',
+            'opentelemetry-instrumentation-requests',
+            'opentelemetry-instrumentation-psycopg2',
+            'openinference-semantic-conventions',
+        ],
+    },
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',

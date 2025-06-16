@@ -22,9 +22,28 @@ try:
                                                 SimpleSpanProcessor)
     from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
     from opentelemetry.trace.status import Status, StatusCode
+
+    # Try to use Phoenix-specific ResourceAttributes for PROJECT_NAME
+    try:
+        from openinference.semconv.resource import ResourceAttributes
+        HAS_PHOENIX_ATTRIBUTES = True
+    except ImportError:
+        # Fallback to standard OpenTelemetry ResourceAttributes
+        from opentelemetry.semconv.resource import ResourceAttributes
+        HAS_PHOENIX_ATTRIBUTES = False
+        
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
+    HAS_PHOENIX_ATTRIBUTES = False
+    # Create dummy classes for when OpenTelemetry is not available
+    
+    class ResourceAttributes:
+        PROJECT_NAME = "project.name"
+        SERVICE_NAME = "service.name"
+        SERVICE_VERSION = "service.version"
+        SERVICE_INSTANCE_ID = "service.instance.id"
+        DEPLOYMENT_ENVIRONMENT = "deployment.environment"
 
 _logger = logging.getLogger(__name__)
 
@@ -88,12 +107,21 @@ class FullStackTracingService:
             
         try:
             # Create resource with service information
-            resource = Resource.create({
-                "service.name": "odoo-llm-fullstack",
-                "service.version": "17.0.1.0.0",
-                "service.instance.id": f"odoo-{phoenix_config.id}",
-                "deployment.environment": phoenix_config.environment,
-            })
+            resource_attrs = {
+                ResourceAttributes.SERVICE_NAME: "odoo-llm-fullstack",
+                ResourceAttributes.SERVICE_VERSION: "17.0.1.0.0",
+                ResourceAttributes.SERVICE_INSTANCE_ID: f"odoo-{phoenix_config.id}",
+                ResourceAttributes.DEPLOYMENT_ENVIRONMENT: phoenix_config.environment,
+            }
+            
+            # Add PROJECT_NAME if Phoenix ResourceAttributes are available
+            if HAS_PHOENIX_ATTRIBUTES:
+                resource_attrs[ResourceAttributes.PROJECT_NAME] = phoenix_config.project_name
+            else:
+                _logger.warning("🔭 OpenTelemetry: Phoenix ResourceAttributes not available, using fallback")
+                resource_attrs["project.name"] = phoenix_config.project_name
+                
+            resource = Resource.create(resource_attrs)
             
             # Set up tracer provider with sampling
             sampler = TraceIdRatioBased(phoenix_config.trace_sampling_rate)
