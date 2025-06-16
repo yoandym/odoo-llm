@@ -20,7 +20,7 @@ try:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
                                                 SimpleSpanProcessor)
-    from opentelemetry.sdk.trace.sampling import TraceIdRatioBasedSampler
+    from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
     from opentelemetry.trace.status import Status, StatusCode
     OTEL_AVAILABLE = True
 except ImportError:
@@ -41,14 +41,50 @@ class FullStackTracingService:
             cls._instance = super().__new__(cls)
         return cls._instance
     
+    def _auto_initialize(self):
+        """Auto-initialize with Phoenix config if available and not already initialized"""
+        if self._initialized:
+            return
+            
+        try:
+            # Try to get Phoenix config from Odoo registry
+            import odoo
+            from odoo.api import Environment
+
+            # Get all databases and try to find a Phoenix config
+            for db_name in odoo.service.db.list_dbs():
+                try:
+                    registry = odoo.registry(db_name)
+                    with registry.cursor() as cr:
+                        env = Environment(cr, 1, {})
+                        if 'phoenix.config' in env:
+                            phoenix_config = env['phoenix.config'].get_active_config()
+                            if phoenix_config and phoenix_config.enable_fullstack_tracing:
+                                _logger.info(f"🔭 Auto-initializing observability for database: {db_name}")
+                                self.initialize(phoenix_config)
+                                return
+                except Exception as e:
+                    _logger.debug(f"Could not auto-initialize for database {db_name}: {e}")
+                    continue
+                    
+        except Exception as e:
+            _logger.debug(f"Auto-initialization failed: {e}")
+    
     def initialize(self, phoenix_config):
         """Initialize full-stack tracing with Phoenix configuration"""
-        if self._initialized or not OTEL_AVAILABLE:
+        if self._initialized:
+            _logger.info("🔭 OpenTelemetry: Already initialized, skipping")
+            return
+            
+        if not OTEL_AVAILABLE:
+            _logger.warning("📦 OpenTelemetry: Libraries not available, tracing disabled")
             return
             
         if not phoenix_config or not phoenix_config.enable_fullstack_tracing:
-            _logger.info("Full-stack tracing disabled in configuration")
+            _logger.info("🔭 OpenTelemetry: Full-stack tracing disabled in configuration")
             return
+            
+        _logger.info(f"🔭 OpenTelemetry: Initializing tracing service with Phoenix at {phoenix_config.otlp_endpoint}")
             
         try:
             # Create resource with service information
@@ -60,7 +96,7 @@ class FullStackTracingService:
             })
             
             # Set up tracer provider with sampling
-            sampler = TraceIdRatioBasedSampler(phoenix_config.trace_sampling_rate)
+            sampler = TraceIdRatioBased(phoenix_config.trace_sampling_rate)
             tracer_provider = TracerProvider(resource=resource, sampler=sampler)
             
             # Configure OTLP exporter for Phoenix
@@ -120,20 +156,28 @@ class FullStackTracingService:
             )
             
             self._initialized = True
-            _logger.info("Full-stack tracing initialized successfully")
+            _logger.info("🎉 LLM Observability: Full-stack tracing initialized successfully!")
+            _logger.info(f"   📡 Sending traces to: {phoenix_config.otlp_endpoint}")
+            _logger.info(f"   🎯 Sampling rate: {phoenix_config.trace_sampling_rate}")
+            _logger.info(f"   🏷️  Environment: {phoenix_config.environment}")
             
         except Exception as e:
-            _logger.error(f"Failed to initialize full-stack tracing: {e}")
+            _logger.error(f"❌ LLM Observability: Failed to initialize full-stack tracing: {e}")
+            _logger.exception("Full traceback:")
             self._tracer = None
     
     @property
     def tracer(self):
-        """Get the tracer instance"""
+        """Get the tracer instance, auto-initializing if needed"""
+        if not self._initialized and self._tracer is None:
+            self._auto_initialize()
         return self._tracer
     
     @property
     def is_available(self):
-        """Check if tracing is available"""
+        """Check if tracing is available, auto-initializing if needed"""
+        if not self._initialized and self._tracer is None:
+            self._auto_initialize()
         return OTEL_AVAILABLE and self._tracer is not None
     
     @contextmanager
