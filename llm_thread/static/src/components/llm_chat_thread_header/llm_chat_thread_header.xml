@@ -53,7 +53,7 @@
             <!-- Desktop: Dropdowns -->
             <div t-if="!isMobile" class="o_LLMChatThreadHeader_controls d-flex align-items-center gap-2">
                 <!-- Provider Dropdown -->
-                <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                <Dropdown id="providerDropdown" togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
                     <t t-set-slot="toggler">
                         <span class="text-truncate" style="max-width: 150px;">
                             <t t-if="selectedProvider" t-esc="selectedProvider.name" />
@@ -70,7 +70,7 @@
                 </Dropdown>
 
                 <!-- Model Dropdown with Search -->
-                <Dropdown togglerClass="state.selectedProviderId ? 'btn btn-light btn-sm' : 'btn btn-light btn-sm disabled'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                <Dropdown id="modelDropdown" togglerClass="state.selectedProviderId ? 'btn btn-light btn-sm' : 'btn btn-light btn-sm disabled'" menuClass="'o_LLMChatThreadHeader_dropdown'">
                     <t t-set-slot="toggler">
                         <span class="text-truncate" style="max-width: 200px;">
                             <t t-if="selectedModel" t-esc="selectedModel.name" />
@@ -87,7 +87,7 @@
                 </Dropdown>
 
                 <!-- Tools Dropdown -->
-                <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown dropdown-menu-end'">
+                <Dropdown id="toolsDropdown" togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown dropdown-menu-end'">
                     <t t-set-slot="toggler">
                         Tools
                         <t t-if="selectedToolsCount > 0">

@@ -88,10 +88,20 @@ class LLMThread(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Set default title if not provided"""
+        """Set default title and tools if not provided"""
         for vals in vals_list:
             if not vals.get("name"):
                 vals["name"] = f"Chat with {self.model_id.name}"  # type: ignore
+            
+            # Set default tools if not explicitly provided
+            if "tool_ids" not in vals:
+                default_tools = self.env["llm.tool"].search([
+                    ("active", "=", True),
+                    ("default", "=", True)
+                ])
+                if default_tools:
+                    vals["tool_ids"] = [(6, 0, default_tools.ids)]
+        
         return super().create(vals_list)
 
     def _post_message(self, **kwargs):
@@ -334,7 +344,7 @@ class LLMThread(models.Model):
             # We don't pass user_message_body since we already posted it
             try:
                 
-                generation_result = list(self.generate(None))  # Convert generator to list to fully execute it
+                list(self.generate(None))  # Convert generator to list to fully execute it
                 
             except Exception as gen_error:
                 # Log the generation error but don't fail the message sending
@@ -451,3 +461,83 @@ class LLMThread(models.Model):
                 return False
 
         return False
+
+    @api.model
+    def get_thread_and_assistant(self, thread_id, assistant_id=False):
+        """Get thread and assistant records by their IDs
+
+        Args:
+            thread_id (int): ID of the thread
+            assistant_id (int, optional): ID of the assistant, or False to clear
+
+        Returns:
+            tuple: (thread, assistant, error_response)
+                  If successful, error_response will be None
+                  If error, thread and/or assistant will be None
+        """
+        # Get thread
+        thread, error = self.get_thread_by_id(thread_id)
+        if error:
+            return None, None, error
+
+        # If no assistant_id, return just the thread
+        if not assistant_id:
+            return thread, None, None
+
+        # Get assistant from the assistant model
+        assistant, error = self.env["llm.assistant"].get_assistant_by_id(assistant_id)
+        if error:
+            return thread, None, error
+
+        return thread, assistant, None
+
+    def reset_to_defaults(self):
+        """Reset thread to system default values
+        
+        Returns:
+            bool: True if successful
+        """
+        self.ensure_one()
+        
+        # Get default provider
+        default_provider = self.env["llm.provider"].search(
+            [("active", "=", True)], 
+            limit=1
+        )
+        
+        # Get default model
+        default_model = None
+        if default_provider:
+            default_models = self.env["llm.model"].search([
+                ("provider_id", "=", default_provider.id),
+                ("default", "=", True),
+                ("model_use", "=", "chat")
+            ], limit=1)
+            
+            if not default_models:
+                # Fallback to any chat model for this provider
+                default_models = self.env["llm.model"].search([
+                    ("provider_id", "=", default_provider.id),
+                    ("model_use", "=", "chat")
+                ], limit=1)
+            
+            default_model = default_models[0] if default_models else None
+        
+        # Get default tools
+        default_tools = self.env["llm.tool"].search([
+            ("active", "=", True),
+            ("default", "=", True)
+        ])
+        
+        # Build update values
+        update_vals = {
+            "tool_ids": [(6, 0, default_tools.ids)],
+        }
+        
+        # Set default provider and model if found
+        if default_provider:
+            update_vals["provider_id"] = default_provider.id
+        if default_model:
+            update_vals["model_id"] = default_model.id
+        
+        return self.write(update_vals)

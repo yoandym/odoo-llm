@@ -3,9 +3,9 @@
     <!-- Extend the base LLMChatThreadHeader template -->
     <t t-inherit="llm_thread.LLMChatThreadHeader" t-inherit-mode="extension">
         <!-- Add the Assistant dropdown before the Provider dropdown -->
-        <xpath expr="//div[hasclass('o_LLMChatThreadHeader_controls')]//Dropdown[1]" position="before">
+        <xpath expr="//Dropdown[@id='providerDropdown']" position="before">
             <!-- LLM Assistant Dropdown (NEW) -->
-            <Dropdown togglerClass="state.isLoadingAssistants ? 'btn btn-light btn-sm disabled' : 'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+            <Dropdown id="assistantDropdown" togglerClass="state.isLoadingAssistants ? 'btn btn-light btn-sm disabled' : 'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
                 <t t-set-slot="toggler">
                     <span class="text-truncate" style="max-width: 200px;">
                         <!-- Loading spinner -->
@@ -43,6 +43,17 @@
                     </t>
                 </t>
             </Dropdown>
+        </xpath>
+
+        <!-- Hide Provider/Model/Tools dropdowns when assistant is selected -->
+        <xpath expr="//Dropdown[@id='providerDropdown']" position="attributes">
+            <attribute name="t-if">shouldShowProviderModelTools</attribute>
+        </xpath>
+        <xpath expr="//Dropdown[@id='modelDropdown']" position="attributes">
+            <attribute name="t-if">shouldShowProviderModelTools</attribute>
+        </xpath>
+        <xpath expr="//Dropdown[@id='toolsDropdown']" position="attributes">
+            <attribute name="t-if">shouldShowProviderModelTools</attribute>
         </xpath>
 
         <!-- Mobile view: Add assistant info after the title -->

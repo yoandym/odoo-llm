@@ -1,48 +1,4 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <t t-inherit="llm_thread.LLMChatThreadHeader" t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('o_LLMChatThreadHeader_controls')]/Dropdown[1]" position="before">
-            <!-- LLM Prompt Dropdown -->
-            <Dropdown togglerClass="state.isLoadingPrompts ? 'btn btn-light btn-sm disabled me-2' : 'btn btn-light btn-sm me-2'" menuClass="'o_LLMChatThreadHeader_dropdown'">
-                <t t-set-slot="toggler">
-                    <span class="text-truncate" style="max-width: 200px;">
-                        <!-- Loading spinner -->
-                        <i t-if="state.isLoadingPrompts" class="fa fa-spinner fa-spin me-1"/>
-
-                        <!-- Prompt name or placeholder -->
-                        <t t-if="selectedPrompt">
-                            <t t-esc="selectedPrompt.name"/>
-                        </t>
-                        <t t-else="">Select Prompt</t>
-                    </span>
-                    <i class="fa fa-caret-down ms-1" />
-                </t>
-
-                <!-- Clear prompt option -->
-                <DropdownItem onSelected="() => this.onClearPrompt()" class="{ 'active': !selectedPrompt }">
-                    <i class="fa fa-times me-2 text-muted"/>
-                    <span>No Prompt</span>
-                </DropdownItem>
-
-                <!-- Prompt list -->
-                <t t-if="!state.isLoadingPrompts and llmPrompts.length">
-                    <t t-foreach="llmPrompts" t-as="prompt" t-key="prompt.id">
-                        <DropdownItem onSelected="() => this.onSelectPrompt(prompt)" class="{ 'active': selectedPrompt and selectedPrompt.id === prompt.id }">
-                            <!-- Prompt name -->
-                            <span class="text-truncate me-2">
-                                <t t-esc="prompt.name"/>
-                            </span>
-
-                            <!-- Category indicator -->
-                            <t t-if="prompt.category">
-                                <small class="text-muted">
-                                    <t t-esc="prompt.category"/>
-                                </small>
-                            </t>
-                        </DropdownItem>
-                    </t>
-                </t>
-            </Dropdown>
-        </xpath>
-    </t>
+    <!-- Prompt dropdown functionality removed - prompts are handled by assistants only -->
 </templates>

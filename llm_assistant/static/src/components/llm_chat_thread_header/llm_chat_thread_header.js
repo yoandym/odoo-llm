@@ -159,6 +159,14 @@ patch(LLMChatThreadHeader.prototype, {
         return this.state.assistants.find(a => a.id === this.state.selectedAssistantId) || null;
     },
 
+    /**
+     * Check if we should show the provider/model/tools dropdowns
+     * Show them only when no assistant is selected
+     */
+    get shouldShowProviderModelTools() {
+        return !this.state.selectedAssistantId;
+    },
+
     // --------------------------------------------------------------------------
     // Assistant Management
     // --------------------------------------------------------------------------
@@ -233,24 +241,23 @@ patch(LLMChatThreadHeader.prototype, {
      * Clear the selected assistant
      */
     async onClearAssistant() {
-
         const previousAssistantId = this.state.selectedAssistantId;
-        const previousSelectedToolIds = [...this.state.selectedToolIds];
         this.state.selectedAssistantId = null;
 
         try {
-            // Clear assistant from thread
+            // Clear assistant from thread using the updated backend method
             const result = await this.llmAssistantService.setThreadAssistant(
                 this.props.thread.id,
-                false
+                false // This will trigger clear_assistant() which resets to defaults
             );
 
-            // Refresh thread to get updated dropdowns data from backend
+            if (!result.success) {
+                throw new Error(result.error || "Failed to clear assistant");
+            }
+
+            // Refresh thread to get updated data from backend
             if (this.llmChatService?.refreshThread) {
-                // Explicitly request assistant_id field to ensure it's fetched
-                const refreshResult = await this.llmChatService.refreshThread(this.props.thread.id, ["assistant_id"]);
-            } else {
-                console.warn("llmChatService.refreshThread not available");
+                await this.llmChatService.refreshThread(this.props.thread.id);
             }
 
         } catch (error) {

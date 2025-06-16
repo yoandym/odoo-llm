@@ -5,35 +5,35 @@ from odoo.http import request
 class LLMAssistantController(http.Controller):
     @http.route("/llm/thread/set_assistant", type="json", auth="user")
     def set_thread_assistant(self, thread_id, assistant_id=False):
-        """Set the assistant for a thread and return thread-specific evaluated default values
+        """Set the assistant for a thread
 
         Args:
             thread_id (int): ID of the thread to update
             assistant_id (int, optional): ID of the assistant to set, or False to clear
 
         Returns:
-            dict: Result of the operation with evaluated default values if successful
+            dict: Result of the operation
         """
-        # Get thread and assistant using the model method
-        thread, assistant, error = request.env["llm.thread"].get_thread_and_assistant(
-            thread_id, assistant_id
-        )
-        if error:
-            return error
+        try:
+            # Get thread
+            thread = request.env["llm.thread"].browse(int(thread_id))
+            if not thread.exists():
+                return {"success": False, "error": "Thread not found"}
 
-        # Set the assistant on the thread
-        result = thread.set_assistant(assistant_id if assistant else False)
+            # Set or clear the assistant on the thread
+            if assistant_id:
+                result = thread.set_assistant(assistant_id)
+            else:
+                result = thread.clear_assistant()
 
-        # Return basic result if no assistant was set or operation failed
-        if not assistant or not result:
             return {
                 "success": bool(result),
                 "thread_id": thread_id,
-                "assistant_id": assistant_id if assistant else False,
+                "assistant_id": assistant_id if assistant_id else False,
             }
-
-        # Get assistant values with the thread context using the model method
-        return assistant.get_assistant_values(thread)
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     @http.route("/llm/thread/get_assistant_values", type="json", auth="user")
     def get_thread_assistant_values(self, thread_id, assistant_id):
@@ -46,12 +46,19 @@ class LLMAssistantController(http.Controller):
         Returns:
             dict: Result with evaluated default values
         """
-        # Get thread and assistant using the model method
-        thread, assistant, error = request.env["llm.thread"].get_thread_and_assistant(
-            thread_id, assistant_id
-        )
-        if error:
-            return error
+        try:
+            # Get thread
+            thread = request.env["llm.thread"].browse(int(thread_id))
+            if not thread.exists():
+                return {"success": False, "error": "Thread not found"}
 
-        # Get assistant values with the thread context using the model method
-        return assistant.get_assistant_values(thread)
+            # Get assistant
+            assistant = request.env["llm.assistant"].browse(int(assistant_id))
+            if not assistant.exists():
+                return {"success": False, "error": "Assistant not found"}
+
+            # Get assistant values with the thread context
+            return assistant.get_assistant_values(thread)
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}

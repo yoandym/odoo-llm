@@ -34,9 +34,11 @@ class LLMThread(models.Model):
         """
         self.ensure_one()
 
-        # If assistant_id is False or 0, just clear the assistant
+        # If assistant_id is False or 0, clear the assistant and reset to defaults
         if not assistant_id:
-            return self.write({"assistant_id": False})
+            self.write({"assistant_id": False})
+            # Reset thread to default values
+            return self.reset_to_defaults()
 
         # Get the assistant record
         assistant = self.env["llm.assistant"].browse(assistant_id)
@@ -52,6 +54,11 @@ class LLMThread(models.Model):
             update_vals["provider_id"] = assistant.provider_id.id
         if assistant.model_id.id:
             update_vals["model_id"] = assistant.model_id.id
+            
+        # Clear any selected prompts since assistant provides its own prompts
+        if hasattr(self, 'prompt_id'):
+            update_vals["prompt_id"] = False
+            
         return self.write(update_vals)
 
     def action_open_thread(self):
@@ -184,3 +191,20 @@ class LLMThread(models.Model):
             return thread, None, error
 
         return thread, assistant, None
+
+    def clear_assistant(self):
+        """Clear the assistant and reset thread to default values
+
+        Returns:
+            bool: True if successful
+        """
+        self.ensure_one()
+
+        # Use the base thread method to reset to defaults
+        result = self.reset_to_defaults()
+        
+        # Also clear the assistant_id
+        if result:
+            result = self.write({"assistant_id": False})
+        
+        return result
