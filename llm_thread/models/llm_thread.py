@@ -291,6 +291,17 @@ class LLMThread(models.Model):
         if not tool:
             raise UserError(f"Tool '{tool_name}' not found in this thread")
         arguments = json.loads(arguments_str)
+        
+        # Automatically inject thread_id for tools that need it
+        # Check if the tool's execute method accepts thread_id parameter
+        impl_method_name = f"{tool.implementation}_execute"
+        if hasattr(tool, impl_method_name):
+            method = getattr(tool, impl_method_name)
+            import inspect
+            sig = inspect.signature(method)
+            if 'thread_id' in sig.parameters:
+                arguments['thread_id'] = self.id
+        
         return tool.execute(arguments)
 
     def _lock(self):
