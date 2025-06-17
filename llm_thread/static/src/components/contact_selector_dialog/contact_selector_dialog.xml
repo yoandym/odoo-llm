@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+    <t t-name="llm_thread.ContactSelectorDialog" owl="1">
+        <Dialog size="'md'" title="'Send Message'" footer="false">
+            <div class="modal-body">
+
+
+                <div class="row">
+                    <div class="col-12">
+                        <div class="mb-3">
+                            <label class="form-label" for="partner_selector">
+                                <i class="fa fa-users me-2"></i>Send to Contacts:
+                            </label>
+                            <input type="text" class="form-control" id="partner_selector" placeholder="Type contact name or email to add..." t-on-input="onContactSearch" t-on-keydown="onSearchKeyDown" t-model="state.searchTerm" />
+                            <small class="form-text text-muted">
+                                <i class="fa fa-info-circle me-1"></i>
+                                Press Enter to select first result, Esc to clear search
+                            </small>
+                            <div t-if="state.searchResults?.length" class="dropdown-menu show" style="position: relative; transform: none; width: 100%;">
+                                <t t-foreach="state.searchResults" t-as="partner" t-key="partner.id">
+                                    <a href="#" class="dropdown-item" t-on-click="() => this.selectPartner(partner)">
+                                        <i class="fa fa-user me-2"></i>
+                                        <t t-esc="partner.name"/>
+                                        <t t-if="partner.email">
+                                            <small class="text-muted"> -                                                <t t-esc="partner.email"/>
+                                            </small>
+                                        </t>
+                                    </a>
+                                </t>
+                            </div>
+
+                            <!-- Loading followers indicator -->
+                            <div t-if="state.isLoadingFollowers" class="mt-3">
+                                <div class="d-flex align-items-center text-muted">
+                                    <i class="fa fa-spinner fa-spin me-2"></i>
+                                    <span>Loading followers...</span>
+                                </div>
+                            </div>
+
+                            <!-- Selected Partners Display -->
+                            <div t-if="state.selectedPartners?.length and !state.isLoadingFollowers" class="mt-3">
+                                <label class="form-label">
+                                    <i class="fa fa-check me-2"></i>Selected Contacts (<t t-esc="state.selectedPartners.length"/>
+):
+                                <span t-if="props.thread?.model and props.thread?.res_id" class="badge bg-info ms-2">
+                                    <i class="fa fa-users me-1"></i>From Followers
+                                </span>
+                            </label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <t t-foreach="state.selectedPartners" t-as="partner" t-key="partner.id">
+                                    <span class="badge bg-success d-flex align-items-center" style="font-size: 0.85em; padding: 0.5em 0.75em;">
+                                        <i class="fa fa-user me-2"></i>
+                                        <span t-esc="partner.name"/>
+                                        <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.6em;" t-on-click="() => this.removePartner(partner.id)" aria-label="Remove contact">
+                                        </button>
+                                    </span>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview of message content -->
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="fa fa-eye me-2"></i>Message Preview:
+                </label>
+                <div class="border rounded p-3" style="background-color: #f8f9fa; max-height: 200px; overflow-y: auto;">
+                    <div class="llm-message-header" style="margin-bottom: 10px; padding: 8px; background-color: #e8f5e8; border-left: 4px solid #4caf50; border-radius: 3px;">
+                        <strong>🤖 LLM Assistant Response</strong>
+                        <br/>
+                        <small style="color: #666;">
+                                Shared from LLM chat "<t t-esc="props.thread?.name || 'Unnamed Thread'"/>
+" 
+                                on <t t-esc="new Date().toLocaleString()"/>
+                    </small>
+                </div>
+                <div class="llm-message-content">
+                    <t t-out="props.messageContent"/>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" t-on-click="onCancel" t-att-disabled="state.isSending">
+            <i class="fa fa-times me-2"></i>Cancel
+        </button>
+        <button type="button" class="btn btn-primary" t-on-click="onSendMessage" t-att-disabled="!state.selectedPartners?.length || state.isSending || state.isLoadingFollowers">
+            <i t-if="!state.isSending" class="fa fa-paper-plane me-2"></i>
+            <i t-if="state.isSending" class="fa fa-spinner fa-spin me-2"></i>
+            <t t-if="!state.isSending">Send Message</t>
+            <t t-if="state.isSending">Sending...</t>
+            <t t-if="state.selectedPartners?.length > 1 and !state.isSending"> to <t t-esc="state.selectedPartners.length"/>
+ contacts</t>
+        </button>
+    </div>
+</Dialog>
+</t>
+</templates>

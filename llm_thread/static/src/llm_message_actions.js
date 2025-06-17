@@ -2,6 +2,7 @@
 
 import { messageActionsRegistry } from "@mail/core/common/message_actions";
 import { _t } from "@web/core/l10n/translation";
+import { ContactSelectorDialog } from "./components/contact_selector_dialog/contact_selector_dialog";
 
 /**
  * Helper function to handle the vote RPC and message update.
@@ -176,3 +177,58 @@ messageActionsRegistry.add("llm_post_as_note", {
     },
     sequence: 17, // Appears after voting actions
 });
+
+messageActionsRegistry.add("llm_send_as_message", {
+    condition: (component) => {
+        // Show send as message action only for assistant messages
+        const message = component.props.message;
+        return message && !message.author; // Assistant message only
+    },
+    icon: (component) => "fa-paper-plane",
+    title: (component) => _t("Send as Message"),
+    onClick: async (component) => {
+        const message = component.props.message;
+        const thread = component.props.thread;
+
+        if (!message) {
+            component.env.services.notification.add(
+                _t("No message to send"),
+                { type: "warning" }
+            );
+            return;
+        }
+
+        // Get the message content
+        let messageContent = message.body || message.content || '';
+        if (!messageContent) {
+            component.env.services.notification.add(
+                _t("No message content to send"),
+                { type: "warning" }
+            );
+            return;
+        }
+
+        try {
+            // Always show contact selector dialog, but pre-populate with followers if available
+            await showContactSelectorDialog(component, message, thread, messageContent);
+        } catch (error) {
+            console.error("Error sending message:", error);
+            component.env.services.notification.add(
+                _t("Failed to send message: %s", error.message || error),
+                { type: "danger" }
+            );
+        }
+    },
+    sequence: 18, // Appears after post as note
+});
+
+/**
+ * Show contact selector dialog for choosing recipients
+ */
+async function showContactSelectorDialog(component, message, thread, messageContent) {
+    // Show the dialog
+    component.env.services.dialog.add(ContactSelectorDialog, {
+        thread: thread,
+        messageContent: messageContent,
+    });
+}

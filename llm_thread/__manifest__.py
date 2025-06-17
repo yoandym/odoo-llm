@@ -97,6 +97,10 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.xml",
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.scss",
 
+            # Contact selector dialog
+            "llm_thread/static/src/components/contact_selector_dialog/contact_selector_dialog.js",
+            "llm_thread/static/src/components/contact_selector_dialog/contact_selector_dialog.xml",
+            
             # Client Actions
             "llm_thread/static/src/llm_chat_client_action.js",
             "llm_thread/static/src/llm_message_actions.js",
