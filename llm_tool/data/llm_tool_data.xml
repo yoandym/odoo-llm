@@ -94,7 +94,17 @@ Greet users and provide information about available tools for the current thread
 1. **Welcome Users**: Provide personalized greetings based on interaction type (initial, help, capabilities)
 2. **Tool Discovery**: Query the database to find and list all available tools for the current thread
 3. **Thread Context**: Automatically receives thread_id from the framework to show thread-specific tools
-4. **Rich Formatting**: Return beautifully formatted markdown responses with tool descriptions
+4. **Rich Markdown Formatting**: When using this tool, ALWAYS format your response in well-structured Markdown
+
+**IMPORTANT - Formatting Instructions:**
+When responding to this tool's output, you MUST format your response using proper Markdown:
+- Use # for main headings
+- Use ## for subheadings  
+- Use **bold** for emphasis
+- Use bullet points with - or *
+- Use numbered lists with 1. 2. 3.
+- Use `code` for tool names
+- Use > for callouts or tips
 
 **Parameters:**
 - greeting_type: 'initial' (default), 'help', or 'capabilities'
