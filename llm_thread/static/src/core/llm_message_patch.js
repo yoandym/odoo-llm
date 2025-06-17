@@ -207,7 +207,7 @@ patch(Message.prototype, {
         if (decodedBody && decodedBody.includes('<')) {
             // Extract content from basic HTML wrapper tags
             let content = decodedBody;
-            
+
             // Remove wrapping <p> tags if they contain markdown
             if (content.match(/^<p>.*<\/p>$/s)) {
                 const innerContent = content.replace(/^<p>(.*)<\/p>$/s, '$1');
@@ -218,21 +218,21 @@ patch(Message.prototype, {
                     return markup(htmlContent);
                 }
             }
-            
+
             // If it's proper HTML (has multiple tags or complex structure), treat as HTML
             const htmlTagCount = (content.match(/<[^>]+>/g) || []).length;
             if (htmlTagCount > 2 || content.includes('<div') || content.includes('<span') || content.includes('<ul')) {
                 console.log('Content detected as proper HTML');
                 return markup(decodedBody);
             }
-            
+
             // If it's simple HTML but contains markdown patterns, convert as markdown
             if (this._isMarkdown(content)) {
                 console.log('Content detected as simple HTML with Markdown, converting...');
                 const htmlContent = this._convertMarkdownToHtml(content);
                 return markup(htmlContent);
             }
-            
+
             console.log('Content detected as simple HTML');
             return markup(decodedBody);
         }

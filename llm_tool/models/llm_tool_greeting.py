@@ -68,13 +68,15 @@ class LLMToolUserGreeting(models.Model):
                             tools_data = self.env['llm.tool'].search_read([
                                 ('id', 'in', tool_ids),
                                 ('active', '=', True)
-                            ], ['name', 'description', 'implementation'])
+                            ], ['name', 'description', 'user_description', 'implementation'])
                             
                             tools_info = []
                             for tool_data in tools_data:
+                                # Use user_description if available, fallback to technical description
+                                user_friendly_desc = tool_data.get('user_description') or tool_data.get('description', 'No description available')
                                 tool_info = {
                                     "name": tool_data.get('name', 'Unnamed Tool'),
-                                    "description": tool_data.get('description', 'No description available'),
+                                    "description": user_friendly_desc,
                                     "implementation": tool_data.get('implementation', 'Unknown'),
                                     "active": True,
                                 }
@@ -89,13 +91,15 @@ class LLMToolUserGreeting(models.Model):
             # Get all active tools from the system as fallback
             tools_data = self.env['llm.tool'].search_read([
                 ('active', '=', True)
-            ], ['name', 'description', 'implementation'])
+            ], ['name', 'description', 'user_description', 'implementation'])
             
             tools_info = []
             for tool_data in tools_data:
+                # Use user_description if available, fallback to technical description
+                user_friendly_desc = tool_data.get('user_description') or tool_data.get('description', 'No description available')
                 tool_info = {
                     "name": tool_data.get('name', 'Unnamed Tool'),
-                    "description": tool_data.get('description', 'No description available'),
+                    "description": user_friendly_desc,
                     "implementation": tool_data.get('implementation', 'Unknown'),
                     "active": True,
                 }

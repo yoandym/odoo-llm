@@ -3,7 +3,21 @@
   <record id="llm_tool_odoo_record_retriever" model="llm.tool">
     <field name="name">odoo_record_retriever</field>
     <field name="implementation">odoo_record_retriever</field>
-    <field name="description">Retrieve records from any Odoo model with filtering capabilities. This tool allows you to fetch data from the database by specifying the model name, domain filters, fields to retrieve, and a limit on the number of records returned.</field>
+    <field name="description">Retrieve records from any Odoo model with filtering capabilities. This tool allows you to fetch data from the database by specifying the model name, domain filters, fields to retrieve, and a limit on the number of records returned.
+
+USAGE GUIDELINES:
+- For searching people/contacts by name: Use model='res.partner' with domain=[["name", "ilike", "search_term"]]
+- For contacts, always include fields like ["name", "display_name", "phone", "mobile", "email"]
+- Use 'ilike' operator for partial name matching (e.g., "Julie Ju" will match "Julie Julia Ju")
+- Use '=' operator only for exact matches
+- For people searches, add [["is_company", "=", false]] to exclude companies
+- Always set appropriate limits (10-20 records max for person searches)
+
+EXAMPLES:
+- Find person by name: model="res.partner", domain=[["name", "ilike", "John Doe"], ["is_company", "=", false]], fields=["name", "phone", "mobile", "email"]
+- Find active contacts: domain=[["active", "=", true], ["is_company", "=", false]]
+- Find contacts with phone: domain=[["phone", "!=", false]]</field>
+    <field name="user_description">Search and retrieve contacts, companies, and other records from your Odoo database. I can help you find people by name, phone number, email, or other criteria.</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="False" />
@@ -21,6 +35,7 @@ Examples:
 2. Multiple records: {"model": "res.partner", "records": [{"name": "John Doe", "email": "john@example.com"}, {"name": "Jane Smith", "email": "jane@example.com"}]}
 
 Due to its data modification capabilities, this tool requires user consent before execution.</field>
+    <field name="user_description">Create new contacts, companies, or other records in your Odoo system. I can help you add new information to your database.</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="True" />
@@ -30,6 +45,7 @@ Due to its data modification capabilities, this tool requires user consent befor
     <field name="name">odoo_record_updater</field>
     <field name="implementation">odoo_record_updater</field>
     <field name="description">Update existing records in any Odoo model. This tool allows you to modify data in the database by specifying the model name, domain filters to identify records, and a dictionary of field values to update. For safety, it defaults to updating only one record at a time. Due to its data modification capabilities, this tool requires user consent before execution.</field>
+    <field name="user_description">Update and modify existing contacts, companies, or other records in your Odoo system. I can help you change information in your database.</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="True" />
@@ -39,6 +55,7 @@ Due to its data modification capabilities, this tool requires user consent befor
     <field name="name">odoo_record_unlinker</field>
     <field name="implementation">odoo_record_unlinker</field>
     <field name="description">Delete existing records from any Odoo model. This tool allows you to remove data from the database by specifying the model name and domain filters to identify records to delete. For safety, it defaults to deleting only one record at a time. Due to its data modification capabilities, this tool requires user consent before execution.</field>
+    <field name="user_description">Delete contacts, companies, or other records from your Odoo system. I can help you remove information from your database (requires your confirmation).</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="True" />
@@ -54,6 +71,7 @@ Due to its data modification capabilities, this tool requires user consent befor
 Private methods (starting with '_') are disallowed by default unless 'allow_private' is explicitly set to true (use with extreme caution).
 Returns a JSON representation of the method's result or an error message.
         ]]>    </field>
+    <field name="user_description">Execute advanced operations and custom methods on your Odoo data. This is a powerful tool for complex tasks (requires your explicit confirmation before each use).</field>
     <field name="default" eval="False" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="True" />
@@ -79,6 +97,7 @@ Returns a JSON representation of the method's result or an error message.
 
             Perfect for exploring unfamiliar models before performing operations on them.
         ]]>    </field>
+    <field name="user_description">Analyze and explore the structure of your Odoo data models. I can help you understand what information is available and how it's organized.</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="False" />
@@ -118,6 +137,7 @@ When responding to this tool's output, you MUST format your response using prope
 
 This tool is completely read-only and safe to use, providing only informational content to enhance user experience.
         ]]>    </field>
+    <field name="user_description">Welcome you and show you what I can help you with. This helps you get started and understand my capabilities.</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="False" />

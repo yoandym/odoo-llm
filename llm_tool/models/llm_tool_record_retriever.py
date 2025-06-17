@@ -43,5 +43,7 @@ class LLMToolRecordRetriever(models.Model):
             records = model_obj.search(domain=domain, limit=limit)
             result = records.read()
 
+        _logger.info(f"Search returned {len(result)} results")
+
         # Convert to serializable format
         return json.loads(json.dumps(result, default=str))

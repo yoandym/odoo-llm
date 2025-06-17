@@ -3,10 +3,9 @@ import json
 import logging
 from typing import Any, get_type_hints
 
-from pydantic import create_model
-
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+from pydantic import create_model
 
 _logger = logging.getLogger(__name__)
 
@@ -26,6 +25,10 @@ class LLMTool(models.Model):
         required=True,
         tracking=True,
         help="A human-readable description of what the tool does. This will be sent to the LLM.",
+    )
+    user_description = fields.Text(
+        string="User Description",
+        help="A user-friendly description of what the tool does. This is shown to end users when they ask about capabilities.",
     )
     implementation = fields.Selection(
         selection=lambda self: self._selection_implementation(),
