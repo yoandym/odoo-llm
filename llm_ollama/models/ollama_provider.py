@@ -9,157 +9,60 @@ from odoo import api, models
 from ..utils.ollama_message_validator import OllamaMessageValidator
 from ..utils.ollama_tool_call_id_utils import OllamaToolCallIdUtils
 
-# Import base observability mixin directly
+_logger = logging.getLogger(__name__)
+
+# Optional observability support
 try:
-    from odoo.addons.llm_observability.models.mixins.base_observability_mixin import \
+    from llm_observability.models.mixins.base_observability_mixin import \
         BaseObservabilityMixin
     _has_base_observability = True
 except ImportError:
-    _has_base_observability = False
-
+    # Create a no-op base class if observability is not available
     class BaseObservabilityMixin:
-        pass
-
-_logger = logging.getLogger(__name__)
-
-# Debug logging only for base observability
-_logger.info(f"llm_ollama: _has_base_observability = {_has_base_observability}")
+        def _has_observability(self):
+            return False
+        
+        def _get_phoenix_config(self):
+            return None
+        
+        def _init_opentelemetry_tracing(self):
+            return None
+        
+        @staticmethod
+        def with_observability(operation_name, extract_model_name=None):
+            def decorator(func):
+                return func  # No-op decorator
+            return decorator
+        
+        def _extract_metrics(self, result, operation_name, args, kwargs):
+            return {}
+        
+        def _get_trace_attributes(self, operation_name, args, kwargs):
+            return {}
+    
+    _has_base_observability = False
 
 
 class LLMProvider(models.Model):
     _inherit = "llm.provider"
     
-    def _init_opentelemetry_tracing(self):
-        """Initialize OpenTelemetry tracing (only once globally)"""
-        _logger.info("🔍 Ollama: _init_opentelemetry_tracing called")
+    # Add observability methods if available
+    if _has_base_observability:
+        def _has_observability(self):
+            return BaseObservabilityMixin._has_observability(self)
         
-        phoenix_config = self.env['phoenix.config'].get_active_config()
-        if not phoenix_config:
-            _logger.info("🔍 Ollama: No Phoenix config found")
-            return None
-            
-        if not phoenix_config.enable_fullstack_tracing:
-            _logger.info("🔍 Ollama: Full-stack tracing disabled in config")
-            return None
-            
-        _logger.info(f"🔍 Ollama: Phoenix config found, initializing with endpoint: {phoenix_config.otlp_endpoint}")
-            
-        try:
-            # Try to import OpenTelemetry
-            from opentelemetry import trace
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-                OTLPSpanExporter
-            from opentelemetry.sdk.resources import Resource
-            from opentelemetry.sdk.trace import TracerProvider
-            from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-            # Try to use Phoenix-specific ResourceAttributes for PROJECT_NAME
-            try:
-                from openinference.semconv.resource import ResourceAttributes
-                has_phoenix_attributes = True
-            except ImportError:
-                # Fallback to standard OpenTelemetry ResourceAttributes
-                from opentelemetry.semconv.resource import ResourceAttributes
-                has_phoenix_attributes = False
-
-            # Check if already initialized
-            current_provider = trace.get_tracer_provider()
-            if hasattr(current_provider, '_resource') and current_provider._resource:
-                _logger.info("🔍 Ollama: OpenTelemetry already initialized, reusing existing provider")
-                return trace.get_tracer(
-                    instrumenting_module_name='llm_ollama',
-                    instrumenting_library_version="1.0.0"
-                )
-
-            # Configure resource
-            module_name = 'llm_ollama'
-            service_name = f"odoo-llm-{module_name}"
-            resource_attrs = {
-                ResourceAttributes.SERVICE_NAME: service_name,
-                ResourceAttributes.SERVICE_VERSION: "1.0.0",
-                ResourceAttributes.DEPLOYMENT_ENVIRONMENT: getattr(phoenix_config, 'environment', 'development'),
-                ResourceAttributes.SERVICE_NAMESPACE: "odoo-llm",
-            }
-            
-            # Add PROJECT_NAME if Phoenix ResourceAttributes are available
-            if has_phoenix_attributes:
-                resource_attrs[ResourceAttributes.PROJECT_NAME] = phoenix_config.project_name
-            else:
-                _logger.warning("🔍 Ollama: Phoenix ResourceAttributes not available, using fallback")
-                resource_attrs["project.name"] = phoenix_config.project_name
-                
-            resource = Resource.create(resource_attrs)
-            
-            # Set up tracer provider
-            provider = TracerProvider(resource=resource)
-            
-            # Configure OTLP exporter
-            otlp_exporter = OTLPSpanExporter(
-                endpoint=phoenix_config.otlp_endpoint,
-                insecure=True
-            )
-            
-            # Add span processor
-            span_processor = BatchSpanProcessor(otlp_exporter)
-            provider.add_span_processor(span_processor)
-            
-            # Set global tracer provider only if not already set
-            try:
-                trace.set_tracer_provider(provider)
-                _logger.info(f"🔍 Ollama: Initialized TracerProvider: {type(provider)}")
-            except Exception as set_error:
-                _logger.warning(f"🔍 Ollama: TracerProvider already set: {set_error}")
-            
-            return trace.get_tracer(
-                instrumenting_module_name=module_name,
-                instrumenting_library_version="1.0.0"
-            )
-            
-        except ImportError:
-            _logger.debug("OpenTelemetry not available")
-            return None
-        except Exception as e:
-            _logger.debug(f"Could not initialize OpenTelemetry: {e}")
-            return None
-    
-    def _force_flush_spans(self):
-        """Force flush spans to ensure they are exported immediately"""
-        try:
-            from opentelemetry import trace
-            from opentelemetry.sdk.trace import TracerProvider
-            
-            tracer_provider = trace.get_tracer_provider()
-            _logger.info(f"🔍 Ollama: Tracer provider type: {type(tracer_provider)}")
-            
-            # Try different methods to force flush
-            if hasattr(tracer_provider, 'force_flush'):
-                _logger.info("🔍 Ollama: Force flushing spans via tracer provider...")
-                result = tracer_provider.force_flush()
-                _logger.info(f"🔍 Ollama: Spans force flushed successfully via tracer provider: {result}")
-            elif isinstance(tracer_provider, TracerProvider):
-                # It's our TracerProvider, try to access span processors directly
-                _logger.info("🔍 Ollama: Trying to access span processors on TracerProvider...")
-                try:
-                    # Try to force flush all span processors
-                    for processor in tracer_provider._span_processors:
-                        if hasattr(processor, 'force_flush'):
-                            _logger.info(f"🔍 Ollama: Force flushing processor: {type(processor)}")
-                            processor.force_flush()
-                    _logger.info("🔍 Ollama: All span processors force flushed successfully")
-                except Exception as e:
-                    _logger.warning(f"🔍 Ollama: Error accessing span processors: {e}")
-            else:
-                _logger.warning("🔍 Ollama: No force_flush method available - using ProxyTracerProvider")
-                
-        except Exception as e:
-            _logger.warning(f"🔍 Ollama: Error force flushing spans: {e}")
-            import traceback
-            _logger.warning(f"🔍 Ollama: Traceback: {traceback.format_exc()}")
+        def _get_phoenix_config(self):
+            return BaseObservabilityMixin._get_phoenix_config(self)
+        
+        def _init_opentelemetry_tracing(self):
+            return BaseObservabilityMixin._init_opentelemetry_tracing(self)
     
     def _extract_metrics(self, result, operation_name, args, kwargs):
-        """Extract metrics for observability"""
-        # Add Ollama-specific metrics extraction here
+        """Extract Ollama-specific metrics for observability"""
         metrics = {}
+        
+        if not _has_base_observability:
+            return metrics
         
         try:
             if operation_name == "chat_completion":
@@ -169,7 +72,7 @@ class LLMProvider(models.Model):
                 if is_streaming and hasattr(result, '__iter__'):
                     # For streaming, we can't get the full response content yet
                     # But we can extract input information
-                    _logger.info("🔍 Ollama: Handling streaming response")
+                    _logger.debug("🔍 Ollama: Handling streaming response")
                     
                     # Add input data from args (messages)
                     if len(args) > 0 and isinstance(args[0], list):
@@ -182,6 +85,7 @@ class LLMProvider(models.Model):
                                 if 'content' in msg:
                                     input_text += msg['content']
                                     if msg.get('role') == 'user':
+                                        user_messages.append(msg['content'])
                                         user_messages.append(msg['content'])
                         
                         if input_text:
@@ -470,190 +374,55 @@ class LLMProvider(models.Model):
         system_prompt=None,
         **kwargs,
     ):
-        """Send chat messages using Ollama with OpenTelemetry observability and nested spans"""
+        """Send chat messages using Ollama with optional observability"""
         _logger.info(f"ollama_chat called with model={model}, stream={stream}, tools={len(tools) if tools else 0}")
         
-        # Use OpenTelemetry observability for all LLM operations
-        if _has_base_observability:
-            _logger.info("🔍 Ollama: Base observability available, initializing tracing")
-            tracer = self._init_opentelemetry_tracing()
-            
-            if tracer:
-                _logger.info("🔍 Ollama: Tracer obtained, creating nested spans")
-                operation_name = "chat_completion"
+        # Apply observability if available
+        if _has_base_observability and hasattr(self, '_init_opentelemetry_tracing'):
+            try:
+                tracer = self._init_opentelemetry_tracing()
                 
-                try:
+                if tracer:
                     from opentelemetry import context as otel_context
                     from opentelemetry import trace as otel_trace
-                    from opentelemetry.trace import SpanKind
 
-                    # Start main LLM operation span (Parent span for the entire conversation)
-                    with tracer.start_as_current_span(
-                        name="llm.chat_completion",
-                        kind=SpanKind.CLIENT
-                    ) as parent_span:
+                    # Start span
+                    span = tracer.start_span("llm.chat_completion")
+                    ctx = otel_trace.set_span_in_context(span)
+                    token = otel_context.attach(ctx)
+                    
+                    try:
+                        # Set span attributes
+                        span.set_attribute("llm.provider", "ollama")
+                        span.set_attribute("llm.operation", "chat_completion")
+                        if model:
+                            span.set_attribute("llm.model", str(model))
                         
-                        # Set OpenTelemetry LLM semantic convention attributes on parent span
-                        parent_span.set_attribute("llm.system", "ollama")
-                        parent_span.set_attribute("llm.request.type", "completion")
-                        parent_span.set_attribute("llm.request.model", str(model))
-                        parent_span.set_attribute("llm.streaming", stream)
-                        parent_span.set_attribute("llm.tools_count", len(tools) if tools else 0)
+                        # Execute the operation
+                        result = self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
                         
-                        # Add user input attributes
-                        if messages:
-                            parent_span.set_attribute("llm.input.messages_count", len(messages))
-                            # Add user message content (truncated)
-                            user_messages = [msg for msg in messages if isinstance(msg, dict) and msg.get('role') == 'user']
-                            if user_messages:
-                                last_user_msg = user_messages[-1].get('content', '')
-                                parent_span.set_attribute("llm.user_input", str(last_user_msg)[:500])
+                        # Extract metrics
+                        metrics = self._extract_metrics(result, "chat_completion", (messages,),
+                                                        {'model': model, 'stream': stream, 'tools': tools})
+                        for key, value in metrics.items():
+                            span.set_attribute(key, value)
                         
-                        parent_span.add_event("llm.request.start")
+                        return result
                         
-                        # Create nested span for model execution
-                        with tracer.start_as_current_span("llm.model.execution") as execution_span:
-                            execution_span.set_attribute("llm.model", str(model))
-                            execution_span.set_attribute("llm.operation", "chat")
-                            
-                            try:
-                                # Execute the actual method with full tracing
-                                _logger.info("🔍 Ollama: Executing LLM operation with nested spans")
-                                result = self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
-                                
-                                # Handle streaming vs non-streaming responses with nested spans
-                                if stream:
-                                    # For streaming, create a wrapper generator that handles tracing
-                                    def traced_generator():
-                                        chunk_count = 0
-                                        try:
-                                            for chunk in result:
-                                                chunk_count += 1
-                                                
-                                                # Create completion span for significant chunks
-                                                if isinstance(chunk, dict) and ('content' in chunk or 'tool_calls' in chunk):
-                                                    with tracer.start_as_current_span("llm.chunk.completion") as completion_span:
-                                                        completion_span.set_attribute("llm.streaming", True)
-                                                        completion_span.set_attribute("chunk.number", chunk_count)
-                                                        
-                                                        # Handle tool calls in streaming response
-                                                        if 'tool_calls' in chunk:
-                                                            tool_calls = chunk['tool_calls']
-                                                            completion_span.add_event("llm.tool.calls")
-                                                            completion_span.set_attribute("llm.response.tool_calls", len(tool_calls))
-                                                            parent_span.set_attribute("llm.response.tool_calls", len(tool_calls))
-                                                            
-                                                            # Create nested spans for each tool call
-                                                            for i, tool_call in enumerate(tool_calls):
-                                                                if isinstance(tool_call, dict) and 'function' in tool_call:
-                                                                    tool_name = tool_call['function'].get('name', f'tool_{i}')
-                                                                    
-                                                                    with tracer.start_as_current_span(f"llm.tool.call.{tool_name}") as tool_span:
-                                                                        tool_span.set_attribute("tool.name", tool_name)
-                                                                        tool_span.set_attribute("tool.call_id", tool_call.get('id', f'call_{i}'))
-                                                                        tool_span.set_attribute("tool.streaming", True)
-                                                                        
-                                                                        # Tool arguments
-                                                                        if 'arguments' in tool_call['function']:
-                                                                            args = tool_call['function']['arguments']
-                                                                            tool_span.set_attribute("tool.arguments", str(args)[:500])
-                                                                        
-                                                                        tool_span.add_event("tool.call.requested")
-                                                
-                                                yield chunk
-                                            
-                                            # Final streaming metrics
-                                            execution_span.set_attribute("llm.streaming.chunks_total", chunk_count)
-                                            parent_span.set_attribute("llm.streaming.chunks_total", chunk_count)
-                                        
-                                        except Exception as e:
-                                            execution_span.record_exception(e)
-                                            execution_span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
-                                            parent_span.record_exception(e)
-                                            parent_span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
-                                            raise
-                                        
-                                        finally:
-                                            # Extract final metrics for streaming
-                                            try:
-                                                metrics = self._extract_metrics({'streaming': True}, operation_name, (messages,),
-                                                                               {'model': model, 'stream': stream, 'tools': tools})
-                                                for key, value in metrics.items():
-                                                    execution_span.set_attribute(key, value)
-                                                    parent_span.set_attribute(key, value)
-                                            except Exception as e:
-                                                _logger.error(f"🔍 Ollama: Error extracting streaming metrics: {e}")
-                                    
-                                    return traced_generator()
-                                else:
-                                    # For non-streaming responses, extract metrics immediately
-                                    metrics = self._extract_metrics(result, operation_name, (messages,),
-                                                                    {'model': model, 'stream': stream, 'tools': tools})
-                                    for key, value in metrics.items():
-                                        execution_span.set_attribute(key, value)
-                                        parent_span.set_attribute(key, value)
-                                    
-                                    # Create completion span for non-streaming response
-                                    with tracer.start_as_current_span("llm.response.completion") as completion_span:
-                                        completion_span.set_attribute("llm.streaming", False)
-                                        
-                                        if isinstance(result, dict) and 'message' in result:
-                                            completion_span.add_event("llm.content.completion")
-                                            
-                                            message = result['message']
-                                            content = message.get('content', '')
-                                            if content:
-                                                completion_span.set_attribute("output.value", content[:2000])
-                                                completion_span.set_attribute("llm.response.model", str(model))
-                                                parent_span.set_attribute("llm.response.content_length", len(content))
-                                            
-                                            # Handle tool calls for non-streaming with nested spans
-                                            if message.get('tool_calls'):
-                                                tool_calls = message['tool_calls']
-                                                completion_span.add_event("llm.tool.calls")
-                                                completion_span.set_attribute("llm.response.tool_calls", len(tool_calls))
-                                                parent_span.set_attribute("llm.response.tool_calls", len(tool_calls))
-                                                
-                                                # Create nested spans for each tool call
-                                                for i, tool_call in enumerate(tool_calls):
-                                                    if isinstance(tool_call, dict) and 'function' in tool_call:
-                                                        tool_name = tool_call['function'].get('name', f'tool_{i}')
-                                                        
-                                                        with tracer.start_as_current_span(f"llm.tool.call.{tool_name}") as tool_span:
-                                                            tool_span.set_attribute("tool.name", tool_name)
-                                                            tool_span.set_attribute("tool.call_id", tool_call.get('id', f'call_{i}'))
-                                                            tool_span.set_attribute("tool.streaming", False)
-                                                            
-                                                            # Tool arguments
-                                                            if 'arguments' in tool_call['function']:
-                                                                args = tool_call['function']['arguments']
-                                                                tool_span.set_attribute("tool.arguments", str(args)[:500])
-                                                            
-                                                            tool_span.add_event("tool.call.requested")
-                                        
-                                        parent_span.add_event("llm.response.complete")
-                                    
-                                    return result
-                            
-                            except Exception as e:
-                                execution_span.record_exception(e)
-                                execution_span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
-                                parent_span.record_exception(e)
-                                parent_span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
-                                raise
-                                
-                            finally:
-                                # Force flush spans to ensure they are exported immediately
-                                self._force_flush_spans()
-                                
-                except Exception as e:
-                    _logger.warning(f"Error in OpenTelemetry tracing: {e}, executing without tracing")
+                    except Exception as e:
+                        span.record_exception(e)
+                        span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
+                        raise
+                    finally:
+                        span.end()
+                        if token:
+                            otel_context.detach(token)
+                else:
                     return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
-            else:
-                _logger.info("🔍 Ollama: No tracer available, falling back to non-observability execution")
+            except Exception as e:
+                _logger.debug(f"Error in observability: {e}")
                 return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
         else:
-            _logger.debug("Observability not available, executing without tracing")
             return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
 
     def _ollama_chat_impl(self, messages, model=None, stream=False, tools=None, system_prompt=None, **kwargs):
@@ -830,39 +599,35 @@ class LLMProvider(models.Model):
         return assembled_tool_calls
 
     def ollama_embedding(self, texts, model=None):
-        """Generate embeddings using Ollama with hybrid observability"""
+        """Generate embeddings using Ollama with optional observability"""
         _logger.info(f"ollama_embedding called with model={model}")
         
-        # Apply observability manually for embeddings
-        if _has_base_observability:
-            tracer = self._init_opentelemetry_tracing()
-            
-            if tracer:
-                operation_name = "embedding"
+        # Apply observability if available
+        if _has_base_observability and hasattr(self, '_init_opentelemetry_tracing'):
+            try:
+                tracer = self._init_opentelemetry_tracing()
                 
-                try:
+                if tracer:
                     from opentelemetry import context as otel_context
                     from opentelemetry import trace as otel_trace
 
                     # Start span
-                    span = tracer.start_span(f"llm_ollama.{operation_name}")
+                    span = tracer.start_span("llm.embedding")
                     ctx = otel_trace.set_span_in_context(span)
                     token = otel_context.attach(ctx)
                     
-                    # Set span attributes
-                    span.set_attribute("llm.provider", "ollama")
-                    span.set_attribute("llm.operation", operation_name)
-                    
-                    # Add custom attributes
-                    trace_attrs = self._get_trace_attributes(operation_name, (texts,), {"model": model})
-                    for key, value in trace_attrs.items():
-                        span.set_attribute(key, value)
-                    
                     try:
+                        # Set span attributes
+                        span.set_attribute("llm.provider", "ollama")
+                        span.set_attribute("llm.operation", "embedding")
+                        if model:
+                            span.set_attribute("llm.model", str(model))
+                        
+                        # Execute the operation
                         result = self._ollama_embedding_impl(texts, model)
                         
-                        # Extract and set metrics
-                        metrics = self._extract_metrics(result, operation_name, (texts,), {"model": model})
+                        # Extract metrics
+                        metrics = self._extract_metrics(result, "embedding", (texts,), {'model': model})
                         for key, value in metrics.items():
                             span.set_attribute(key, value)
                         
@@ -872,22 +637,18 @@ class LLMProvider(models.Model):
                         span.record_exception(e)
                         span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
                         raise
-                    
                     finally:
                         span.end()
-                        # Force flush to ensure spans are exported immediately
-                        self._force_flush_spans()
                         if token:
                             otel_context.detach(token)
-                            
-                except Exception as e:
-                    _logger.debug(f"Error in embedding observability: {e}")
+                else:
                     return self._ollama_embedding_impl(texts, model)
-            else:
+            except Exception as e:
+                _logger.debug(f"Error in observability: {e}")
                 return self._ollama_embedding_impl(texts, model)
         else:
             return self._ollama_embedding_impl(texts, model)
-    
+
     def _ollama_embedding_impl(self, texts, model=None):
         """Internal implementation of ollama_embedding"""
         model = self.get_model(model, "embedding")
