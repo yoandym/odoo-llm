@@ -101,6 +101,72 @@ class LLMKnowledgeCollection(models.Model):
         tracking=True,
     )
 
+    # Docling configuration fields
+    docling_ocr_enabled = fields.Boolean(
+        string="Enable OCR",
+        default=True,
+        help="Enable OCR for image and scanned document processing",
+    )
+    docling_ocr_language = fields.Selection(
+        [
+            ("auto", "Auto-detect"),
+            ("eng", "English"),
+            ("spa", "Spanish"),
+            ("fra", "French"),
+            ("deu", "German"),
+            ("ita", "Italian"),
+            ("por", "Portuguese"),
+            ("rus", "Russian"),
+            ("chi_sim", "Chinese Simplified"),
+            ("chi_tra", "Chinese Traditional"),
+            ("jpn", "Japanese"),
+            ("kor", "Korean"),
+            ("ara", "Arabic"),
+            ("hin", "Hindi"),
+        ],
+        string="OCR Language",
+        default="auto",
+        help="Language for OCR text recognition",
+    )
+    docling_use_gpu = fields.Boolean(
+        string="Use GPU Acceleration",
+        default=False,
+        help="Use GPU for faster processing (requires CUDA-capable GPU)",
+    )
+    docling_extract_tables = fields.Boolean(
+        string="Extract Tables",
+        default=True,
+        help="Extract and format tables from documents",
+    )
+    docling_extract_images = fields.Boolean(
+        string="Extract Images",
+        default=True,
+        help="Extract and describe images from documents",
+    )
+    docling_table_mode = fields.Selection(
+        [
+            ("fast", "Fast"),
+            ("accurate", "Accurate"),
+        ],
+        string="Table Extraction Mode",
+        default="fast",
+        help="Trade-off between speed and accuracy for table extraction",
+    )
+    docling_force_ocr = fields.Boolean(
+        string="Force OCR",
+        default=False,
+        help="Force OCR even for documents with embedded text",
+    )
+    docling_ocr_model = fields.Selection(
+        [
+            ("easyocr", "EasyOCR"),
+            ("tesseract", "Tesseract"),
+        ],
+        string="OCR Engine",
+        default="easyocr",
+        help="OCR engine to use for text recognition",
+    )
+
     @api.model
     def _get_available_parsers(self):
         return self.env["llm.resource"]._get_available_parsers()
@@ -399,108 +465,46 @@ class LLMKnowledgeCollection(models.Model):
                 else:
                     # Create new resource with meaningful name
                     if hasattr(record, "display_name") and record.display_name:
-                        name = record.display_name
-                    elif hasattr(record, "name") and record.name:
-                        name = record.name
+                        resource_name = record.display_name
                     else:
-                        model_display = self.env["ir.model"]._get(model_name).name
-                        name = f"{model_display} #{record_id}"
+                        resource_name = f"{model_name} ({record_id})"
 
-                    new_doc = self.env["llm.resource"].create(
-                        {
-                            "name": name,
-                            "model_id": model_id,
-                            "res_id": record_id,
-                            "parser": "json",
-                            "collection_ids": [(4, collection.id)],
-                        }
-                    )
-                    docs_to_keep |= new_doc
+                    # Create new resource
+                    new_resource = self.env["llm.resource"].create({
+                        "name": resource_name,
+                        "model_id": model_id,
+                        "res_id": record_id,
+                        "parser": collection.default_parser,
+                        "chunker": collection.default_chunker,
+                        "target_chunk_size": collection.default_chunk_size,
+                        "target_chunk_overlap": collection.default_chunk_overlap,
+                    })
+                    # Link to collection
+                    collection.write({"resource_ids": [(4, new_resource.id)]})
                     created_count += 1
+                    docs_to_keep |= new_resource
 
-            # Find resources to remove (those in the collection but not matching any domains)
+            # Remove resources that are no longer matching
             docs_to_remove = existing_docs - docs_to_keep
-
-            # Remove resources that no longer match any domains
             if docs_to_remove:
-                # Only remove from this collection, not delete the resources
-                collection.write(
-                    {"resource_ids": [(3, doc.id) for doc in docs_to_remove]}
-                )
+                collection.write({"resource_ids": [(3, doc.id) for doc in docs_to_remove]})
                 removed_count = len(docs_to_remove)
 
-            # Post summary message
-            if created_count > 0 or linked_count > 0 or removed_count > 0:
-                collection._post_styled_message(
-                    _(
-                        f"Synchronization complete: Created {created_count} new resources, "
-                        f"linked {linked_count} existing resources, "
-                        f"removed {removed_count} resources no longer matching domains."
-                    ),
-                    message_type="success",
-                )
+            # Log summary
+            if created_count or linked_count or removed_count:
+                message = f"Sync completed: {created_count} created, {linked_count} linked, {removed_count} removed"
             else:
-                collection._post_styled_message(
-                    _("No changes made - collection is already in sync with domains."),
-                    message_type="info",
-                )
-
-    def process_resources(self):
-        """Process resources through retrieval, parsing, and chunking (up to chunked state)"""
-        for collection in self:
-            collection.resource_ids.process_resource()
-
-    def reindex_collection(self):
-        """
-        Reindex all resources in the collection.
-        This will reset resource states from 'ready' to 'chunked',
-        and recreate the collection in the store if necessary.
-        """
-        for collection in self:
-            # If we have a store, recreate the collection
-            if collection.store_id:
-                try:
-                    # Delete and recreate the collection in the store
-                    if collection.store_id.collection_exists(collection.id):
-                        collection.store_id.delete_collection(collection.id)
-
-                    # Create the collection again
-                    collection.store_id.create_collection(collection.id)
-
-                    # Mark resources for re-embedding
-                    reset_count = collection._reset_ready_resources(
-                        success_message=_(
-                            f"Reset {{count}} resources for re-embedding with model {collection.embedding_model_id.name}."
-                        )
-                    )
-                    if not reset_count:
-                        collection._post_styled_message(
-                            _("No resources found to reindex."), message_type="info"
-                        )
-
-                except Exception as e:
-                    collection._post_styled_message(
-                        _(f"Error reindexing collection: {str(e)}"),
-                        message_type="error",
-                    )
-            else:
-                # For collections without a store, just reset resource states
-                reset_count = collection._reset_ready_resources(
-                    success_message=_(
-                        f"Reset {{count}} resources for re-embedding with model {collection.embedding_model_id.name}."
-                    )
-                )
-                if not reset_count:
-                    collection._post_styled_message(
-                        _("No resources found to reindex."), message_type="info"
-                    )
-                else:
-                    collection._post_styled_message(
-                        message=_(
-                            f"Reset {reset_count} resources for re-embedding with model {collection.embedding_model_id.name}."
-                        ),
-                        message_type="info",
-                    )
+                message = "No changes needed - all resources are already synchronized"
+            
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "message": message,
+                    "type": "success",
+                    "sticky": False,
+                },
+            }
 
     def action_open_upload_wizard(self):
         """Open the upload resource wizard with this collection pre-selected"""
@@ -516,6 +520,110 @@ class LLMKnowledgeCollection(models.Model):
                 "default_resource_name_template": "{filename}",
             },
         }
+
+    def process_resources(self):
+        """Process all resources in the collection through parsing and chunking"""
+        self.ensure_one()
+        
+        # Get resources that need processing (draft, retrieved, or parsed state)
+        resources_to_process = self.resource_ids.filtered(
+            lambda r: r.state in ['draft', 'retrieved', 'parsed']
+        )
+        
+        if not resources_to_process:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "message": "No resources found that need processing",
+                    "type": "info",
+                    "sticky": False,
+                },
+            }
+        
+        # Process each resource
+        processed_count = 0
+        for resource in resources_to_process:
+            try:
+                # Parse if needed
+                if resource.state in ['draft', 'retrieved']:
+                    resource.parse()
+                
+                # Chunk if needed
+                if resource.state == 'parsed':
+                    resource.chunk()
+                
+                processed_count += 1
+            except Exception as e:
+                # Log error but continue with other resources
+                _logger.error(f"Error processing resource {resource.name}: {str(e)}")
+        
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "message": f"Successfully processed {processed_count} resources",
+                "type": "success",
+                "sticky": False,
+            },
+        }
+
+    def reindex_collection(self):
+        """Recreate vector indexes for all resources in the collection"""
+        self.ensure_one()
+        
+        if not hasattr(self, 'store_id') or not self.store_id:
+            return {
+                "type": "ir.actions.client", 
+                "tag": "display_notification",
+                "params": {
+                    "message": "No vector store configured for this collection",
+                    "type": "warning",
+                    "sticky": False,
+                },
+            }
+        
+        # Get ready resources (those that have been embedded)
+        ready_resources = self.resource_ids.filtered(lambda r: r.state == 'ready')
+        
+        if not ready_resources:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification", 
+                "params": {
+                    "message": "No ready resources found to reindex",
+                    "type": "info",
+                    "sticky": False,
+                },
+            }
+        
+        try:
+            # Reset resources to chunked state to trigger re-embedding
+            ready_resources.write({'state': 'chunked'})
+            
+            # Re-embed the resources
+            self.action_embed_resources(specific_resource_ids=ready_resources.ids)
+            
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "message": f"Successfully reindexed {len(ready_resources)} resources",
+                    "type": "success",
+                    "sticky": False,
+                },
+            }
+        except Exception as e:
+            _logger.error(f"Error reindexing collection {self.name}: {str(e)}")
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "message": f"Error reindexing collection: {str(e)}",
+                    "type": "error",
+                    "sticky": True,
+                },
+            }
 
     def action_embed_resources(self, specific_resource_ids=None):
         """

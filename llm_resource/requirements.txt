@@ -1,0 +1,10 @@
+docling>=2.37.0
+pandas
+PyMuPDF
+python-docx
+python-pptx
+beautifulsoup4
+camelot-py[cv]
+tabula-py
+markdownify
+opencv-python-headless

@@ -22,6 +22,7 @@
         "security/ir.model.access.csv",
         "data/server_actions.xml",
         "views/llm_resource_views.xml",
+        "views/llm_resource_docling_views.xml",
         "views/menu.xml",
     ],
     "images": [

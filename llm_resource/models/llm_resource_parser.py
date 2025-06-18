@@ -1,13 +1,6 @@
-import base64
-import json
+"""Refactored LLM Resource Parser using component-based parser system."""
+
 import logging
-
-from markdownify import markdownify as md
-
-try:
-    import pymupdf
-except ImportError:
-    pymupdf = None
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
@@ -27,13 +20,116 @@ class LLMResourceParser(models.Model):
         tracking=True,
     )
 
+    # Docling-specific configuration fields
+    docling_do_ocr = fields.Boolean(
+        string="Enable OCR",
+        default=True,
+        help="Enable Optical Character Recognition for scanned documents"
+    )
+    
+    docling_ocr_language = fields.Selection([
+        ('en', 'English'),
+        ('es', 'Spanish'),
+        ('fr', 'French'),
+        ('de', 'German'),
+        ('it', 'Italian'),
+        ('pt', 'Portuguese'),
+        ('ru', 'Russian'),
+        ('zh', 'Chinese'),
+        ('ja', 'Japanese'),
+        ('ko', 'Korean'),
+        ('ar', 'Arabic'),
+    ], string="OCR Language", default='en', help="Language for OCR processing")
+    
+    docling_do_table_structure = fields.Boolean(
+        string="Extract Table Structure",
+        default=True,
+        help="Enable table structure analysis and extraction"
+    )
+    
+    docling_do_cell_matching = fields.Boolean(
+        string="Enable Cell Matching",
+        default=True,
+        help="Enable table cell matching for better structure recognition"
+    )
+    
+    docling_use_gpu = fields.Boolean(
+        string="Use GPU Acceleration",
+        default=True,
+        help="Use GPU acceleration if available (falls back to CPU)"
+    )
+    
+    docling_num_threads = fields.Integer(
+        string="Number of Threads",
+        default=4,
+        help="Number of processing threads for document conversion"
+    )
+    
+    docling_accelerator_device = fields.Selection([
+        ('auto', 'Auto (GPU if available, else CPU)'),
+        ('cpu', 'CPU Only'),
+        ('cuda', 'NVIDIA GPU (CUDA)'),
+        ('mps', 'Apple Silicon (MPS)'),
+    ], string="Accelerator Device", default='auto',
+       help="Device to use for AI processing acceleration")
+    
+    docling_backend = fields.Selection([
+        ('docling_parse', 'Docling Parse (Default)'),
+        ('pypdfium', 'PyPdfium (Lightweight)'),
+    ], string="PDF Backend", default='docling_parse',
+       help="Backend engine for PDF processing")
+    
+    docling_extract_tables = fields.Boolean(
+        string="Extract Tables",
+        default=True,
+        help="Extract tables as separate elements"
+    )
+    
+    docling_extract_figures = fields.Boolean(
+        string="Extract Figures",
+        default=True,
+        help="Extract figures and images from documents"
+    )
+    
+    docling_preserve_layout = fields.Boolean(
+        string="Preserve Layout",
+        default=True,
+        help="Preserve document layout and structure in output"
+    )
+
     @api.model
     def _get_available_parsers(self):
-        """Get all available parser methods"""
-        return [
-            ("default", "Default Parser"),
-            ("json", "JSON Parser"),
-        ]
+        """Get all available parser methods with descriptions"""
+        try:
+            # Import here to avoid circular imports
+            from odoo.addons.llm_resource.parsers.parser_registry import \
+                ParserRegistry
+
+            # Trigger lazy loading
+            available = ParserRegistry.get_available_parsers()
+            _logger.info(f"Available parsers: {available}")
+            return available
+        except Exception as e:
+            _logger.error(f"Error loading parsers: {e}", exc_info=True)
+            # Fallback to default parser if registry fails
+            return [('default', 'Simple Parser - Markdownify')]
+        
+    @api.model
+    def get_parser_description(self, parser_key):
+        """Get the detailed description for a specific parser"""
+        try:
+            # Import here to avoid circular imports
+            from odoo.addons.llm_resource.parsers.parser_registry import \
+                ParserRegistry
+            return ParserRegistry.get_parser_description(parser_key)
+        except Exception as e:
+            _logger.error(f"Error getting parser description for {parser_key}: {e}", exc_info=True)
+            return {
+                'name': 'Unknown Parser',
+                'description': 'Parser information not available',
+                'requirements': 'Unknown',
+                'use_cases': 'Unknown'
+            }
 
     def parse(self):
         """Parse the retrieved content to markdown"""
@@ -57,7 +153,7 @@ class LLMResourceParser(models.Model):
                     fields = resource.get_fields(record)
 
                 for field in fields:
-                    # TODO: Should it be self._parse_field?
+                    # Use the new parser system
                     success = resource._parse_field(record, field)
 
                 if success:
@@ -89,37 +185,68 @@ class LLMResourceParser(models.Model):
                 resource._unlock()
         resources._unlock()
 
-    def _get_parser(self, record, field_name, mimetype):
-        if self.parser != "default":
-            return getattr(self, f"parse_{self.parser}")
-        record_name = (
-            record.display_name
-            if hasattr(record, "display_name")
-            else f"{record._name} #{record.id}"
-        )
-
-        is_markdown = ".md" in record_name.lower()
-        if mimetype == "application/pdf":
-            return self._parse_pdf
-        # special case, as odoo detects markdowns as application/octet-stream
-        elif mimetype == "application/octet-stream" and is_markdown:
-            return self._parse_text
-        elif "html" in mimetype:
-            return self._parse_html
-        elif mimetype.startswith("text/"):
-            return self._parse_text
-        elif mimetype.startswith("image/"):
-            # For images, store a reference in the content
-            return self._parse_image
-        elif mimetype == "application/json":
-            return self.parse_json
-        else:
-            return self._parse_default
-
     def _parse_field(self, record, field):
+        """Parse a field using the selected parser from the registry."""
         self.ensure_one()
-        parser_method = self._get_parser(record, field["field_name"], field["mimetype"])
-        return parser_method(record, field)
+        
+        try:
+            # Import here to avoid circular imports
+            from odoo.addons.llm_resource.parsers.parser_registry import \
+                ParserRegistry
+
+            # Get the parser instance
+            parser_instance = ParserRegistry.get_parser_instance(self.parser)
+            
+            if not parser_instance:
+                # Fallback to default parser if the selected parser is not available
+                _logger.warning(f"Parser '{self.parser}' not available, falling back to default")
+                parser_instance = ParserRegistry.get_parser_instance('default')
+                
+                if not parser_instance:
+                    # If even default parser is not available, create a basic fallback
+                    _logger.error("No parsers available, using basic fallback")
+                    return self._basic_fallback_parse(record, field)
+            
+            # Use the parser to process the field - pass the resource directly
+            success = parser_instance.parse(self, field)
+            return success
+            
+        except Exception as e:
+            _logger.error(f"Error in _parse_field: {e}", exc_info=True)
+            # Try basic fallback
+            return self._basic_fallback_parse(record, field)
+    
+    def _basic_fallback_parse(self, record, field):
+        """Basic fallback parser when no other parsers are available."""
+        try:
+            mimetype = field.get("mimetype", "")
+            rawcontent = field.get("rawcontent", "")
+            resource_name = getattr(self, 'name', f"Resource #{self.id}")
+            
+            if "html" in mimetype:
+                # Try to use markdownify if available
+                try:
+                    from markdownify import markdownify as md
+                    self.content = md(rawcontent)
+                except ImportError:
+                    # Fallback to plain text
+                    self.content = rawcontent
+            elif mimetype.startswith("text/"):
+                self.content = rawcontent
+            else:
+                # Default handling for unsupported types
+                self.content = f"""# {resource_name}
+
+**File Type**: {mimetype}
+**Description**: This file is of type {mimetype} which cannot be directly parsed into text content.
+**Source Record**: {record._name} #{record.id}
+"""
+            return True
+            
+        except Exception as e:
+            _logger.error(f"Error in basic fallback parser: {e}")
+            self.content = f"# Error parsing document\n\nAn error occurred: {str(e)}"
+            return False
 
     def get_fields(self, record):
         """
@@ -173,149 +300,3 @@ class LLMResourceParser(models.Model):
                 )
 
         return results
-
-    def parse_json(self, record, field):
-        """
-        JSON parser implementation - converts record data to JSON and then to markdown
-        """
-        self.ensure_one()
-
-        # Get record name or default to model name and ID
-        record_name = (
-            record.display_name
-            if hasattr(record, "display_name")
-            else f"{record._name} #{record.id}"
-        )
-
-        # Create a dictionary with record data
-        record_data = {}
-        for field_name, field in record._fields.items():
-            try:
-                # Skip binary fields and internal fields
-                if field.type == "binary" or field_name.startswith("_"):
-                    continue
-
-                # Handle many2one fields
-                if field.type == "many2one" and record[field_name]:
-                    record_data[field_name] = {
-                        "id": record[field_name].id,
-                        "name": record[field_name].display_name,
-                    }
-                # Handle many2many and one2many fields
-                elif field.type in ["many2many", "one2many"]:
-                    record_data[field_name] = [
-                        {"id": r.id, "name": r.display_name} for r in record[field_name]
-                    ]
-                # Handle other fields
-                else:
-                    record_data[field_name] = record[field_name]
-            except Exception as e:
-                _logger.error(f"Skipping field {field_name}: {str(e)}")
-                self._post_styled_message(
-                    f"Skipping field {field_name}: {str(e)}", "warning"
-                )
-                continue
-        # Format as markdown
-        content = [f"# {record_name}"]
-        content.append("\n## JSON Data\n")
-        content.append("```json")
-        content.append(json.dumps(record_data, indent=2, default=str))
-        content.append("```")
-
-        # Update resource content
-        self.content = "\n".join(content)
-
-        return True
-
-    def _parse_pdf(self, record, field):
-        """Parse PDF file and extract text and images"""
-        # Decode attachment data
-
-        if field["mimetype"] != "application/pdf":
-            return False
-
-        # Open PDF using PyMuPDF
-        text_content = []
-        image_count = 0
-        page_count = 0
-        # no need to decode as passing raw data should work here
-        pdf_data = field["rawcontent"]
-
-        # Create a BytesIO object from the PDF data
-        with pymupdf.open(stream=pdf_data, filetype="pdf") as doc:
-            # Store page count before document is closed
-            page_count = doc.page_count
-
-            # Process each page
-            for page_num in range(page_count):
-                page = doc[page_num]
-
-                # Extract text
-                text = page.get_text()
-                text_content.append(f"## Page {page_num + 1}\n\n{text}")
-
-                # Extract images
-                image_list = page.get_images(full=True)
-                for img_index, img in enumerate(image_list):
-                    xref = img[0]
-                    try:
-                        base_image = doc.extract_image(xref)
-                        if base_image:
-                            # Store image as attachment
-                            image_data = base_image["image"]
-                            image_ext = base_image["ext"]
-                            image_name = f"image_{page_num}_{img_index}.{image_ext}"
-
-                            # Create attachment for the image
-                            img_attachment = record.env["ir.attachment"].create(
-                                {
-                                    "name": image_name,
-                                    "datas": base64.b64encode(image_data),
-                                    "res_model": "llm.resource",
-                                    "res_id": self.id,
-                                    "mimetype": f"image/{image_ext}",
-                                }
-                            )
-
-                            # Add image reference to markdown content
-                            if img_attachment:
-                                image_url = f"/web/image/{img_attachment.id}"
-                                text_content.append(f"\n![{image_name}]({image_url})\n")
-                                image_count += 1
-                    except Exception as e:
-                        self._post_styled_message(
-                            f"Error extracting image: {str(e)}", "warning"
-                        )
-
-        # Join all content
-        final_content = "\n\n".join(text_content)
-
-        # Update resource with extracted content
-        self.content = final_content
-
-        return True
-
-    def _parse_text(self, _, field):
-        self.content = field["rawcontent"]
-        return True
-
-    def _parse_html(self, _, field):
-        self.content = md(field["rawcontent"])
-        return True
-
-    def _parse_image(self, record, _):
-        image_url = f"/web/image/{record.id}"
-        self.content = f"![{record.name}]({image_url})"
-        return True
-
-    def _parse_default(self, record, field):
-        # Default to a generic description for unsupported types
-        mimetype = field["mimetype"]
-        self.content = f"""
-            # {record.name}
-
-            **File Type**: {mimetype}
-            **Description**: This file is of type {mimetype} which cannot be directly parsed into text content.
-            **Access**: [Open file](/web/content/{record.id})
-                            """
-        return True

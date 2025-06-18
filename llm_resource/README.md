@@ -14,6 +14,53 @@ This Odoo module provides base document resource management for LLM modules, ena
 
 1. Clone the repository into your Odoo addons directory.
 2. Install the module via the Odoo Apps menu.
+3. Install the required Python packages:
+   ```
+   pip install docling pandas markdownify pymupdf python-docx python-pptx beautifulsoup4 camelot-py[cv]
+   ```
+
+## Document Parsers
+
+The module provides different parsers to convert retrieved content into markdown format:
+
+1. **Simple Parser - Markdownify**: (Default) Basic parser for HTML and plain text with low resource requirements
+2. **Smart Parser**: Advanced parser using specialized libraries to extract text, tables and images from various document formats
+3. **Smart Parser - Docling**: AI-powered parser with advanced layout analysis (requires significant system resources)
+4. **JSON Parser**: Specialized parser for JSON content
+
+### Parser Selection Guide
+
+Choose the appropriate parser based on your document complexity and system resources:
+
+| Parser | Best for | Resource Requirements | Formats | Features |
+|--------|---------|---------------------|---------|----------|
+| Simple Parser - Markdownify | Simple documents, web content | Low | HTML, Text | Basic text extraction |
+| Smart Parser | Most document types | Moderate | PDF, DOCX, PPTX, HTML | Tables and images extraction |
+| Smart Parser - Docling | Complex layouts | High (4GB+ RAM) | PDF, DOCX, PPTX, HTML | Advanced layout analysis, semantic understanding |
+| JSON Parser | API responses, data files | Low | JSON | Structured data formatting |
+
+### Smart Parser Features
+
+The Smart Parser provides enhanced document processing using specialized libraries:
+
+- **PDF processing**: Uses PyMuPDF for text/image extraction and Camelot for table extraction
+- **Word documents**: Uses python-docx to extract text, tables, and images
+- **PowerPoint files**: Uses python-pptx to extract slides, text, and images
+- **HTML content**: Uses BeautifulSoup for structure preservation and content extraction
+- **Table extraction**: Converts tables to markdown format
+- **Image handling**: Extracts and stores images from documents
+
+### Docling Parser Features
+
+The Docling parser provides AI-powered document processing capabilities:
+
+- **Structured extraction**: Preserves document hierarchy and semantic structure
+- **Table recognition**: Extracts tables with their structure intact
+- **Multiple format support**: Works with PDF, DOCX, PPTX, HTML, and more
+- **Image extraction**: Preserves images and figures with their captions
+- **Layout analysis**: Recognizes headers, footers, and other layout elements
+
+Note: The Docling parser requires significant system resources and may not work on ARM64 systems due to dependency constraints.
 
 ## Configuration
 

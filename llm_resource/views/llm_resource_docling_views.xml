@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inherit the base LLM Resource form view to add Docling configuration -->
+    <record id="view_llm_resource_form_docling" model="ir.ui.view">
+        <field name="name">llm.resource.form.docling</field>
+        <field name="model">llm.resource</field>
+        <field name="inherit_id" ref="view_llm_resource_form"/>
+        <field name="arch" type="xml">
+            <!-- Add Docling configuration as a new notebook page -->
+            <xpath expr="//page[@name='content']" position="after">
+                <page string="Docling Configuration" name="docling_config" invisible="parser != 'docling'">
+                    <div class="alert alert-info mb-3">
+                        <h5>
+                            <i class="fa fa-cog"></i> Docling Parser Configuration</h5>
+                        <p>Configure the AI-powered Docling parser with custom processing options. 
+                           These settings control OCR, table extraction, acceleration, and other features.</p>
+                    </div>
+
+                    <group>
+                        <!-- OCR Settings -->
+                        <separator string="OCR Settings" colspan="2"/>
+                        <group col="4">
+                            <field name="docling_do_ocr" string="Enable OCR"/>
+                            <field name="docling_ocr_language" string="OCR Language" invisible="not docling_do_ocr"/>
+                            <field name="docling_use_gpu" string="Use GPU for OCR" invisible="not docling_do_ocr"/>
+                        </group>
+
+                        <!-- Table Extraction Settings -->
+                        <separator string="Table Extraction" colspan="2"/>
+                        <group col="4">
+                            <field name="docling_do_table_structure" string="Extract Table Structure"/>
+                            <field name="docling_do_cell_matching" string="Enable Cell Matching" invisible="not docling_do_table_structure"/>
+                            <field name="docling_extract_tables" string="Extract Tables as Elements"/>
+                        </group>
+
+                        <!-- Performance Settings -->
+                        <separator string="Performance &amp; Acceleration" colspan="2"/>
+                        <group col="4">
+                            <field name="docling_accelerator_device" string="Accelerator Device"/>
+                            <field name="docling_num_threads" string="Number of Threads"/>
+                            <field name="docling_backend" string="PDF Backend"/>
+                        </group>
+
+                        <!-- Feature Extraction Settings -->
+                        <separator string="Feature Extraction" colspan="2"/>
+                        <group col="4">
+                            <field name="docling_extract_figures" string="Extract Figures/Images"/>
+                            <field name="docling_preserve_layout" string="Preserve Layout"/>
+                        </group>
+
+                        <!-- Help Section -->
+                        <div colspan="2" class="alert alert-warning mt-3">
+                            <h6>
+                                <i class="fa fa-info-circle"></i> Configuration Tips</h6>
+                            <ul class="mb-0">
+                                <li>
+                                    <strong>OCR Language:</strong> Set to the primary language of your documents for better accuracy</li>
+                                <li>
+                                    <strong>GPU Acceleration:</strong> Disable if you encounter memory issues or compatibility problems</li>
+                                <li>
+                                    <strong>Table Extraction:</strong> Cell matching improves table structure but uses more resources</li>
+                                <li>
+                                    <strong>Performance:</strong> Reduce threads if system becomes unresponsive during processing</li>
+                                <li>
+                                    <strong>Backend:</strong> PyPdfium is lighter but may have fewer features than Docling Parse</li>
+                            </ul>
+                        </div>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
