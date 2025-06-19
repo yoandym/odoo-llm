@@ -378,3 +378,96 @@ class DoclingParser(BaseDocumentParser):
             f"Please install Docling to extract content from {mimetype} files.*\n\n"
             f"**Raw content available:** {len(raw_content)} characters"
         )
+    
+    def parse_record_fields(self, resource, record) -> list:
+        """
+        Parse fields from a record using Docling's advanced processing capabilities.
+        
+        Uses the base implementation from BaseDocumentParser but adds Docling-specific
+        processing for binary fields with documents.
+        
+        Args:
+            resource: The LLM resource record
+            record: The Odoo record to extract fields from
+            
+        Returns:
+            List[Dict]: List of field dictionaries with field_name, mimetype, and rawcontent
+        """
+        # Get basic fields using the base implementation
+        results = super().parse_record_fields(resource, record)
+        
+        # No additional processing needed if Docling is not available
+        if not DOCLING_AVAILABLE:
+            _logger.warning("Docling library not available, using base parser implementation")
+            return results
+            
+        # Get access to environment
+        env = record.env
+            
+        # Add Docling-specific metadata for processing options
+        for item in results:
+            if "mimetype" in item and item["mimetype"] == "application/pdf":
+                item["docling_options"] = {
+                    "do_ocr": resource.docling_do_ocr if hasattr(resource, "docling_do_ocr") else True,
+                    "ocr_language": resource.docling_ocr_language if hasattr(resource, "docling_ocr_language") else "en",
+                    "do_table_structure": resource.docling_do_table_structure if hasattr(resource, "docling_do_table_structure") else True,
+                    "do_cell_matching": resource.docling_do_cell_matching if hasattr(resource, "docling_do_cell_matching") else True,
+                    "use_gpu": resource.docling_use_gpu if hasattr(resource, "docling_use_gpu") else True,
+                    "num_threads": resource.docling_num_threads if hasattr(resource, "docling_num_threads") else 4,
+                    "accelerator_device": resource.docling_accelerator_device if hasattr(resource, "docling_accelerator_device") else "auto",
+                    "backend": resource.docling_backend if hasattr(resource, "docling_backend") else "docling_parse",
+                    "extract_tables": resource.docling_extract_tables if hasattr(resource, "docling_extract_tables") else True,
+                    "extract_figures": resource.docling_extract_figures if hasattr(resource, "docling_extract_figures") else True,
+                    "preserve_layout": resource.docling_preserve_layout if hasattr(resource, "docling_preserve_layout") else True,
+                }
+        
+        # Get attachments related to this record
+        try:
+            attachments = env["ir.attachment"].search([
+                ("res_model", "=", record._name),
+                ("res_id", "=", record.id)
+            ])
+            
+            for attachment in attachments:
+                # Skip attachments without data or filename
+                if not attachment.datas or not attachment.name:
+                    continue
+                    
+                # Get binary content
+                binary_content = attachment.datas
+                
+                # Determine mimetype
+                mimetype = attachment.mimetype or "application/octet-stream"
+                
+                # Add Docling-specific metadata for PDF files
+                docling_options = None
+                if mimetype == "application/pdf":
+                    docling_options = {
+                        "do_ocr": resource.docling_do_ocr if hasattr(resource, "docling_do_ocr") else True,
+                        "ocr_language": resource.docling_ocr_language if hasattr(resource, "docling_ocr_language") else "en",
+                        "do_table_structure": resource.docling_do_table_structure if hasattr(resource, "docling_do_table_structure") else True,
+                        "do_cell_matching": resource.docling_do_cell_matching if hasattr(resource, "docling_do_cell_matching") else True,
+                        "use_gpu": resource.docling_use_gpu if hasattr(resource, "docling_use_gpu") else True,
+                        "num_threads": resource.docling_num_threads if hasattr(resource, "docling_num_threads") else 4,
+                        "accelerator_device": resource.docling_accelerator_device if hasattr(resource, "docling_accelerator_device") else "auto",
+                        "backend": resource.docling_backend if hasattr(resource, "docling_backend") else "docling_parse",
+                        "extract_tables": resource.docling_extract_tables if hasattr(resource, "docling_extract_tables") else True,
+                        "extract_figures": resource.docling_extract_figures if hasattr(resource, "docling_extract_figures") else True,
+                        "preserve_layout": resource.docling_preserve_layout if hasattr(resource, "docling_preserve_layout") else True,
+                    }
+                
+                attachment_data = {
+                    "field_name": f"Attachment: {attachment.name}",
+                    "mimetype": mimetype,
+                    "rawcontent": binary_content,
+                    "attachment_id": attachment.id
+                }
+                
+                if docling_options:
+                    attachment_data["docling_options"] = docling_options
+                    
+                results.append(attachment_data)
+        except Exception as e:
+            _logger.error(f"Error processing attachments: {e}")
+            
+        return results
