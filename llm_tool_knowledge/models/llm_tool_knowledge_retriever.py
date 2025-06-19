@@ -70,27 +70,31 @@ class LLMToolKnowledgeRetriever(models.Model):
             similarity_cutoff: Minimum semantic similarity threshold (0.0-1.0) for including results. Higher values (e.g., 0.7) return only highly relevant results.
         """
         # Parameter priority order (highest to lowest):
-        # 1. Request parameters (explicitly provided in the API call)
-        # 2. Assistant-specific tool configuration (from llm.assistant.tool.config)
-        # 3. Collection-specific parameters (from llm.knowledge.collection) - only used if no assistant configuration
-        # 4. Default hardcoded values from method parameters
+        # 1. Assistant-specific tool configuration (from llm.assistant.tool.config)
+        # 2. Collection-specific parameters (from llm.knowledge.collection)
+        # 3. Default hardcoded values from method parameters
 
-        # Initialize effective parameters with provided values
+        # Initialize effective parameters with default values
         effective_params = {
-            'top_k': top_k,
-            'top_n': top_n,
-            'similarity_cutoff': similarity_cutoff,
+            'top_k': 5,  # Default values
+            'top_n': 3,
+            'similarity_cutoff': 0.5,
         }
         
         # Get collection to check for collection-specific parameters
-        collection = self.env["llm.knowledge.collection"].browse(collection_id) if collection_id else None
+        # Ensure we have the collection object
+        if not collection_id:
+            raise ValueError("Collection ID is required")
+
+        collection = self.env["llm.knowledge.collection"].browse(collection_id)
         if not collection.exists():
             raise ValueError("Collection not found")
 
         # Check if we're running within an assistant context
         assistant_context = self.env.context.get('llm_assistant_id')
 
-        # Apply assistant-specific configuration with highest priority
+        # 1. First check assistant-specific configuration
+        tool_config = False
         if assistant_context:
             # Get assistant tool configuration if it exists
             assistant = self.env['llm.assistant'].browse(assistant_context)
@@ -105,30 +109,41 @@ class LLMToolKnowledgeRetriever(models.Model):
                     if tool_config.parameters_json:
                         tool_params = json.loads(tool_config.parameters_json)
                         if tool_params:
-                            # Update all configured parameters (overriding collection parameters)
+                            # Update configured parameters from assistant
                             for param, value in tool_params.items():
                                 if param in effective_params:
                                     effective_params[param] = value
-                                    _logger.info(f"Using assistant-configured parameter: {param}={value}")
+                                    _logger.info(f"[1-Priority] Using assistant-configured parameter: {param}={value}")
                 except (json.JSONDecodeError, Exception) as e:
                     _logger.warning(f"Error parsing tool configuration parameters: {e}")
-        # If no assistant context or no assistant configuration, check collection parameters
-        else:
-            # Use collection parameters if available
-            if collection and collection.exists():
-                if hasattr(collection, 'default_similarity_threshold'):
-                    effective_params['similarity_cutoff'] = collection.default_similarity_threshold
-                    _logger.info(f"Using collection default similarity threshold: {effective_params['similarity_cutoff']}")
 
+        # 2. Next, check collection parameters
+        if collection and collection.exists():
+            if hasattr(collection, 'default_similarity_threshold'):
+                # Only apply if not already set by assistant config
+                assistant_has_setting = False
+                if tool_config and tool_config.parameters_json:
+                    try:
+                        tool_params = json.loads(tool_config.parameters_json or '{}')
+                        assistant_has_setting = 'similarity_cutoff' in tool_params
+                    except Exception as e:
+                        _logger.warning(f"Error parsing tool config parameters: {e}")
+                
+                if not assistant_has_setting:
+                    effective_params['similarity_cutoff'] = collection.default_similarity_threshold
+                    _logger.info(f"[2-Priority] Using collection default similarity threshold: {effective_params['similarity_cutoff']}")
+                    
+        # Print request parameters for debugging
+        _logger.info(f"REQUEST PARAMETERS: similarity_cutoff={similarity_cutoff}, top_k={top_k}, top_n={top_n}")
+        
+        # Log the source of each parameter for debugging
+        _logger.info(f"EFFECTIVE PARAMETERS: {effective_params}")
+        
         _logger.info(
             f"Executing Knowledge Retriever with: query={query}, collection_id={collection_id}, "
             f"top_k={effective_params['top_k']}, top_n={effective_params['top_n']}, "
             f"similarity_cutoff={effective_params['similarity_cutoff']}"
         )
-
-        # Ensure we have the collection object
-        if not collection_id:
-            raise ValueError("Collection ID is required")
 
         search_limit = effective_params['top_n'] * effective_params['top_k'] * 2
 
@@ -146,6 +161,7 @@ class LLMToolKnowledgeRetriever(models.Model):
             top_n=effective_params['top_n'],
         )
 
+        # Return the results including the effective parameters that were actually used
         return {
             "query": query,
             "collection": collection.name,
@@ -155,6 +171,11 @@ class LLMToolKnowledgeRetriever(models.Model):
             "embedding_model": collection.embedding_model_id.name
             if collection.embedding_model_id
             else "Unknown",
+            "effective_params": {
+                "similarity_threshold": effective_params['similarity_cutoff'],
+                "top_k": effective_params['top_k'],
+                "top_n": effective_params['top_n']
+            }
         }
 
     def _group_chunks_by_resource(self, chunks):
