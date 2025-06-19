@@ -3,56 +3,58 @@
     <!-- Extend the base LLMChatThreadHeader template -->
     <t t-inherit="llm_thread.LLMChatThreadHeader" t-inherit-mode="extension">
         <!-- Add the Assistant dropdown before the Provider dropdown -->
-        <xpath expr="//Dropdown[@id='providerDropdown']" position="before">
+        <xpath expr="//div[@id='providerDropdown']" position="before">
             <!-- LLM Assistant Dropdown (NEW) -->
-            <Dropdown id="assistantDropdown" togglerClass="state.isLoadingAssistants ? 'btn btn-light btn-sm disabled' : 'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
-                <t t-set-slot="toggler">
-                    <span class="text-truncate" style="max-width: 200px;">
-                        <!-- Loading spinner -->
-                        <i t-if="state.isLoadingAssistants" class="fa fa-spinner fa-spin me-1"/>
+            <div id="assistantDropdown" class="d-inline-block">
+                <Dropdown togglerClass="state.isLoadingAssistants ? 'btn btn-light btn-sm disabled' : 'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                    <t t-set-slot="toggler">
+                        <span class="text-truncate" style="max-width: 200px;">
+                            <!-- Loading spinner -->
+                            <i t-if="state.isLoadingAssistants" class="fa fa-spinner fa-spin me-1"/>
 
-                        <!-- Assistant name or placeholder -->
-                        <t t-if="selectedAssistant">
-                            <t t-esc="selectedAssistant.name"/>
-                        </t>
-                        <t t-else="">Select Assistant</t>
-                    </span>
-                    <i class="fa fa-caret-down ms-1" />
-                </t>
-
-                <!-- Clear assistant option -->
-                <DropdownItem onSelected="() => this.onClearAssistant()" class="{ 'active': !selectedAssistant }">
-                    <i class="fa fa-times me-2 text-muted"/>
-                    <span>No Assistant</span>
-                </DropdownItem>
-
-                <!-- Assistant list -->
-                <t t-if="!state.isLoadingAssistants and llmAssistants.length">
-                    <t t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
-                        <DropdownItem onSelected="() => this.onSelectAssistant(assistant)" class="{ 'active': selectedAssistant and selectedAssistant.id === assistant.id }">
-                            <!-- Assistant name -->
-                            <span class="text-truncate me-2">
-                                <t t-esc="assistant.name"/>
-                            </span>
-
-                            <!-- Prompt indicator -->
-                            <t t-if="assistant.promptId">
-                                <i class="fa fa-file-text-o text-muted" t-att-title="assistant.llmPrompt ? assistant.llmPrompt.name : 'Has prompt'"/>
+                            <!-- Assistant name or placeholder -->
+                            <t t-if="selectedAssistant">
+                                <t t-esc="selectedAssistant.name"/>
                             </t>
-                        </DropdownItem>
+                            <t t-else="">Select Assistant</t>
+                        </span>
+                        <i class="fa fa-caret-down ms-1" />
                     </t>
-                </t>
-            </Dropdown>
+
+                    <!-- Clear assistant option -->
+                    <DropdownItem onSelected="() => this.onClearAssistant()" class="{ 'active': !selectedAssistant }">
+                        <i class="fa fa-times me-2 text-muted"/>
+                        <span>No Assistant</span>
+                    </DropdownItem>
+
+                    <!-- Assistant list -->
+                    <t t-if="!state.isLoadingAssistants and llmAssistants.length">
+                        <t t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
+                            <DropdownItem onSelected="() => this.onSelectAssistant(assistant)" class="{ 'active': selectedAssistant and selectedAssistant.id === assistant.id }">
+                                <!-- Assistant name -->
+                                <span class="text-truncate me-2">
+                                    <t t-esc="assistant.name"/>
+                                </span>
+
+                                <!-- Prompt indicator -->
+                                <t t-if="assistant.promptId">
+                                    <i class="fa fa-file-text-o text-muted" t-att-title="assistant.llmPrompt ? assistant.llmPrompt.name : 'Has prompt'"/>
+                                </t>
+                            </DropdownItem>
+                        </t>
+                    </t>
+                </Dropdown>
+            </div>
         </xpath>
 
         <!-- Hide Provider/Model/Tools dropdowns when assistant is selected -->
-        <xpath expr="//Dropdown[@id='providerDropdown']" position="attributes">
+        <xpath expr="//div[@id='providerDropdown']" position="attributes">
             <attribute name="t-if">shouldShowProviderModelTools</attribute>
         </xpath>
-        <xpath expr="//Dropdown[@id='modelDropdown']" position="attributes">
+        <xpath expr="//div[@id='modelDropdown']" position="attributes">
             <attribute name="t-if">shouldShowProviderModelTools</attribute>
         </xpath>
-        <xpath expr="//Dropdown[@id='toolsDropdown']" position="attributes">
+        <xpath expr="//div[@id='toolsDropdown']" position="attributes">
             <attribute name="t-if">shouldShowProviderModelTools</attribute>
         </xpath>
 

@@ -53,61 +53,67 @@
             <!-- Desktop: Dropdowns -->
             <div t-if="!isMobile" class="o_LLMChatThreadHeader_controls d-flex align-items-center gap-2">
                 <!-- Provider Dropdown -->
-                <Dropdown id="providerDropdown" togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
-                    <t t-set-slot="toggler">
-                        <span class="text-truncate" style="max-width: 150px;">
-                            <t t-if="selectedProvider" t-esc="selectedProvider.name" />
-                            <t t-else="">Select Provider</t>
-                        </span>
-                        <i class="fa fa-caret-down ms-1" />
-                    </t>
+                <div id="providerDropdown" class="d-inline-block">
+                    <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                        <t t-set-slot="toggler">
+                            <span class="text-truncate" style="max-width: 150px;">
+                                <t t-if="selectedProvider" t-esc="selectedProvider.name" />
+                                <t t-else="">Select Provider</t>
+                            </span>
+                            <i class="fa fa-caret-down ms-1" />
+                        </t>
 
-                    <t t-foreach="llmProviders" t-as="provider" t-key="provider.id">
-                        <DropdownItem onSelected="onSelectProvider.bind(this, provider)" class="{ 'active': state.selectedProviderId === provider.id }">
-                            <t t-esc="provider.name" />
-                        </DropdownItem>
-                    </t>
-                </Dropdown>
+                        <t t-foreach="llmProviders" t-as="provider" t-key="provider.id">
+                            <DropdownItem onSelected="onSelectProvider.bind(this, provider)" class="{ 'active': state.selectedProviderId === provider.id }">
+                                <t t-esc="provider.name" />
+                            </DropdownItem>
+                        </t>
+                    </Dropdown>
+                </div>
 
                 <!-- Model Dropdown with Search -->
-                <Dropdown id="modelDropdown" togglerClass="state.selectedProviderId ? 'btn btn-light btn-sm' : 'btn btn-light btn-sm disabled'" menuClass="'o_LLMChatThreadHeader_dropdown'">
-                    <t t-set-slot="toggler">
-                        <span class="text-truncate" style="max-width: 200px;">
-                            <t t-if="selectedModel" t-esc="selectedModel.name" />
-                            <t t-else="">Select Model</t>
-                        </span>
-                        <i class="fa fa-caret-down ms-1" />
-                    </t>
+                <div id="modelDropdown" class="d-inline-block">
+                    <Dropdown togglerClass="state.selectedProviderId ? 'btn btn-light btn-sm' : 'btn btn-light btn-sm disabled'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                        <t t-set-slot="toggler">
+                            <span class="text-truncate" style="max-width: 200px;">
+                                <t t-if="selectedModel" t-esc="selectedModel.name" />
+                                <t t-else="">Select Model</t>
+                            </span>
+                            <i class="fa fa-caret-down ms-1" />
+                        </t>
 
-                    <t t-foreach="filteredModels" t-as="model" t-key="model.id">
-                        <DropdownItem onSelected="onSelectModel.bind(this, model)" class="{ 'active': state.selectedModelId === model.id }">
-                            <t t-esc="model.name" />
-                        </DropdownItem>
-                    </t>
-                </Dropdown>
+                        <t t-foreach="filteredModels" t-as="model" t-key="model.id">
+                            <DropdownItem onSelected="onSelectModel.bind(this, model)" class="{ 'active': state.selectedModelId === model.id }">
+                                <t t-esc="model.name" />
+                            </DropdownItem>
+                        </t>
+                    </Dropdown>
+                </div>
 
                 <!-- Tools Dropdown -->
-                <Dropdown id="toolsDropdown" togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown dropdown-menu-end'">
-                    <t t-set-slot="toggler">
-                        Tools
-                        <t t-if="selectedToolsCount > 0">
-                            <span class="badge bg-secondary ms-1">
-                                <t t-esc="selectedToolsCount" />
-                            </span>
+                <div id="toolsDropdown" class="d-inline-block">
+                    <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown dropdown-menu-end'">
+                        <t t-set-slot="toggler">
+                            Tools
+                            <t t-if="selectedToolsCount > 0">
+                                <span class="badge bg-secondary ms-1">
+                                    <t t-esc="selectedToolsCount" />
+                                </span>
+                            </t>
+                            <i class="fa fa-caret-down ms-1" />
                         </t>
-                        <i class="fa fa-caret-down ms-1" />
-                    </t>
 
-                    <t t-foreach="availableTools" t-as="tool" t-key="tool.id">
-                        <div class="form-check" t-on-click="(ev) => this.onToggleTool(tool, !this.isToolSelected(tool.id), ev)">
-                            <input class="form-check-input" type="checkbox" t-att-id="'tool-' + tool.id" t-att-checked="this.isToolSelected(tool.id)" t-on-click.stop="" />
-                            <label class="form-check-label d-flex justify-content-between align-items-center" t-att-for="'tool-' + tool.id">
-                                <span t-esc="tool.name" />
-                                <small t-if="tool.title" class="text-muted ms-2" t-esc="tool.title" />
-                            </label>
-                        </div>
-                    </t>
-                </Dropdown>
+                        <t t-foreach="availableTools" t-as="tool" t-key="tool.id">
+                            <div class="form-check" t-on-click="(ev) => this.onToggleTool(tool, !this.isToolSelected(tool.id), ev)">
+                                <input class="form-check-input" type="checkbox" t-att-id="'tool-' + tool.id" t-att-checked="this.isToolSelected(tool.id)" t-on-click.stop="" />
+                                <label class="form-check-label d-flex justify-content-between align-items-center" t-att-for="'tool-' + tool.id">
+                                    <span t-esc="tool.name" />
+                                    <small t-if="tool.title" class="text-muted ms-2" t-esc="tool.title" />
+                                </label>
+                            </div>
+                        </t>
+                    </Dropdown>
+                </div>
             </div>
 
             <!-- Mobile: Settings Button -->

@@ -1,6 +1,7 @@
 docling>=2.37.0
 pandas
 PyMuPDF
+pymupdf4llm
 python-docx
 python-pptx
 beautifulsoup4
