@@ -2,18 +2,11 @@
 <odoo>
         <!-- Assistant Prompt Template -->
         <record id="llm_prompt_assistant" model="llm.prompt">
-            <field name="name">Assistant Template</field>
-            <field
-      name="description"
-    >Template for assistant system prompts with role, goal, background, and instructions</field>
-            <field name="category_id" ref="llm_prompt.category_general" />
-            <field
-      name="tag_ids"
-      eval="[(6, 0, [ref('llm_prompt.tag_assistant')])]"
-    />
-            <field
-      name="arguments_json"
-    ><![CDATA[{
+                <field name="name">Assistant Template</field>
+                <field name="description">Template for assistant system prompts with role, goal, background, and instructions</field>
+                <field name="category_id" ref="llm_prompt.category_general" />
+                <field name="tag_ids" eval="[(6, 0, [ref('llm_prompt.tag_assistant')])]" />
+                <field name="arguments_json"><![CDATA[{
             "role": {
             "type": "string",
             "description": "The role of the assistant (e.g., 'Assistant', 'Customer Support', 'Data Analyst')",
@@ -34,6 +27,12 @@
             "description": "Specific instructions for the assistant to follow",
             "required": true
             },
+            "user_language": {
+            "type": "string",
+            "description": "The user's preferred language code (e.g., 'en_US', 'fr_FR')",
+            "required": false,
+            "default": "en_US"
+            },
             "footer": {
             "type": "string",
             "description": "Optional footer text to add to the end of the prompt",
@@ -41,26 +40,26 @@
             "default": ""
             }
             }]]></field>
-            <field name="active" eval="True" />
+                <field name="active" eval="True" />
         </record>
 
         <!-- Template for the system message -->
-        <record
-    id="llm_prompt_template_assistant_system"
-    model="llm.prompt.template"
-  >
-            <field name="prompt_id" ref="llm_prompt_assistant" />
-            <field name="role">system</field>
-            <field name="sequence">10</field>
-            <field
-      name="content"
-    ><![CDATA[You are a {{ role }}.
+        <record id="llm_prompt_template_assistant_system" model="llm.prompt.template">
+                <field name="prompt_id" ref="llm_prompt_assistant" />
+                <field name="role">system</field>
+                <field name="sequence">10</field>
+                <field name="content"><![CDATA[You are a {{ role }}.
 
 Your goal is to {{ goal }}
 
 Background: {{ background }}
 
 Instructions: {{ instructions }}
+
+Language Instructions:
+- The user's preferred language is: {{ user_language }}
+- Always respond in the user's language ({{ user_language }}).
+- If no language is specified, use English (en_US) as the default.
 
 {{ footer }}]]></field>
         </record>

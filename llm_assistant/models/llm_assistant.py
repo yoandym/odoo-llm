@@ -196,10 +196,12 @@ class LLMAssistant(models.Model):
         if thread:
             # Create a context with the thread_id
             context = dict(self.env.context, thread_id=thread.id)
+            
+            # Get evaluated default values - user language is automatically included by get_evaluated_default_values
+            default_values = self.get_evaluated_default_values(thread) or "{}"
+            
             # Use the prompt with the new context
-            return self.with_context(context).prompt_id.get_formatted_system_prompt(
-                self.get_evaluated_default_values(thread) or "{}"
-            )
+            return self.with_context(context).prompt_id.get_formatted_system_prompt(default_values)
 
         return self.prompt_id.get_formatted_system_prompt(
             self.get_evaluated_default_values() or "{}"
@@ -227,7 +229,7 @@ class LLMAssistant(models.Model):
         if not self.prompt_id:
             return []
 
-        # Get the evaluated default values
+        # Get the evaluated default values - user language is automatically included by get_evaluated_default_values
         default_values = self.get_evaluated_default_values(thread) or "{}"
 
         # If we have a thread, add it to the context
@@ -279,6 +281,19 @@ class LLMAssistant(models.Model):
                             "related_record": related_record,
                         }
                     )
+
+                # Add user's language to default values - this works regardless of thread
+                # First try to get from context
+                user_language = self.env.context.get('lang')
+                # Then try from user preferences using getattr to avoid lint errors
+                if not user_language:
+                    user_language = getattr(self.env.user, 'lang', None)
+                # Default to English if neither is available
+                if not user_language:
+                    user_language = "en_US"
+                    
+                # Add to default values
+                default_values_dict['user_language'] = user_language
 
                 # Process each value that might contain expressions
                 for key, value in default_values_dict.items():
