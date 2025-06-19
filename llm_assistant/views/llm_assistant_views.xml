@@ -63,6 +63,28 @@
                             <div class="text-muted px-3 py-2">
                                 Select the tools this assistant may need. These tools will be auto selected when you assign this assistant on LLM Chat Thread
                             </div>
+                            <field name="tool_config_ids" context="{'default_assistant_id': active_id}">
+                                <tree>
+                                    <field name="tool_id"/>
+                                    <field name="parameters_json"/>
+                                </tree>
+                            </field>
+                            <div class="alert alert-info w-100 mt-2 mb-2" role="alert">
+                                <h5 class="alert-heading">Tool Configuration</h5>
+                                <p>Configure specific parameter overrides for tools used by this assistant.</p>
+                                <hr/>
+                                <p class="mb-0">
+                                    <strong>Knowledge Retriever Parameters:</strong>
+                                </p>
+                                <ul>
+                                    <li>
+                                        <code>similarity_cutoff</code> (0.0-1.0): Lower values (0.4-0.5) return more results but may include less relevant ones</li>
+                                    <li>
+                                        <code>top_k</code>: Maximum number of chunks to retrieve per resource</li>
+                                    <li>
+                                        <code>top_n</code>: Maximum number of distinct resources to get results from</li>
+                                </ul>
+                            </div>
                         </page>
                         <page string="Preview" name="preview">
                             <field name="system_prompt_preview" widget="markdown" options="{'show_copy_button': true}" readonly="1" />

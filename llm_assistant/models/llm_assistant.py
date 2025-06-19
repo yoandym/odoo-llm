@@ -77,6 +77,13 @@ class LLMAssistant(models.Model):
         help="Tools that this assistant can use",
         tracking=True,
     )
+    
+    tool_config_ids = fields.One2many(
+        "llm.assistant.tool.config",
+        "assistant_id",
+        string="Tool Configurations",
+        help="Configuration parameters for tools used by this assistant",
+    )
 
     # Stats
     thread_count = fields.Integer(
@@ -95,6 +102,14 @@ class LLMAssistant(models.Model):
         string="System Prompt Preview",
         compute="_compute_system_prompt_preview",
         help="Preview of the formatted system prompt based on the prompt template",
+        tracking=True,
+    )
+
+    # Default values for prompt variables as JSON
+    prompt_variables = fields.Text(
+        string="Prompt Variables",
+        default="{}",
+        help="Default values for prompt variables (JSON format)",
         tracking=True,
     )
 

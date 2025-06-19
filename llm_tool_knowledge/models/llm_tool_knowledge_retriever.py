@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 
@@ -68,30 +69,81 @@ class LLMToolKnowledgeRetriever(models.Model):
             top_n: Maximum number of distinct resources to retrieve results from. Increase this value to get information from more diverse sources.
             similarity_cutoff: Minimum semantic similarity threshold (0.0-1.0) for including results. Higher values (e.g., 0.7) return only highly relevant results.
         """
-        _logger.info(
-            f"Executing Knowledge Retriever with: query={query}, collection_id={collection_id}, top_k={top_k}, top_n={top_n}, similarity_cutoff={similarity_cutoff}"
-        )
-        collection = None
-        if collection_id:
-            collection = self.env["llm.knowledge.collection"].browse(collection_id)
+        # Parameter priority order (highest to lowest):
+        # 1. Request parameters (explicitly provided in the API call)
+        # 2. Assistant-specific tool configuration (from llm.assistant.tool.config)
+        # 3. Collection-specific parameters (from llm.knowledge.collection) - only used if no assistant configuration
+        # 4. Default hardcoded values from method parameters
 
-        if not collection:
+        # Initialize effective parameters with provided values
+        effective_params = {
+            'top_k': top_k,
+            'top_n': top_n,
+            'similarity_cutoff': similarity_cutoff,
+        }
+        
+        # Get collection to check for collection-specific parameters
+        collection = self.env["llm.knowledge.collection"].browse(collection_id) if collection_id else None
+        if not collection.exists():
             raise ValueError("Collection not found")
 
-        search_limit = top_n * top_k * 2
+        # Check if we're running within an assistant context
+        assistant_context = self.env.context.get('llm_assistant_id')
+
+        # Apply assistant-specific configuration with highest priority
+        if assistant_context:
+            # Get assistant tool configuration if it exists
+            assistant = self.env['llm.assistant'].browse(assistant_context)
+            tool_config = self.env['llm.assistant.tool.config'].search([
+                ('assistant_id', '=', assistant.id),
+                ('tool_id', '=', self.id)
+            ], limit=1)
+
+            if tool_config:
+                # Apply all parameters from tool config
+                try:
+                    if tool_config.parameters_json:
+                        tool_params = json.loads(tool_config.parameters_json)
+                        if tool_params:
+                            # Update all configured parameters (overriding collection parameters)
+                            for param, value in tool_params.items():
+                                if param in effective_params:
+                                    effective_params[param] = value
+                                    _logger.info(f"Using assistant-configured parameter: {param}={value}")
+                except (json.JSONDecodeError, Exception) as e:
+                    _logger.warning(f"Error parsing tool configuration parameters: {e}")
+        # If no assistant context or no assistant configuration, check collection parameters
+        else:
+            # Use collection parameters if available
+            if collection and collection.exists():
+                if hasattr(collection, 'default_similarity_threshold'):
+                    effective_params['similarity_cutoff'] = collection.default_similarity_threshold
+                    _logger.info(f"Using collection default similarity threshold: {effective_params['similarity_cutoff']}")
+
+        _logger.info(
+            f"Executing Knowledge Retriever with: query={query}, collection_id={collection_id}, "
+            f"top_k={effective_params['top_k']}, top_n={effective_params['top_n']}, "
+            f"similarity_cutoff={effective_params['similarity_cutoff']}"
+        )
+
+        # Ensure we have the collection object
+        if not collection_id:
+            raise ValueError("Collection ID is required")
+
+        search_limit = effective_params['top_n'] * effective_params['top_k'] * 2
 
         chunk_model = self.env["llm.knowledge.chunk"]
         chunks = chunk_model.search(
             domain=[("embedding", "=", query)],
             limit=search_limit,
             collection_id=collection.id,
-            query_min_similarity=similarity_cutoff,
+            query_min_similarity=effective_params['similarity_cutoff'],
         )
 
         result_data = self._process_search_results(
             chunks=chunks,
-            top_k=top_k,
-            top_n=top_n,
+            top_k=effective_params['top_k'],
+            top_n=effective_params['top_n'],
         )
 
         return {

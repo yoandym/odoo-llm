@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Form View -->
+    <record id="llm_assistant_tool_config_form_view" model="ir.ui.view">
+        <field name="name">llm.assistant.tool.config.form</field>
+        <field name="model">llm.assistant.tool.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="assistant_id"/>
+                        <field name="tool_id"/>
+                    </group>
+                    <group>
+                        <field name="parameters_json" widget="ace" options="{'mode': 'json'}" placeholder="{&#10;  // Override tool parameters here&#10;  // Examples for Knowledge Retriever:&#10;  // &quot;similarity_cutoff&quot;: 0.4, &#10;  // &quot;top_k&quot;: 5,&#10;  // &quot;top_n&quot;: 3&#10;}"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="llm_assistant_tool_config_tree_view" model="ir.ui.view">
+        <field name="name">llm.assistant.tool.config.tree</field>
+        <field name="model">llm.assistant.tool.config</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="assistant_id"/>
+                <field name="tool_id"/>
+            </tree>
+        </field>
+    </record>
+</odoo>

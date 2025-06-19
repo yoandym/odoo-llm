@@ -51,6 +51,14 @@ class LLMKnowledgeCollection(models.Model):
         string="Domain Filters",
         help="Domain filters to select records for RAG document creation",
     )
+    default_similarity_threshold = fields.Float(
+        string="Default Similarity Threshold",
+        default=0.5,
+        help="Default minimum similarity threshold for retrieving chunks from this collection (0.0-1.0). "
+             "Lower values return more results but might be less relevant. "
+             "Higher values (e.g., 0.7+) return only highly relevant results.",
+        tracking=True,
+    )
     resource_count = fields.Integer(
         string="Resource Count",
         compute="_compute_resource_count",
@@ -961,3 +969,41 @@ class LLMKnowledgeCollection(models.Model):
                     )
 
         return True
+
+    @api.constrains('default_similarity_threshold')
+    def _check_similarity_threshold_range(self):
+        """Ensure similarity threshold is within valid range (0.0-1.0)."""
+        for record in self:
+            if not 0.0 <= record.default_similarity_threshold <= 1.0:
+                raise UserError(_("Similarity threshold must be between 0.0 and 1.0"))
+
+    @api.onchange('default_similarity_threshold')
+    def _onchange_default_similarity_threshold(self):
+        """Provide feedback when similarity threshold is outside valid range."""
+        for record in self:
+            if record.default_similarity_threshold < 0.0:
+                record.default_similarity_threshold = 0.0
+                return {
+                    'warning': {
+                        'title': _("Warning"),
+                        'message': _("Similarity threshold cannot be negative. Value set to minimum (0.0)."),
+                    }
+                }
+            elif record.default_similarity_threshold > 1.0:
+                record.default_similarity_threshold = 1.0
+                return {
+                    'warning': {
+                        'title': _("Warning"),
+                        'message': _("Similarity threshold cannot exceed 1.0. Value set to maximum (1.0)."),
+                    }
+                }
+            elif record.default_similarity_threshold >= 0.8:
+                return {
+                    'warning': {
+                        'title': _("High Threshold Warning"),
+                        'message': _(
+                            "Setting a very high similarity threshold (≥0.8) may significantly limit results. "
+                            "Only use if you need extremely relevant matches only."
+                        ),
+                    }
+                }
