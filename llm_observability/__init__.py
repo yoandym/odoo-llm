@@ -1,7 +1,7 @@
 from . import controllers, models, services
 
 
-def post_init_hook(cr, registry):
+def post_init_hook(*args, **kwargs):
     """Initialize observability services after module installation"""
     import logging
 
@@ -10,8 +10,13 @@ def post_init_hook(cr, registry):
     _logger = logging.getLogger(__name__)
     
     try:
-        # Create environment with superuser to access phoenix.config
-        env = Environment(cr, 1, {})
+        if len(args) == 1 and hasattr(args[0], 'cr') and hasattr(args[0], 'registry'):
+            env = args[0]
+        elif len(args) == 2:
+            cr, registry = args
+            env = Environment(cr, 1, {})
+        else:
+            raise ValueError("Unsupported post_init_hook signature")
         
         from .services.fullstack_tracing_service import \
             fullstack_tracing_service
