@@ -55,10 +55,11 @@
               />
                         </page>
                         <page
-              string="Training Jobs"
-              name="jobs"
-              attrs="{'invisible': [('job_ids', '=', [])]}"
-            >
+                            string="Training Jobs"
+                            name="jobs"
+                            modifiers="{'invisible': [('job_ids', '=', [])]}"
+                        >
+
                             <field name="job_ids">
                                 <tree>
                                     <field name="name" />
