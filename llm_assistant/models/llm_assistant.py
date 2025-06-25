@@ -119,7 +119,6 @@ class LLMAssistant(models.Model):
         for assistant in self:
             messages = assistant.get_messages()
             assistant.system_prompt_preview = assistant._format_messages_as_markdown(messages)
-            
 
     @api.depends("thread_ids")
     def _compute_thread_count(self):
@@ -281,19 +280,6 @@ class LLMAssistant(models.Model):
                             "related_record": related_record,
                         }
                     )
-
-                # Add user's language to default values - this works regardless of thread
-                # First try to get from context
-                user_language = self.env.context.get('lang')
-                # Then try from user preferences using getattr to avoid lint errors
-                if not user_language:
-                    user_language = getattr(self.env.user, 'lang', None)
-                # Default to English if neither is available
-                if not user_language:
-                    user_language = "en_US"
-                    
-                # Add to default values
-                default_values_dict['user_language'] = user_language
 
                 # Process each value that might contain expressions
                 for key, value in default_values_dict.items():
