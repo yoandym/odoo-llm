@@ -240,7 +240,7 @@ class LLMAssistant(models.Model):
                 json.loads(default_values)
             )
 
-        # No thread, just get messages with default values
+        # No thread, just get messages with default values 
         return self.prompt_id.get_messages(json.loads(default_values))
 
     def get_evaluated_default_values(self, thread=None):
@@ -267,19 +267,9 @@ class LLMAssistant(models.Model):
                 eval_context = {
                     "env": self.env,
                     "user": self.env.user,
-                    "thread": None,
-                    "related_record": None,
+                    "thread": thread,
+                    "related_record": thread.get_related_record() if thread else None,
                 }
-
-                # Add thread-related context if available
-                if thread:
-                    related_record = thread.get_related_record()
-                    eval_context.update(
-                        {
-                            "thread": thread,
-                            "related_record": related_record,
-                        }
-                    )
 
                 # Process each value that might contain expressions
                 for key, value in default_values_dict.items():
