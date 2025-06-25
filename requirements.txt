@@ -17,3 +17,6 @@ pydantic>=2.0.0
 qdrant-client
 replicate
 requests
+opentelemetry-instrumentation-requests
+opentelemetry-instrumentation-psycopg2
+openinference-semantic-conventions
