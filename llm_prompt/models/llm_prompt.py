@@ -246,9 +246,12 @@ class LLMPrompt(models.Model):
 
         messages = []
 
+        # because some arguments maybe a list, a dict, etc
+        args = self._format_arguments(arguments)
+
         # Add template messages
         for template in self.template_ids.sorted(key=lambda t: t.sequence):
-            template_message = template.get_template_message(arguments)
+            template_message = template.get_template_message(args)
             if template_message:
                 messages.append(template_message)
 
@@ -257,6 +260,34 @@ class LLMPrompt(models.Model):
         self.last_used = fields.Datetime.now()
 
         return messages
+
+    def _format_arguments(self, arguments: dict) -> dict:
+        """
+        Format arguments so, if a value is anything but str
+        convert it to a valid str.
+
+        Args:
+            arguments (dict): Dictionary of argument values
+
+        Returns:
+            str: Formatted dict of arguments (where all values are str)
+        """
+        if not arguments:
+            return {}
+
+        _args = arguments.copy()
+        for k, v in _args.items():
+            # if value is a list
+            if isinstance(v, list):
+                # Convert list to a comma-separated string
+                _args[k] = "\n".join(str(item) for item in v)
+
+            # if value is a dict
+            elif isinstance(v, dict):
+                # Convert dict to a JSON string
+                _args[k] = json.dumps(v, indent=2)
+
+        return _args
 
     def _fill_default_values(self, arguments):
         """

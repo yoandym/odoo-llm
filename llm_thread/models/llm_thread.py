@@ -269,13 +269,6 @@ class LLMThread(models.Model):
             "stream": True,
             "prepend_messages": self._get_prepend_messages(),
         }
-        # logging the chat kwargs for debugging (pretty / human readable format)
-        
-        _logger.debug(
-            "Generating assistant response for thread %s with kwargs: %s",
-            self.id,
-            json.dumps(chat_kwargs, indent=2, default=str),
-        )
 
         stream_response = self.model_id.chat(**chat_kwargs)
         assistant_msg = yield from self.env["mail.message"].create_message_from_stream(

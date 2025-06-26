@@ -34,8 +34,8 @@ class LLMToolUserGreeting(models.Model):
         
         # Generate greeting based on type
         greeting_messages = {
-            "initial": "👋 Hello! Welcome to your Odoo LLM Assistant.",
-            "help": "🤝 I'm here to help you with your Odoo system.",
+            "initial": "Give the user a warm greeting, if you have their name use it, if you have yours let them know too.",
+            "help": "I'm here to help you with your Odoo system.",
             "capabilities": "🛠️ Let me show you what I can do for you.",
         }
 

@@ -40,6 +40,13 @@ class LLMProvider(models.Model):
         params = {
             "model": model.name,
             "stream": stream,
+            "options": {
+                "temperature": model.temperature,
+                "num_ctx": model.context_window,
+                "top_p": model.top_p,
+                "top_k": model.top_k,
+                "repeat_penalty": model.repeat_penalty,
+            }
         }
 
         messages = messages or []

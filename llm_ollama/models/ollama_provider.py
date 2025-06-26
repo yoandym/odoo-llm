@@ -374,8 +374,6 @@ class LLMProvider(models.Model):
         system_prompt=None,
         **kwargs,
     ):
-        """Send chat messages using Ollama with optional observability"""
-        _logger.info(f"ollama_chat called with model={model}, stream={stream}, tools={len(tools) if tools else 0}")
         
         # Apply observability if available
         if _has_base_observability and hasattr(self, '_init_opentelemetry_tracing'):
@@ -425,13 +423,14 @@ class LLMProvider(models.Model):
         else:
             return self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
 
-    def _ollama_chat_impl(self, messages, model=None, stream=False, tools=None, system_prompt=None, **kwargs):
+    def _ollama_chat_impl(self, messages, model=None, stream=False, tools=None, system_prompt=None, prepend_messages=None, **kwargs):
         """Internal implementation of ollama_chat"""
         model = self.get_model(model, "chat")
         
-        params = self._prepare_chat_params(
-            model, messages, stream, tools=tools, system_prompt=system_prompt
-        )
+        params = self._prepare_chat_params(model, messages, stream, tools=tools, system_prompt=system_prompt, prepend_messages=prepend_messages)
+
+        # logging the parameters for debugging
+        _logger.debug(f"ollama_chat parameters: {params}")
 
         response = self.client.chat(**params)
 
@@ -743,51 +742,3 @@ class LLMProvider(models.Model):
         # Validate and clean messages
         validator = OllamaMessageValidator(formatted_messages)
         return validator.validate_and_clean()
-
-    def _prepare_chat_params(self, model_record, messages, stream, tools=None, system_prompt=None, **kwargs):
-        """Prepare parameters for Ollama chat API call"""
-        
-        # Format messages for Ollama
-        formatted_messages = self.ollama_format_messages(messages, system_prompt)
-        
-        # Build base parameters using model configuration
-        params = {
-            "model": model_record.name,
-            "messages": formatted_messages,
-            "stream": stream,
-            "options": {
-                "temperature": model_record.temperature,
-                "num_ctx": model_record.context_window,
-                "top_p": model_record.top_p,
-                "top_k": model_record.top_k,
-                "repeat_penalty": model_record.repeat_penalty,
-            }
-        }
-        
-        # Add max_tokens if specified (not all models support this)
-        if model_record.max_tokens and model_record.max_tokens > 0:
-            params["options"]["num_predict"] = model_record.max_tokens
-        
-        # Add custom parameters from the legacy parameters text field
-        # These can override or add to the dedicated field values
-        if model_record.parameters:
-            try:
-                import json
-                custom_params = json.loads(model_record.parameters)
-                if isinstance(custom_params, dict):
-                    # Update options with custom parameters (custom params take precedence)
-                    params["options"].update(custom_params)
-                    _logger.info(f"Applied custom parameters from model.parameters field: {custom_params}")
-            except (json.JSONDecodeError, ValueError) as e:
-                _logger.warning(f"Invalid JSON in model.parameters field: {e}")
-        
-        # Add tools if provided
-        if tools:
-            params["tools"] = self.ollama_format_tools(tools)
-        
-        _logger.info(f"Ollama chat params - model: {model_record.name}, temperature: {model_record.temperature}, "
-                    f"context_window: {model_record.context_window}, stream: {stream}")
-        
-        return params
-
-

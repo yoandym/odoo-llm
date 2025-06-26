@@ -223,13 +223,9 @@ class LLMPromptTemplate(models.Model):
         # Create the message
         return {
             "role": self.role,
-            "content": [
-                {
-                    "type": "text",
-                    "text": content,
-                }
-            ],
+            "content":  content,
         }
+
 
     def _evaluate_condition(self, condition, arguments):
         """Evaluate the execution condition"""
