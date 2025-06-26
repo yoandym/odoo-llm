@@ -240,4 +240,5 @@ class LLMPromptTemplate(models.Model):
             eval_context[k] = arguments[k]
 
         # Evaluate the condition expression
-        return eval(condition, {"__builtins__": {}}, eval_context)
+        result = eval(condition, {"__builtins__": {}}, eval_context)
+        return result

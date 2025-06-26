@@ -119,15 +119,9 @@ class LLMThread(models.Model):
             kwargs.get("tool_name"),
         )
         post_vals = self.build_post_vals(subtype_xmlid, body, author_id, email_from)
-        
-        # Additional debug logging
-        _logger.info("HTML Encoding Debug - About to call message_post with body: %s", post_vals.get("body"))
-        
+ 
         message = self.message_post(**post_vals)
-        
-        # Check what body was actually stored
-        _logger.info("HTML Encoding Debug - Message body after message_post: %s", message.body)
-        
+
         extra_vals = self.build_update_vals(**kwargs)
         
         if extra_vals:
@@ -275,6 +269,14 @@ class LLMThread(models.Model):
             "stream": True,
             "prepend_messages": self._get_prepend_messages(),
         }
+        # logging the chat kwargs for debugging (pretty / human readable format)
+        
+        _logger.debug(
+            "Generating assistant response for thread %s with kwargs: %s",
+            self.id,
+            json.dumps(chat_kwargs, indent=2, default=str),
+        )
+
         stream_response = self.model_id.chat(**chat_kwargs)
         assistant_msg = yield from self.env["mail.message"].create_message_from_stream(
             self,
@@ -416,9 +418,6 @@ class LLMThread(models.Model):
         original_body = body
         processed_body = self._process_message_body(body)
         
-        _logger.info("HTML Encoding Debug - Original body: %s", original_body)
-        _logger.info("HTML Encoding Debug - Processed body: %s", processed_body)
-        
         return {
             "body": processed_body,
             "message_type": "comment",
@@ -457,15 +456,12 @@ class LLMThread(models.Model):
         Returns:
             llm.thread recordset or False
         """
-        _logger.info("Attempting to get thread from context")
 
         # Check if we have a thread_id in the context
         thread_id = self.env.context.get("thread_id", False)
         if thread_id:
-            _logger.info("Found thread_id in context: %s", thread_id)
             thread = self.env["llm.thread"].browse(thread_id).exists()
             if thread:
-                _logger.info("Thread exists: %s", thread.name)
                 return thread
             else:
                 _logger.warning("Thread with ID %s not found", thread_id)
