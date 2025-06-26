@@ -46,66 +46,84 @@
                                 </tree>
                             </field>
 
+
                             <div class="alert alert-muted mt-3" style="font-size: 0.95em;">
-                                <strong>What kind of expression conditions can you use?</strong>
+                                <strong>What is available?</strong>
                                 <ul>
                                     <li>
-                                        <b>Simple checks:</b>
-                                        <code>'debug in arguments and arguments["debug"]'</code>,                                        <code>'user_role == "admin"'</code>,                                        <code>'amount &gt; 1000'</code>
-                                    </li>
-                                    <li>
-                                        <b>Combined logic:</b>
-                                        <code>'country == "US" and age &gt;= 21'</code>,                                        <code>'status in ["approved", "pending"]'</code>
-                                    </li>
-                                    <li>
-                                        <b>Negation:</b>
-                                        <code>'not is_test'</code>
-                                    </li>
-                                    <li>
-                                        <b>Existence:</b>
-                                        <code>'optional_field is not None'</code>,                                        <code>'some_key in arguments'</code>
-                                    </li>
-                                    <li>
-                                        <b>String operations:</b>
-                                        <code>'email.endswith("@example.com")'</code>
-                                    </li>
-                                    <li>
-                                        <b>Math:</b>
-                                        <code>'score / max_score &gt; 0.8'</code>
-                                    </li>
-                                </ul>
-                                <strong>Amazing things you can achieve</strong>
-                                <ul>
-                                    <li>
-                                        <b>Dynamic Prompt Flows:</b> Show or hide parts of the prompt based on user input, context, or previous answers.<br/>
-                                    <i>Example:</i> Only include a "manager instructions" message if <code>user_role == "manager"</code>.
+                                        <b>arguments</b>: The full dictionary of arguments.<br/>
+                                    <code>arguments["user_role"] == "admin"</code>
                                 </li>
                                 <li>
-                                    <b>Personalization:</b> Tailor prompts for different user types, languages, or business rules.<br/>
-                                <i>Example:</i>
-                                <code>'language == "es"'</code> to show a Spanish template.
+                                    <b>Individual argument variables</b>: Each argument is available directly.<br/>
+                                <code>user_role == "admin"</code>
                             </li>
-                            <li>
-                                <b>Conditional Instructions:</b> Add extra instructions for high-value transactions.<br/>
-                            <i>Example:</i>
-                            <code>'amount &gt; 10000'</code> → Only include a compliance warning for large amounts.
-                        </li>
                         <li>
-                            <b>Feature Flags:</b> Enable/disable prompt sections based on feature toggles or debug flags.</li>
-                        <li>
-                            <b>Multi-step Workflows:</b> Build complex, branching prompt flows where each step is conditionally included.</li>
-                    </ul>
-                </div>
+                            <b>get_related_record(field_name, key_name=None)</b>: Access fields/keys from the related record.<br/>
+                        <code>get_related_record("email") == "user@example.com"</code>
+                        <br/>
+                        <code>get_related_record("custom_dict", "some_key") == "value"</code>
+                    </li>
+                </ul>
+                <strong>What kind of exceution conditions can you use?</strong>
+                <ul>
+                    <li>
+                        <b>Simple checks:</b>
+                        <code>'debug in arguments and arguments["debug"]'</code>,                        <code>'user_role == "admin"'</code>,                        <code>'amount &gt; 1000'</code>
+                    </li>
+                    <li>
+                        <b>Combined logic:</b>
+                        <code>'country == "US" and age &gt;= 21'</code>,                        <code>'status in ["approved", "pending"]'</code>
+                    </li>
+                    <li>
+                        <b>Negation:</b>
+                        <code>'not is_test'</code>
+                    </li>
+                    <li>
+                        <b>Existence:</b>
+                        <code>'optional_field is not None'</code>,                        <code>'some_key in arguments'</code>
+                    </li>
+                    <li>
+                        <b>String operations:</b>
+                        <code>'email.endswith("@example.com")'</code>
+                    </li>
+                    <li>
+                        <b>Math:</b>
+                        <code>'score / max_score &gt; 0.8'</code>
+                    </li>
+                </ul>
+                <strong>Amazing things you can achieve</strong>
+                <ul>
+                    <li>
+                        <b>Dynamic Prompt Flows:</b> Show or hide parts of the prompt based on user input, context, or previous answers.<br/>
+                    <i>Example:</i> Only include a "manager instructions" message if <code>user_role == "manager"</code>.
+                </li>
+                <li>
+                    <b>Personalization:</b> Tailor prompts for different user types, languages, or business rules.<br/>
+                <i>Example:</i>
+                <code>'language == "es"'</code> to show a Spanish template.
+            </li>
+            <li>
+                <b>Conditional Instructions:</b> Add extra instructions for high-value transactions.<br/>
+            <i>Example:</i>
+            <code>'amount &gt; 10000'</code> → Only include a compliance warning for large amounts.
+        </li>
+        <li>
+            <b>Feature Flags:</b> Enable/disable prompt sections based on feature toggles or debug flags.</li>
+        <li>
+            <b>Multi-step Workflows:</b> Build complex, branching prompt flows where each step is conditionally included.</li>
+    </ul>
+</div>
 
-            </page>
-            <page string="Arguments" name="arguments">
-                <div class="alert alert-warning" role="alert" invisible="not undefined_arguments">
-                    <strong
+</page>
+<page string="Arguments" name="arguments">
+<div class="alert alert-warning" role="alert" invisible="not undefined_arguments">
+    <strong
                 >Warning:</strong> The following arguments are used in templates but not defined in the schema:
-                    <field name="undefined_arguments" readonly="1" class="oe_inline" />
-                </div>
-                <group>
-                    <field name="arguments_json" widget="json_editor" placeholder="{
+    <field name="undefined_arguments" readonly="1" class="oe_inline" />
+</div>
+<group>
+    <field name="arguments_json" widget="json_editor" placeholder="{
   'system_prompt': {
     'type': 'string',
     'description': 'The system instructions for the LLM',
@@ -118,57 +136,57 @@
     'required': true
   }
 }" />
-                    <field name="input_schema_json" readonly="1" widget="json_editor" />
-                </group>
-                <div class="alert alert-info" role="alert">
-                    <p>
-                        <strong>Arguments Schema Format:</strong>
-                    </p>
-                    <p
+    <field name="input_schema_json" readonly="1" widget="json_editor" />
+</group>
+<div class="alert alert-info" role="alert">
+    <p>
+        <strong>Arguments Schema Format:</strong>
+    </p>
+    <p
                 >Define arguments as a JSON object where each key is the argument name and the value is its schema.</p>
-                    <p>Each argument schema can include:</p>
-                    <ul>
-                        <li>
-                            <strong
+    <p>Each argument schema can include:</p>
+    <ul>
+        <li>
+            <strong
                     >type</strong>: string, number, boolean, etc.</li>
-                        <li>
-                            <strong
+        <li>
+            <strong
                     >description</strong>: Human-readable description</li>
-                        <li>
-                            <strong
+        <li>
+            <strong
                     >required</strong>: Whether the argument is required (boolean)</li>
-                        <li>
-                            <strong
+        <li>
+            <strong
                     >default</strong>: Default value if not provided</li>
-                        <li>
-                            <strong
+        <li>
+            <strong
                     >examples</strong>: Array of example values</li>
-                    </ul>
-                    <p>Referenced in templates using <strong
+    </ul>
+    <p>Referenced in templates using <strong
                   >{{argument_name}}</strong> placeholders.</p>
-                </div>
-            </page>
-            <page string="Testing" name="testing">
-                <group>
-                    <field name="example_args" widget="json_editor" />
-                </group>
-                <div class="alert alert-info" role="alert">
-                    <p
+</div>
+</page>
+<page string="Testing" name="testing">
+<group>
+    <field name="example_args" widget="json_editor" />
+</group>
+<div class="alert alert-info" role="alert">
+    <p
                 >Enter example arguments in JSON format to test this prompt.</p>
-                </div>
-                <button name="action_test_prompt" string="Test Prompt" type="object" class="oe_highlight" />
-            </page>
-            <page string="Providers" name="providers">
-                <field name="provider_ids" widget="many2many_tags" />
-                <field name="publisher_ids" widget="many2many_tags" />
-            </page>
-        </notebook>
-    </sheet>
-    <div class="oe_chatter">
-        <field name="message_follower_ids" />
-        <field name="activity_ids" />
-        <field name="message_ids" />
-    </div>
+</div>
+<button name="action_test_prompt" string="Test Prompt" type="object" class="oe_highlight" />
+</page>
+<page string="Providers" name="providers">
+<field name="provider_ids" widget="many2many_tags" />
+<field name="publisher_ids" widget="many2many_tags" />
+</page>
+</notebook>
+</sheet>
+<div class="oe_chatter">
+<field name="message_follower_ids" />
+<field name="activity_ids" />
+<field name="message_ids" />
+</div>
 </form>
 </field>
 </record>
@@ -179,14 +197,14 @@
 <field name="model">llm.prompt</field>
 <field name="arch" type="xml">
 <tree>
-    <field name="name" />
-    <field name="category_id" />
-    <field name="tag_ids" widget="many2many_tags" />
-    <field name="template_count" />
-    <field name="argument_count" />
-    <field name="usage_count" />
-    <field name="last_used" />
-    <field name="active" invisible="1" />
+<field name="name" />
+<field name="category_id" />
+<field name="tag_ids" widget="many2many_tags" />
+<field name="template_count" />
+<field name="argument_count" />
+<field name="usage_count" />
+<field name="last_used" />
+<field name="active" invisible="1" />
 </tree>
 </field>
 </record>
@@ -197,15 +215,15 @@
 <field name="model">llm.prompt</field>
 <field name="arch" type="xml">
 <search string="Search Prompts">
-    <field name="name" />
-    <field name="description" />
-    <field name="category_id" />
-    <field name="tag_ids" />
-    <filter string="Archived" name="inactive" domain="[('active', '=', False)]" />
-    <group expand="0" string="Group By">
-        <filter string="Category" name="group_by_category" domain="[]" context="{'group_by': 'category_id'}" />
-        <filter string="Last Used" name="group_by_last_used" domain="[]" context="{'group_by': 'last_used'}" />
-    </group>
+<field name="name" />
+<field name="description" />
+<field name="category_id" />
+<field name="tag_ids" />
+<filter string="Archived" name="inactive" domain="[('active', '=', False)]" />
+<group expand="0" string="Group By">
+<filter string="Category" name="group_by_category" domain="[]" context="{'group_by': 'category_id'}" />
+<filter string="Last Used" name="group_by_last_used" domain="[]" context="{'group_by': 'last_used'}" />
+</group>
 </search>
 </field>
 </record>

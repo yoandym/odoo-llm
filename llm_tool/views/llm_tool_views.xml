@@ -49,15 +49,11 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="Description">
-                            <group>
-                                <group string="Technical Description (for LLM)">
-                                    <field name="description" placeholder="Describe what this tool does and when to use it. Include technical details and usage guidelines for the LLM." nolabel="1" />
-                                </group>
-                                <group string="User Description (for End Users)">
-                                    <field name="user_description" placeholder="Simple description of what this tool does for end users. This is shown when users ask about capabilities." nolabel="1" />
-                                </group>
-                            </group>
+                        <page string="Technical Description (for LLM)">
+                                <field name="description" placeholder="Describe what this tool does and when to use it. Include technical details and usage guidelines for the LLM." nolabel="1" />
+                        </page>
+                        <page string="User Description (for End Users)">
+                                <field name="user_description" placeholder="Simple description of what this tool does for end users. This is shown when users ask about capabilities." nolabel="1" />
                         </page>
                         <page string="Input Schema">
                             <field name="input_schema" widget="ace" placeholder="{
