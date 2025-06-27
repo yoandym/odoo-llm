@@ -6,21 +6,22 @@
     <field name="description">Retrieve records from any Odoo model with filtering capabilities. This tool allows you to fetch data from the database by specifying the model name, domain filters, fields to retrieve, and a limit on the number of records returned.
 
 USAGE GUIDELINES:
-- For searching people/contacts by name: Use model='res.partner' with domain=[["name", "ilike", "search_term"]]
+- For searching people/contacts by name: Use model='res.partner'
 - For contacts, always include fields like ["name", "display_name", "phone", "mobile", "email"]
-- Use 'ilike' operator for partial name matching (e.g., "Julie Ju" will match "Julie Julia Ju")
+- Use 'ilike' operator for partial name matching (e.g., "Carlos" will match "Carlos Perez")
 - Use '=' operator only for exact matches
 - For people searches, add [["is_company", "=", false]] to exclude companies
 - Always set appropriate limits (10-20 records max for person searches)
 
 EXAMPLES:
-- Find person by name: model="res.partner", domain=[["name", "ilike", "John Doe"], ["is_company", "=", false]], fields=["name", "phone", "mobile", "email"]
+- Find person by name: model="res.partner", domain=[["name", "ilike", "John"], ["is_company", "=", false]], fields=["name", "phone", "mobile", "email"]
 - Find active contacts: domain=[["active", "=", true], ["is_company", "=", false]]
 - Find contacts with phone: domain=[["phone", "!=", false]]</field>
     <field name="user_description">Search and retrieve contacts, companies, and other records from your Odoo database. I can help you find people by name, phone number, email, or other criteria.</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="False" />
+    <field name="read_only_hint" eval="True" />
   </record>
 
   <record id="llm_tool_odoo_record_creator" model="llm.tool">
@@ -39,6 +40,8 @@ Due to its data modification capabilities, this tool requires user consent befor
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="True" />
+    <field name="read_only_hint" eval="False" />
+
   </record>
 
   <record id="llm_tool_odoo_record_updater" model="llm.tool">
@@ -49,6 +52,8 @@ Due to its data modification capabilities, this tool requires user consent befor
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="True" />
+    <field name="read_only_hint" eval="False" />
+
   </record>
 
   <record id="llm_tool_odoo_record_unlinker" model="llm.tool">
@@ -59,6 +64,8 @@ Due to its data modification capabilities, this tool requires user consent befor
     <field name="default" eval="True" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="True" />
+    <field name="read_only_hint" eval="False" />
+
   </record>
 
   <record id="llm_tool_odoo_model_method_executor" model="llm.tool">
@@ -75,6 +82,8 @@ Returns a JSON representation of the method's result or an error message.
     <field name="default" eval="False" />
     <field name="active" eval="True" />
     <field name="requires_user_consent" eval="True" />
+    <field name="read_only_hint" eval="False" />
+
   </record>
 
   <record id="llm_tool_odoo_model_inspector" model="llm.tool">

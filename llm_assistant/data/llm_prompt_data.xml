@@ -7,60 +7,103 @@
                 <field name="category_id" ref="llm_prompt.category_general" />
                 <field name="tag_ids" eval="[(6, 0, [ref('llm_prompt.tag_assistant')])]" />
                 <field name="arguments_json"><![CDATA[{
-            "role": {
-            "type": "string",
-            "description": "The role of the assistant (e.g., 'Assistant', 'Customer Support', 'Data Analyst')",
-            "required": true
-            },
-            "goal": {
-            "type": "string",
-            "description": "The primary goal or objective of this assistant",
-            "required": true
-            },
-            "background": {
-            "type": "string",
-            "description": "Background information for the assistant to understand its context",
-            "required": true
-            },
-            "instructions": {
-            "type": "string",
-            "description": "Specific instructions for the assistant to follow",
-            "required": true
-            },
-            "user_language": {
-            "type": "string",
-            "description": "The user's preferred language code (e.g., 'en_US', 'fr_FR')",
-            "required": false,
-            "default": "en_US"
-            },
-            "footer": {
-            "type": "string",
-            "description": "Optional footer text to add to the end of the prompt",
-            "required": false,
-            "default": ""
-            }
-            }]]></field>
+  "assistant_name": {
+    "type": "string",
+    "description": "The name of the assistant (e.g., 'Ody', 'Chuky', 'Ultron')",
+    "required": false
+  },
+  "role": {
+    "type": "string",
+    "description": "The role of the assistant (e.g., 'Assistant', 'Customer Support', 'Data Analyst')",
+    "required": true
+  },
+  "goal": {
+    "type": "string",
+    "description": "The primary goal or objective of this assistant",
+    "required": true
+  },
+  "background": {
+    "type": "string",
+    "description": "Background information for the assistant to understand its context",
+    "required": true
+  },
+  "instructions": {
+    "type": "string",
+    "description": "Specific instructions for the assistant to follow",
+    "required": true
+  },
+  "user_language": {
+    "type": "string",
+    "description": "The user's preferred language code (e.g., 'en_US', 'fr_FR')",
+    "required": false,
+    "default": "en_US"
+  },
+  "footer": {
+    "type": "string",
+    "description": "Optional footer text to add to the end of the prompt",
+    "required": false,
+    "default": ""
+  },
+  "examples": {
+    "type": "object",
+    "description": "Optional examples to learn how to answer",
+    "required": false
+  }
+}]]></field>
                 <field name="active" eval="True" />
         </record>
 
-        <!-- Template for the system message -->
-        <record id="llm_prompt_template_assistant_system" model="llm.prompt.template">
+        <!-- Templates -->
+        <record id="llm_prompt_template_assistant_base" model="llm.prompt.template">
                 <field name="prompt_id" ref="llm_prompt_assistant" />
                 <field name="role">system</field>
                 <field name="sequence">10</field>
-                <field name="content"><![CDATA[You are a {{ role }}.
+                <field name="content"><![CDATA[
+You are a {{ role }}.
 
-Your goal is to {{ goal }}
+When asked about your name tell your name is {{ assistant_name }}.
 
-Background: {{ background }}
+Your goal is to {{ goal }}.
 
-Instructions: {{ instructions }}
+Background: {{ background }}.
 
+Instructions: {{ instructions }}.
+
+{{ footer }}.
+                ]]></field>
+        </record>
+        <record id="llm_prompt_template_assistant_lang" model="llm.prompt.template">
+                <field name="prompt_id" ref="llm_prompt_assistant" />
+                <field name="role">user</field>
+                <field name="sequence">20</field>
+                <field name="content"><![CDATA[
 Language Instructions:
 - The user's preferred language is: {{ user_language }}
 - Always respond in the user's language ({{ user_language }}).
 - If no language is specified, use English (en_US) as the default.
-
-{{ footer }}]]></field>
+                ]]></field>
+        </record>
+        <record id="llm_prompt_template_assistant_context" model="llm.prompt.template">
+                <field name="prompt_id" ref="llm_prompt_assistant" />
+                <field name="role">system</field>
+                <field name="sequence">30</field>
+                <field name="content"><![CDATA[
+Current context, use it to filter when the user is ambiguous (uses the terms current, this, etc.)
+- model: {{ get_related_record("_name") }}
+- id: {{ get_related_record("id") }}
+- display_name: {{ get_related_record("display_name") }}               
+                ]]></field>
+        </record>
+        <record id="llm_prompt_template_assistant_examples" model="llm.prompt.template">
+                <field name="prompt_id" ref="llm_prompt_assistant" />
+                <field name="role">system</field>
+                <field name="sequence">40</field>
+                <field name="content"><![CDATA[
+Use The following examples to better understand, use tools, and answer user queries:
+{{ examples }}
+                ]]></field>
+                <field name="condition"><![CDATA[
+'examples' in arguments and arguments["examples"]
+                ]]></field>
         </record>
 </odoo>
