@@ -162,14 +162,23 @@ class MailMessage(models.Model):
 
         # 2) execute + update
         try:
-            # to isolate tool call, otherwise transaction error can cause the transaction to fail
-            # and the transaction will be rolled back(aborted state)
-            with self.env.cr.savepoint():
+            result = None
+            tool = thread.tool_ids.filtered(lambda t: t.name == name)[:1]
+
+            # # Skip savepoint for read-only tools to improve performance
+            if tool and tool.read_only_hint:
                 result = thread._execute_tool(name, args)
-                if not result:
-                    raise UserError(f"No result returned from tool '{name}'")
-                body = f"Result for {name}"
-                write_vals = {"tool_call_result": json.dumps(result), "body": body}
+            else:
+                # to isolate tool call, otherwise transaction error can cause the transaction to fail
+                # and the transaction will be rolled back(aborted state)
+                with self.env.cr.savepoint():
+                    result = thread._execute_tool(name, args)
+
+            if not result:
+                raise UserError(f"No result returned from tool '{name}'")
+
+            body = f"Result for {name}"
+            write_vals = {"tool_call_result": json.dumps(result), "body": body}
         except Exception as e:
             write_vals = {
                 "tool_call_result": json.dumps({"error": str(e)}),
