@@ -29,7 +29,7 @@
       >
                 <div
           class="alert alert-info mt-3"
-          attrs="{'invisible': ['|', ('external_urls', 'in', [False, '']), ('download_as_document_page', '=', False)]}"
+          invisible="('external_urls', 'in', [False, ''] or ('download_as_document_page', '=', False)"
           role="alert"
         >
                     <p><strong>Document Page Support</strong></p>
