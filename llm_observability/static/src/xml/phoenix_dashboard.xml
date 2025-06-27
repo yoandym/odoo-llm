@@ -41,7 +41,7 @@
 
             <!-- Error State -->
             <div t-if="state.error" class="phoenix_error">
-                <div class="alert alert-danger">
+                <div class="alert alert-danger" role="alert">
                     <h4>
                         <i class="fa fa-exclamation-triangle"/>
  Error</h4>
@@ -59,7 +59,7 @@
                 <!-- Metrics Cards -->
                 <div t-if="state.tracesData" class="phoenix_metrics">
                     <!-- Integration Status Message -->
-                    <div t-if="state.tracesData.message" class="alert alert-info mb-3">
+                    <div t-if="state.tracesData.message" class="alert alert-info mb-3" role="alert">
                         <i class="fa fa-info-circle"/>
                         <span t-esc="state.tracesData.message"/>
                     </div>
@@ -109,7 +109,7 @@
 
                 <!-- Configuration Needed -->
                 <div t-if="!state.phoenixAvailable" class="phoenix_error">
-                    <div class="alert alert-warning">
+                    <div class="alert alert-warning" role="alert">
                         <h4>
                             <i class="fa fa-cog"/>
  Configuration Required</h4>
@@ -124,7 +124,7 @@
 
                 <!-- Connection Error -->
                 <div t-if="state.phoenixAvailable and state.connectionStatus !== 'connected'" class="phoenix_error">
-                    <div class="alert alert-danger">
+                    <div class="alert alert-danger" role="alert">
                         <h4>
                             <i class="fa fa-unlink"/>
  Connection Error</h4>

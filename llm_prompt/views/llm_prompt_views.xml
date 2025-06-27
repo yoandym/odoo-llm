@@ -47,7 +47,7 @@
                             </field>
 
 
-                            <div class="alert alert-muted mt-3" style="font-size: 0.95em;">
+                            <div class="alert alert-muted mt-3" style="font-size: 0.95em;" role="alert">
                                 <strong>What is available?</strong>
                                 <ul>
                                     <li>

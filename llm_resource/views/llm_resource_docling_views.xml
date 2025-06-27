@@ -9,7 +9,7 @@
             <!-- Add Docling configuration as a new notebook page -->
             <xpath expr="//page[@name='content']" position="after">
                 <page string="Docling Configuration" name="docling_config" invisible="parser != 'docling'">
-                    <div class="alert alert-info mb-3">
+                    <div class="alert alert-info mb-3" role="alert">
                         <h5>
                             <i class="fa fa-cog"></i> Docling Parser Configuration</h5>
                         <p>Configure the AI-powered Docling parser with custom processing options. 
@@ -49,7 +49,7 @@
                         </group>
 
                         <!-- Help Section -->
-                        <div colspan="2" class="alert alert-warning mt-3">
+                        <div colspan="2" class="alert alert-warning mt-3" role="alert">
                             <h6>
                                 <i class="fa fa-info-circle"></i> Configuration Tips</h6>
                             <ul class="mb-0">

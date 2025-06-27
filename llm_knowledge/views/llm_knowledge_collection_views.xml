@@ -47,7 +47,7 @@
                             <field name="description" placeholder="Collection description..." nolabel="1" />
                             <div class="row">
                                 <div class="col-12">
-                                    <div class="alert alert-info mb-0" invisible="default_parser != 'default'">
+                                    <div class="alert alert-info mb-0" invisible="default_parser != 'default'" role="alert">
                                         <h5>Simple Parser - Markdownify</h5>
                                         <p>Basic document parser using Markdownify.</p>
                                         <div class="row">
@@ -65,7 +65,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="alert alert-info mb-0" invisible="default_parser != 'json'">
+                                    <div class="alert alert-info mb-0" invisible="default_parser != 'json'" role="alert">
                                         <h5>JSON Parser</h5>
                                         <p>Specialized parser for JSON data.</p>
                                         <div class="row">
@@ -83,7 +83,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="alert alert-info mb-0" invisible="default_parser != 'smart'">
+                                    <div class="alert alert-info mb-0" invisible="default_parser != 'smart'" role="alert">
                                         <h5>Smart Parser</h5>
                                         <p>Advanced document parser using specialized libraries.</p>
                                         <div class="row">
@@ -105,7 +105,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="alert alert-info mb-0" invisible="default_parser != 'docling'">
+                                    <div class="alert alert-info mb-0" invisible="default_parser != 'docling'" role="alert">
                                         <h5>AI Parser - Docling</h5>
                                         <p>AI-powered document parser with advanced layout analysis.</p>
                                         <div class="row">

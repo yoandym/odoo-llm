@@ -4,7 +4,7 @@
         <div>
             <div
         t-if="!props.state.isLoading and !props.inputSchema?.error and props.formFields.length === 0"
-        class="alert alert-warning"
+        class="alert alert-warning" role="alert"
       >
                 No input fields defined for this model, or schema is missing properties.
             </div>
