@@ -5,7 +5,7 @@ import uuid
 
 from openai import OpenAI
 
-from odoo import api, models
+from odoo import api, models, tools
 from odoo.exceptions import UserError
 
 from ..utils.openai_message_validator import OpenAIMessageValidator
@@ -40,6 +40,7 @@ class LLMProvider(models.Model):
         """Format tools for OpenAI"""
         return [self._openai_format_tool(tool) for tool in tools]
 
+    @tools.ormcache('tool.id', 'tool.write_date')
     def _openai_format_tool(self, tool):
         """Convert a tool to OpenAI format
 
@@ -51,21 +52,8 @@ class LLMProvider(models.Model):
         """
         try:
             if tool.input_schema:
-                try:
-                    schema = json.loads(tool.input_schema)
-                    return self._create_openai_tool_from_schema(schema, tool)
-                except json.JSONDecodeError:
-                    _logger.error(f"Invalid JSON schema for tool {tool.name}")
-
-            schema = tool.get_input_schema()
-            if schema:
+                schema = json.loads(tool.input_schema)
                 return self._create_openai_tool_from_schema(schema, tool)
-
-            _logger.warning(
-                f"Could not get schema for tool {tool.name}, using fallback"
-            )
-            schema = {"type": "object", "properties": {}, "required": []}
-            return self._create_openai_tool_from_schema(schema, tool)
 
         except Exception as e:
             _logger.error(f"Error formatting tool {tool.name}: {str(e)}")

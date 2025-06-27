@@ -4,7 +4,7 @@ import logging
 import uuid
 
 import ollama
-from odoo import api, models
+from odoo import api, models, tools
 
 from ..utils.ollama_message_validator import OllamaMessageValidator
 from ..utils.ollama_tool_call_id_utils import OllamaToolCallIdUtils
@@ -298,6 +298,7 @@ class LLMProvider(models.Model):
         """Format tools for Ollama"""
         return [self._ollama_format_tool(tool) for tool in tools]
 
+    @tools.ormcache('tool.id', 'tool.write_date')
     def _ollama_format_tool(self, tool):
         """Convert a tool to Ollama format
 
@@ -310,24 +311,8 @@ class LLMProvider(models.Model):
         try:
             # First use the explicit input_schema if available
             if tool.input_schema:
-                try:
-                    schema = json.loads(tool.input_schema)
-                    return self._create_ollama_tool_from_schema(schema, tool)
-                except json.JSONDecodeError:
-                    _logger.error(f"Invalid JSON schema for tool {tool.name}")
-                    # Continue to next approach
-
-            # Next generate schema from the tool's method signature
-            schema = tool.get_input_schema()
-            if schema:
+                schema = json.loads(tool.input_schema)
                 return self._create_ollama_tool_from_schema(schema, tool)
-
-            # If we still don't have a schema, use minimal fallback
-            _logger.warning(
-                f"Could not get schema for tool {tool.name}, using fallback"
-            )
-            schema = {"type": "object", "properties": {}, "required": []}
-            return self._create_ollama_tool_from_schema(schema, tool)
 
         except Exception as e:
             _logger.error(f"Error formatting tool {tool.name}: {str(e)}")
