@@ -3,8 +3,7 @@ import json
 import logging
 
 import emoji
-import markdown2
-from odoo import _, api, fields, models
+from odoo import _, api, fields, models, tools
 from odoo.addons.llm_mail_message_subtypes.const import (
     LLM_ASSISTANT_SUBTYPE_XMLID, LLM_TOOL_RESULT_SUBTYPE_XMLID,
     LLM_USER_SUBTYPE_XMLID)
@@ -245,6 +244,7 @@ class LLMThread(models.Model):
         self.ensure_one()
         return []
 
+    @tools.ormcache('self.id')
     def get_related_record(self):
         """Get the related record if this thread is connected to a model.
 
