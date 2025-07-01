@@ -17,7 +17,7 @@
             <xpath expr="//field[@name='process_immediately']" position="after">
                 <field
           name="download_as_document_page"
-          attrs="{'invisible': [('external_urls', 'in', [False, ''])]}"
+          invisible="external_urls in [False, '']"
           help="Create document pages from external URLs. Note: Only works with text-based content (HTML, plain text). Binary files like PDFs, images, or videos are not supported."
         />
             </xpath>
@@ -29,7 +29,7 @@
       >
                 <div
           class="alert alert-info mt-3"
-          invisible="('external_urls', 'in', [False, ''] or ('download_as_document_page', '=', False)"
+          invisible="(external_urls in [False, '']) or (download_as_document_page == False)"
           role="alert"
         >
                     <p><strong>Document Page Support</strong></p>
