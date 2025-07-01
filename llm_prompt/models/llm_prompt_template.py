@@ -159,8 +159,8 @@ class LLMPromptTemplate(models.Model):
     def _evaluate_condition(self, condition, arguments):
         """Evaluate the execution condition"""
         # Build context for evaluation
-        ctx = self._build_context_object(arguments)
-        
+        ctx = self.prompt_id._build_context_object(arguments)
+
         # Create evaluation context with all available data
         eval_context = {
             'arguments': arguments,
