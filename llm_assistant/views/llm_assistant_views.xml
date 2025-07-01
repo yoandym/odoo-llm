@@ -70,7 +70,7 @@
                                 </tree>
                             </field>
                             <div class="alert alert-info w-100 mt-2 mb-2" role="alert">
-                                <h5 class="alert-heading">Tool Configuration</h5>
+                                <h5>Tool Configuration</h5>
                                 <p>Configure specific parameter overrides for tools used by this assistant.</p>
                                 <hr/>
                                 <p class="mb-0">
