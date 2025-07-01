@@ -20,16 +20,31 @@
     },
 
     "data": [
+        # Security
         "security/ir.model.access.csv",
+
+        # Data files
         "data/llm_prompt_tag_data.xml",
         "data/llm_prompt_category_data.xml",
+
+        # Views
         "views/llm_prompt_views.xml",
         "views/llm_prompt_template_views.xml",
         "views/llm_prompt_tag_views.xml",
         "views/llm_prompt_category_views.xml",
         "views/llm_thread_views.xml",
-        "views/menu.xml",
+
+        # Actions
+        "views/llm_prompt_advanced_duplicate.xml",
+
+        # Wizards
+        "wizards/prompt_copy_wizard_view.xml",
         "wizards/llm_prompt_test_views.xml",
+
+        # Menu items
+        "views/menu.xml",
+
+
     ],
     "assets": {
         "web.assets_backend": [

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_llm_prompt_copy_wizard_form" model="ir.ui.view">
+        <field name="name">llm.prompt.copy.wizard.form</field>
+        <field name="model">llm.prompt.copy.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Duplicate Prompt" class="o_form_nosheet">
+                    <field name="info" nolabel="1" readonly="1"/>
+                <group>
+                    <field name="name"/>
+                    <field name="copy_mode"/>
+                </group>
+                <footer>
+                    <button name="action_copy_prompt" type="object" string="Duplicate" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

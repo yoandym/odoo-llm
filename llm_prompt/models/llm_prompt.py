@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import json
-from datetime import datetime
-import pytz
 import logging
 import re
+from datetime import datetime
 
+import pytz
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -25,6 +25,7 @@ class LLMPrompt(models.Model):
         required=True,
         tracking=True,
         help="Unique identifier for the prompt template",
+        copy=False,
     )
     description = fields.Text(
         string="Description",
@@ -570,7 +571,7 @@ class LLMPrompt(models.Model):
                 'lang': self.env.context.get('lang', user.lang or 'en_US'),
                 'tz': self.env.context.get('tz', user.tz or 'UTC'),
             }
-            
+
             # Add thread context if available
             thread_id = self.env.context.get('thread_id')
             if thread_id:
@@ -599,11 +600,11 @@ class LLMPrompt(models.Model):
             else:
                 ctx['thread'] = None
                 ctx['record'] = None
-            
+
             # Add current datetime context
             tz = pytz.timezone(ctx['user']['tz'])
             now = datetime.now(tz)
-            
+
             ctx['now'] = {
                 'date': now.strftime('%Y-%m-%d'),
                 'time': now.strftime('%H:%M:%S'),
@@ -640,10 +641,10 @@ class LLMPrompt(models.Model):
             # Skip private fields and computed non-stored fields
             if field_name.startswith('_') or (field.compute and not field.store):
                 continue
-                
+
             try:
                 value = record[field_name]
-                
+
                 # Handle different field types
                 if field.type in ('char', 'text', 'html'):
                     data[field_name] = value or ''
@@ -682,3 +683,17 @@ class LLMPrompt(models.Model):
                 _logger.debug(f"Could not extract field {field_name}: {e}")
                 
         return data
+
+    def copy(self, default=None):
+        """
+        Standard copy: always duplicate templates (default policy), always return a new record.
+        """
+        default = dict(default or {})
+        if not default.get('name'):
+            default['name'] = f"{self.name} (copy)"
+        # Create the new prompt
+        new_prompt = super().copy(default)
+        # Duplicate templates for the new prompt
+        for template in self.template_ids:
+            template.copy({'prompt_id': new_prompt.id})
+        return new_prompt
