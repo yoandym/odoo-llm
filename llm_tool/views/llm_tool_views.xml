@@ -65,7 +65,7 @@
                                 <p>
                                     <strong>About the Input Schema:</strong>
                                 </p>
-                                <p>This JSON schema defines the parameters accepted by this tool. It schema will be automatically generated from the implementation's execute method signature and type hints.</p>
+                                <p>This JSON schema defines the parameters accepted by this tool. Its schema will be automatically generated from the implementation's execute method signature and type hints.</p>
                             </div>
                         </page>
                     </notebook>
