@@ -42,8 +42,6 @@ class OllamaMessageValidator:
         if not self.messages:
             return self.messages
 
-        # Log original messages
-        _logger.debug("=== ORIGINAL MESSAGES BEFORE VALIDATION ===")
         for i, msg in enumerate(self.messages):
             role = msg.get("role", "unknown")
             content_preview = (

@@ -40,7 +40,17 @@ class LLMTool(models.Model):
     # Input schema
     input_schema = fields.Text(
         string="Input Schema",
+        compute='_compute_input_schema',
+        store=True,
+        readonly=True,  # No manual override
         help="JSON Schema defining the expected parameters for the tool",
+    )
+    
+    has_input_schema = fields.Boolean(
+        compute='_compute_input_schema',
+        store=True,
+        readonly=True,
+        help="Indicates if the tool has a valid input schema",
     )
 
     # Annotations (following the schema specification)
@@ -84,6 +94,35 @@ class LLMTool(models.Model):
         default=False,
         help="Set to true if this is a default tool to be included in all LLM requests",
     )
+
+    @api.depends('implementation')
+    def _compute_input_schema(self):
+        """Compute input schema from implementation"""
+        for tool in self:
+            # Generate schema from implementation
+            try:
+                schema = tool.get_input_schema()
+                if schema:
+                    tool.input_schema = json.dumps(schema, indent=2)
+                    tool.has_input_schema = True if tool.input_schema else False
+                else:
+                    _logger.warning(f"Could not get schema for tool {tool.name}")
+                    tool.input_schema = "{}"
+                    tool.has_input_schema = False
+
+            except Exception as e:
+                _logger.error(f"Error computing schema for tool {tool.name}: {e}")
+                tool.input_schema = "{}"
+                tool.has_input_schema = False
+
+    def action_compute_input_schema(self):
+        """Action to compute the input schema for all tools"""
+        for tool in self:
+            tool._compute_input_schema()
+        return {
+            "type": "ir.actions.client",
+            "tag": "reload",
+        }
 
     @api.model
     def _selection_implementation(self):
@@ -169,16 +208,7 @@ class LLMTool(models.Model):
         self.ensure_one()
 
         # Get the input schema - either from input_schema field or compute it
-        input_schema_data = {}
-        if self.input_schema:
-            try:
-                input_schema_data = json.loads(self.input_schema)
-            except (json.JSONDecodeError, TypeError):
-                # If we can't parse the input_schema, generate it from the method signature
-                input_schema_data = self.get_input_schema()
-        else:
-            # Generate schema from method signature
-            input_schema_data = self.get_input_schema()
+        input_schema_data = json.loads(self.input_schema)
 
         # If we still don't have a schema, use a default
         if not input_schema_data:
@@ -202,23 +232,3 @@ class LLMTool(models.Model):
         }
 
         return tool_def
-
-    @api.onchange("implementation")
-    def _onchange_implementation(self):
-        """When implementation changes and input_schema is empty, populate it with the implementation schema"""
-        if self.implementation and not self.input_schema:
-            schema = self.get_input_schema()
-            if schema:
-                self.input_schema = json.dumps(schema, indent=2)
-
-    def action_reset_input_schema(self):
-        """Reset the input schema to the implementation schema"""
-        for record in self:
-            schema = record.get_input_schema()
-            if schema:
-                record.input_schema = json.dumps(schema, indent=2)
-        # Return an action to reload the view
-        return {
-            "type": "ir.actions.client",
-            "tag": "reload",
-        }

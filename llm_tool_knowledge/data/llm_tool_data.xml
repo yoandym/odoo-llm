@@ -9,5 +9,7 @@
         <field name="active" eval="True" />
         <field name="default" eval="False" />
         <field name="requires_user_consent" eval="False" />
+        <field name="read_only_hint" eval="True" />
+
     </record>
 </odoo>

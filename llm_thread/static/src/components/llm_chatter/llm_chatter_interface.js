@@ -141,7 +141,7 @@ export class LLMChatterInterface extends Component {
 
         if (this.state.messages.length === 0) {
             container.innerHTML = `
-                <div class="alert alert-info">
+                <div class="alert alert-info" role="alert">
                     <i class="fa fa-info-circle me-2"></i>
                     Welcome! This is your AI assistant. Ask me anything about this record or request help with your tasks.
                 </div>
@@ -316,7 +316,7 @@ export class LLMChatterInterface extends Component {
         if (!container) return;
 
         container.innerHTML = `
-            <div class="alert alert-danger">
+            <div class="alert alert-danger" role="alert">
                 <i class="fa fa-exclamation-triangle me-2"></i>
                 ${errorText}
             </div>

@@ -11,7 +11,7 @@
     <template id="phoenix_not_configured">
         <t t-call="web.layout">
             <div class="container mt-4">
-                <div class="alert alert-warning">
+                <div class="alert alert-warning" role="alert">
                     <h3>Phoenix Observability Not Configured</h3>
                     <p>Phoenix observability platform is not configured or not available.</p>
                     <p>Please contact your system administrator to set up Phoenix integration.</p>
@@ -41,7 +41,7 @@
                     </iframe>
                 </div>
 
-                <div class="alert alert-danger" t-if="connection_status != 'connected'">
+                <div class="alert alert-danger" t-if="connection_status != 'connected'" role="alert">
                     <h4>Phoenix Connection Error</h4>
                     <p>Unable to connect to Phoenix observability platform.</p>
                     <p>Please check the configuration and ensure Phoenix is running.</p>

@@ -7,13 +7,15 @@
         <field name="arch" type="xml">
             <tree>
                 <field name="name" />
-                <field name="implementation" />
-                <field name="title" optional="show" />
+                <field name="implementation" optional="hide" />
+                <field name="title" optional="hide" />
                 <field name="default" />
-                <field name="active" />
+                <field name="active" optional="hide" />
                 <field name="requires_user_consent" />
-                <field name="read_only_hint" optional="hide" />
+                <field name="read_only_hint" optional="show" />
                 <field name="destructive_hint" optional="hide" />
+                <!-- show an ok or warning icon if not has_input_schema -->
+                <field name="has_input_schema" widget="boolean_toggle" options="{'clickable': False}" />
             </tree>
         </field>
     </record>
@@ -50,30 +52,20 @@
                     </group>
                     <notebook>
                         <page string="Technical Description (for LLM)">
-                                <field name="description" placeholder="Describe what this tool does and when to use it. Include technical details and usage guidelines for the LLM." nolabel="1" />
+                            <field name="description" placeholder="Describe what this tool does and when to use it. Include technical details and usage guidelines for the LLM." nolabel="1" />
                         </page>
                         <page string="User Description (for End Users)">
-                                <field name="user_description" placeholder="Simple description of what this tool does for end users. This is shown when users ask about capabilities." nolabel="1" />
+                            <field name="user_description" placeholder="Simple description of what this tool does for end users. This is shown when users ask about capabilities." nolabel="1" />
                         </page>
                         <page string="Input Schema">
-                            <field name="input_schema" widget="ace" placeholder="{
-  'type': 'object',
-  'properties': {
-    'param1': {
-      'type': 'string',
-      'description': 'Description of parameter 1'
-    }
-  },
-  'required': ['param1']
-}" />
+                            <!-- a button to re-compute input_schema -->
+                            <button name="action_compute_input_schema" type="object" string="Recompute Input Schema" class="btn-primary"/>
+                            <field name="input_schema"/>
                             <div class="alert alert-info" role="alert">
                                 <p>
                                     <strong>About the Input Schema:</strong>
                                 </p>
-                                <p
-                >This JSON schema defines the parameters accepted by this tool. If left empty, the schema will be automatically generated from the implementation's execute method signature and type hints.</p>
-                                <p
-                >Use this field when you want to override the automatic schema generation or provide a more detailed schema with examples, enums, or other constraints.</p>
+                                <p>This JSON schema defines the parameters accepted by this tool. Its schema will be automatically generated from the implementation's execute method signature and type hints.</p>
                             </div>
                         </page>
                     </notebook>

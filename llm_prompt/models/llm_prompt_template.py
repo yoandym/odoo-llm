@@ -1,11 +1,46 @@
-import json
-import logging
+# -*- coding: utf-8 -*-
 
+import logging
 from jinja2 import Environment, Undefined
 
-from odoo import _, api, fields, models
+from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
+
+# Module-level Jinja2 environment for performance
+_jinja_env = None
+
+def get_jinja_env():
+    """Get or create the shared Jinja2 environment"""
+    global _jinja_env
+    if _jinja_env is None:
+        _jinja_env = Environment(
+            variable_start_string="{{",
+            variable_end_string="}}",
+            trim_blocks=True,
+            lstrip_blocks=True,
+            undefined=Undefined,
+            cache_size=1000,
+            auto_reload=False,
+        )
+        
+        # Add useful filters
+        _jinja_env.filters['default'] = lambda value, default='': value if value not in (None, False, '') else default
+        _jinja_env.filters['upper'] = lambda s: str(s).upper() if s else ''
+        _jinja_env.filters['lower'] = lambda s: str(s).lower() if s else ''
+        _jinja_env.filters['title'] = lambda s: str(s).title() if s else ''
+        _jinja_env.filters['capitalize'] = lambda s: str(s).capitalize() if s else ''
+        
+        # Add date formatting filter
+        def format_date(value, format='%Y-%m-%d'):
+            if not value:
+                return ''
+            if isinstance(value, str):
+                return value
+            return value.strftime(format)
+        _jinja_env.filters['date'] = format_date
+        
+    return _jinja_env
 
 
 class LLMPromptTemplate(models.Model):
@@ -24,8 +59,6 @@ class LLMPromptTemplate(models.Model):
         required=True,
         ondelete="cascade",
     )
-
-    # Template role
     role = fields.Selection(
         [
             ("user", "User"),
@@ -37,21 +70,15 @@ class LLMPromptTemplate(models.Model):
         required=True,
         help="Role of this template in the conversation",
     )
-
-    # Content
     content = fields.Text(
         string="Content",
         required=True,
         help="Content of this template with placeholders for arguments (use {{argument_name}})",
     )
-
-    # Conditional execution
     condition = fields.Char(
         string="Execution Condition",
         help="Python expression determining whether to include this template (e.g., 'debug' in arguments)",
     )
-
-    # Computed field to show used arguments
     used_arguments = fields.Char(
         string="Used Arguments",
         compute="_compute_used_arguments",
@@ -70,137 +97,44 @@ class LLMPromptTemplate(models.Model):
             template.used_arguments = ", ".join(sorted(args)) if args else ""
 
     def _substitute_placeholders(self, content, arguments):
-        """
-        Replace argument placeholders in content with their values using Jinja2.
-        Extends the base implementation to handle special cases:
-        1. When arg_name is 'related_record', fetch from llm.thread.get_related_record()
-        2. When placeholder is like {{get_related_record('field_name')}}, get the field value from the record
-
-        Args:
-            content (str): Content with placeholders
-            arguments (dict): Dictionary of argument values
-
-        Returns:
-            str: Content with placeholders replaced by values
-        """
-        # Process boolean values for JSON compatibility
-        processed_args = dict(arguments)
-        for arg_name, arg_value in arguments.items():
-            if isinstance(arg_value, bool):
-                # Convert Python True/False to JSON true/false
-                processed_args[arg_name] = "true" if arg_value else "false"
-            else:
-                processed_args[arg_name] = arg_value
-
-        # Create Jinja2 environment with custom functions
-        env = Environment(
-            variable_start_string="{{",
-            variable_end_string="}}",
-            trim_blocks=True,
-            lstrip_blocks=True,
-            undefined=Undefined,  # Handle missing variables gracefully
-        )
-
-        # Get related record if available
-        related_record = None
-        thread = self.env["llm.thread"].get_thread_from_context()
-        if thread:
-            related_record = thread.get_related_record()
-            if related_record:
-                # Add related_record to the context
-                processed_args["related_record"] = json.dumps(
-                    {
-                        "model": related_record._name,
-                        "id": related_record.id,
-                        "display_name": related_record.display_name,
-                    }
-                )
-
-        # Create a wrapper function that automatically includes the related_record
-        def get_related_record_wrapper(field_name, key_name=None):
-            return self.get_related_record(field_name, key_name, related_record)
-
-        # Always register the function, even if related_record is None
-        env.globals["get_related_record"] = get_related_record_wrapper
-
-        # Create and render the template
-        template = env.from_string(content)
-        return template.render(**processed_args)
-
-    def get_related_record(self, field_name, key_name=None, related_record=None):
-        """
-        Access fields or dictionary keys from a related record.
-
-        Args:
-            field_name (str): The field name to access
-            key_name (str, optional): If the field is a dictionary, the key to access
-            related_record (Model, optional): The record to access.
-
-        Returns:
-            str: The value of the field/key or an empty string if not available
-        """
-        # If we still don't have a related record, return empty string
-        if not related_record:
-            _logger.info(
-                f"No related record available, returning empty value for {field_name}"
-            )
-            return ""
-
-        # Access the field
-        if hasattr(related_record, field_name):
-            try:
-                attr_value = getattr(related_record, field_name)
-
-                if (
-                    key_name is not None
-                ):  # We want to access an item from this attribute
-                    if isinstance(attr_value, dict):
-                        if key_name in attr_value:
-                            final_value = attr_value[key_name]
-                        else:
-                            _logger.warning(
-                                "Key '%s' not found in dictionary field '%s'",
-                                key_name,
-                                field_name,
-                            )
-                            return ""  # Return empty string instead of error message
-                    else:
-                        _logger.warning(
-                            "Field '%s' is not a dictionary, cannot access key '%s'",
-                            field_name,
-                            key_name,
-                        )
-                        return ""  # Return empty string instead of error message
-                else:  # No key, just return the attribute value
-                    final_value = attr_value
-
-                # Convert to string with proper JSON handling for booleans
-                if isinstance(final_value, bool):
-                    return "true" if final_value else "false"
-                return final_value
-
-            except Exception as e:
-                _logger.error(
-                    "Error getting field %s (key: %s) from record: %s",
-                    field_name,
-                    key_name,
-                    str(e),
-                )
-                return ""  # Return empty string instead of error message
-        else:
-            _logger.warning("Record doesn't have field: %s", field_name)
-            return ""  # Return empty string instead of error message
+        """Replace placeholders with values using unified context"""
+        # Build the context object
+        ctx = self.env.context
+        
+        # Get Jinja2 environment
+        env = get_jinja_env()
+        
+        # Create template variables
+        template_vars = {
+            # Add context object
+            'ctx': ctx,
+            
+            # Add top-level shortcuts for convenience
+            'user': ctx['user'],
+            'env': ctx['env'],
+            'thread': ctx['thread'],
+            'record': ctx['record'],
+            'now': ctx['now'],
+            'args': ctx['args'],
+        }
+        
+        # Add any remaining arguments that aren't in args (like formatted ones)
+        for key, value in arguments.items():
+            if not key.startswith('_') and key not in template_vars:
+                template_vars[key] = value
+        
+        # Render template
+        try:
+            template = env.from_string(content)
+            return template.render(**template_vars)
+        except Exception as e:
+            _logger.error(f"Error rendering template: {e}")
+            _logger.error(f"Content: {content}")
+            _logger.error(f"Variables: {list(template_vars.keys())}")
+            raise
 
     def get_template_message(self, arguments=None):
-        """
-        Generate a message for this template with the given arguments
-
-        Args:
-            arguments (dict): Dictionary of argument values
-
-        Returns:
-            dict: Message dictionary for this template
-        """
+        """Generate a message for this template with the given arguments"""
         self.ensure_one()
         arguments = arguments or {}
 
@@ -210,11 +144,7 @@ class LLMPromptTemplate(models.Model):
                 if not self._evaluate_condition(self.condition, arguments):
                     return None
             except Exception as e:
-                # Log but don't fail if condition evaluation fails
-                self.prompt_id.message_post(
-                    body=_("Error evaluating condition for template %s: %s")
-                    % (self.id, str(e))
-                )
+                _logger.error(f"Error evaluating condition for template {self.id}: {e}")
                 return None
 
         # Replace argument placeholders in content
@@ -223,18 +153,34 @@ class LLMPromptTemplate(models.Model):
         # Create the message
         return {
             "role": self.role,
-            "content":  content,
+            "content": content,
         }
-
 
     def _evaluate_condition(self, condition, arguments):
         """Evaluate the execution condition"""
-        # Create a safe evaluation context with just the arguments
-        eval_context = {"arguments": arguments}
-        # Add common operators
-        for k in arguments:
-            eval_context[k] = arguments[k]
+        # Build context for evaluation
+        ctx = self._build_context_object(arguments)
+        
+        # Create evaluation context with all available data
+        eval_context = {
+            'arguments': arguments,
+            'args': ctx['args'],
+            'user': ctx['user'],
+            'env': ctx['env'],
+            'thread': ctx['thread'],
+            'record': ctx['record'],
+            'now': ctx['now'],
+        }
+        
+        # Add individual arguments for backward compatibility
+        for k, v in arguments.items():
+            if not k.startswith('_'):
+                eval_context[k] = v
 
         # Evaluate the condition expression
-        result = eval(condition, {"__builtins__": {}}, eval_context)
-        return result
+        try:
+            result = eval(condition, {"__builtins__": {}}, eval_context)
+            return bool(result)
+        except Exception as e:
+            _logger.error(f"Error evaluating condition '{condition}': {e}")
+            return False

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
-    <!-- LLMChatSidebar Template -->
     <t t-name="llm_thread.LLMChatSidebar" owl="1">
         <!-- Mobile Backdrop -->
         <t t-if="isMobile">
