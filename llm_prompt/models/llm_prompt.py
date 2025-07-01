@@ -1,4 +1,8 @@
+# -*- coding: utf-8 -*-
+
 import json
+from datetime import datetime
+import pytz
 import logging
 import re
 
@@ -249,9 +253,12 @@ class LLMPrompt(models.Model):
         # because some arguments maybe a list, a dict, etc
         args = self._format_arguments(arguments)
 
+        # fill extra context (user, env, thread, related_record, etc)
+        _ctx = self._build_context_object(arguments)
+
         # Add template messages
         for template in self.template_ids.sorted(key=lambda t: t.sequence):
-            template_message = template.get_template_message(args)
+            template_message = template.with_context(_ctx).get_template_message(args)
             if template_message:
                 messages.append(template_message)
 
@@ -527,3 +534,151 @@ class LLMPrompt(models.Model):
 
         # Return the schema as a Python dictionary
         return schema
+
+    def _build_context_object(self, arguments):
+            """Build the unified context object for template access
+            
+            Returns a dictionary with all context data organized by namespace:
+            - user: Current user information
+            - env: Environment information
+            - thread: Thread information (if available)
+            - record: Related record data (if available)
+            - now: Current datetime information
+            - args: Original arguments passed to the template
+            """
+            # Start with base context
+            ctx = {}
+            
+            # Add user context
+            user = self.env.user
+            ctx['user'] = {
+                'id': user.id,
+                'name': user.name,
+                'email': user.email or '',
+                'login': user.login,
+                'lang': user.lang or 'en_US',
+                'tz': user.tz or 'UTC',
+                'company': user.company_id.name if user.company_id else '',
+                'company_id': user.company_id.id if user.company_id else False,
+            }
+            
+            # Add environment context
+            ctx['env'] = {
+                'company': self.env.company.name,
+                'company_id': self.env.company.id,
+                'companies': [{'id': c.id, 'name': c.name} for c in self.env.companies],
+                'lang': self.env.context.get('lang', user.lang or 'en_US'),
+                'tz': self.env.context.get('tz', user.tz or 'UTC'),
+            }
+            
+            # Add thread context if available
+            thread_id = self.env.context.get('thread_id')
+            if thread_id:
+                thread = self.env['llm.thread'].browse(thread_id)
+                if thread.exists():
+                    ctx['thread'] = {
+                        'id': thread.id,
+                        'name': thread.name,
+                        'model': thread.model or '',
+                        'res_id': thread.res_id or 0,
+                    }
+                    
+                    # Add related record if available
+                    if thread.model and thread.res_id:
+                        # Fetch record data
+                        record = thread.get_related_record()
+                        if record:
+                            ctx['record'] = self._extract_record_data(record)
+                        else:
+                            ctx['record'] = None
+                    else:
+                        ctx['record'] = None
+                else:
+                    ctx['thread'] = None
+                    ctx['record'] = None
+            else:
+                ctx['thread'] = None
+                ctx['record'] = None
+            
+            # Add current datetime context
+            tz = pytz.timezone(ctx['user']['tz'])
+            now = datetime.now(tz)
+            
+            ctx['now'] = {
+                'date': now.strftime('%Y-%m-%d'),
+                'time': now.strftime('%H:%M:%S'),
+                'datetime': now.strftime('%Y-%m-%d %H:%M:%S'),
+                'year': now.year,
+                'month': now.month,
+                'day': now.day,
+                'hour': now.hour,
+                'minute': now.minute,
+                'weekday': now.strftime('%A'),
+                'weekday_short': now.strftime('%a'),
+                'month_name': now.strftime('%B'),
+                'month_short': now.strftime('%b'),
+            }
+
+            # Add original arguments (excluding internal ones)
+            ctx['args'] = {k: v for k, v in arguments.items() if not k.startswith('_')}
+
+            return ctx
+
+    def _extract_record_data(self, record):
+        """Extract data from a record in a safe, structured way"""
+        if not record:
+            return None
+
+        data = {
+            'model': record._name,
+            'id': record.id,
+            'display_name': record.display_name,
+        }
+
+        # Extract field values
+        for field_name, field in record._fields.items():
+            # Skip private fields and computed non-stored fields
+            if field_name.startswith('_') or (field.compute and not field.store):
+                continue
+                
+            try:
+                value = record[field_name]
+                
+                # Handle different field types
+                if field.type in ('char', 'text', 'html'):
+                    data[field_name] = value or ''
+                elif field.type in ('integer', 'float', 'monetary'):
+                    data[field_name] = value if value is not None else 0
+                elif field.type == 'boolean':
+                    data[field_name] = bool(value)
+                elif field.type in ('date', 'datetime'):
+                    if value:
+                        data[field_name] = value.strftime('%Y-%m-%d') if field.type == 'date' else value.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        data[field_name] = ''
+                elif field.type == 'many2one':
+                    if value:
+                        data[field_name] = {
+                            'id': value.id,
+                            'display_name': value.display_name,
+                        }
+                    else:
+                        data[field_name] = None
+                elif field.type == 'selection':
+                    data[field_name] = value or ''
+                    # Add display value for selection fields
+                    if value:
+                        # Get selection options
+                        selection = field.selection
+                        if callable(selection):
+                            selection = selection(record)
+                        selection_dict = dict(selection)
+                        data[f'{field_name}_display'] = selection_dict.get(value, value)
+                elif field.type in ('one2many', 'many2many'):
+                    # For relational fields, just provide count
+                    data[f'{field_name}_count'] = len(value) if value else 0
+                    
+            except Exception as e:
+                _logger.debug(f"Could not extract field {field_name}: {e}")
+                
+        return data

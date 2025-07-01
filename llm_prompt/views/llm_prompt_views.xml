@@ -51,69 +51,86 @@
                                 <strong>What is available?</strong>
                                 <ul>
                                     <li>
-                                        <b>arguments</b>: The full dictionary of arguments.<br/>
-                                    <code>arguments["user_role"] == "admin"</code>
-                                </li>
-                                <li>
-                                    <b>Individual argument variables</b>: Each argument is available directly.<br/>
-                                <code>user_role == "admin"</code>
-                            </li>
-                        <li>
-                            <b>get_related_record(field_name, key_name=None)</b>: Access fields/keys from the related record.<br/>
-                        <code>get_related_record("email") == "user@example.com"</code>
-                        <br/>
-                        <code>get_related_record("custom_dict", "some_key") == "value"</code>
-                    </li>
-                </ul>
-                <strong>What kind of exceution conditions can you use?</strong>
-                <ul>
-                    <li>
-                        <b>Simple checks:</b>
-                        <code>'debug in arguments and arguments["debug"]'</code>,                        <code>'user_role == "admin"'</code>,                        <code>'amount &gt; 1000'</code>
-                    </li>
-                    <li>
-                        <b>Combined logic:</b>
-                        <code>'country == "US" and age &gt;= 21'</code>,                        <code>'status in ["approved", "pending"]'</code>
-                    </li>
-                    <li>
-                        <b>Negation:</b>
-                        <code>'not is_test'</code>
-                    </li>
-                    <li>
-                        <b>Existence:</b>
-                        <code>'optional_field is not None'</code>,                        <code>'some_key in arguments'</code>
-                    </li>
-                    <li>
-                        <b>String operations:</b>
-                        <code>'email.endswith("@example.com")'</code>
-                    </li>
-                    <li>
-                        <b>Math:</b>
-                        <code>'score / max_score &gt; 0.8'</code>
-                    </li>
-                </ul>
-                <strong>Amazing things you can achieve</strong>
-                <ul>
-                    <li>
-                        <b>Dynamic Prompt Flows:</b> Show or hide parts of the prompt based on user input, context, or previous answers.<br/>
-                    <i>Example:</i> Only include a "manager instructions" message if <code>user_role == "manager"</code>.
-                </li>
-                <li>
-                    <b>Personalization:</b> Tailor prompts for different user types, languages, or business rules.<br/>
-                <i>Example:</i>
-                <code>'language == "es"'</code> to show a Spanish template.
-            </li>
-            <li>
-                <b>Conditional Instructions:</b> Add extra instructions for high-value transactions.<br/>
-            <i>Example:</i>
-            <code>'amount &gt; 10000'</code> → Only include a compliance warning for large amounts.
-        </li>
-        <li>
-            <b>Feature Flags:</b> Enable/disable prompt sections based on feature toggles or debug flags.</li>
-        <li>
-            <b>Multi-step Workflows:</b> Build complex, branching prompt flows where each step is conditionally included.</li>
-    </ul>
-</div>
+                                        <b>Template Variables (Jinja2 syntax with {{variable}}):</b>
+                                        <ul>
+                                            <li><code>{{user.name}}</code>, <code>{{user.email}}</code>, <code>{{user.company}}</code> - Current user info</li>
+                                            <li><code>{{env.company}}</code>, <code>{{env.lang}}</code>, <code>{{env.tz}}</code> - Environment context</li>
+                                            <li><code>{{thread.name}}</code>, <code>{{thread.model}}</code> - Thread information (if in a thread)</li>
+                                            <li><code>{{record.field_name}}</code> - Any field from the related record (e.g., <code>{{record.email}}</code>, <code>{{record.state}}</code>)</li>
+                                            <li><code>{{now.date}}</code>, <code>{{now.datetime}}</code>, <code>{{now.weekday}}</code> - Current date/time info</li>
+                                            <li><code>{{args.argument_name}}</code> - Access any custom argument</li>
+                                            <li><code>{{variable|default('fallback')}}</code> - Use filters: default, upper, lower, title, capitalize, date</li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <b>Condition Context (Python expressions):</b>
+                                        <ul>
+                                            <li><code>arguments</code> - Full dictionary of all arguments</li>
+                                            <li><code>args</code> - Custom arguments only (without internal ones)</li>
+                                            <li><code>user</code>, <code>env</code>, <code>thread</code>, <code>record</code>, <code>now</code> - Same context objects as templates</li>
+                                            <li>Direct argument access: <code>user_role == "admin"</code></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                                <strong>What kind of execution conditions can you use?</strong>
+                                <ul>
+                                    <li>
+                                        <b>User-based conditions:</b>
+                                        <code>user['company'] == "ACME Corp"</code>, <code>user['lang'] == "es_ES"</code>
+                                    </li>
+                                    <li>
+                                        <b>Record field checks:</b>
+                                        <code>record and record['state'] == "draft"</code>, <code>record and record['amount'] &gt; 1000</code>
+                                    </li>
+                                    <li>
+                                        <b>Time-based conditions:</b>
+                                        <code>now['hour'] >= 9 and now['hour'] &lt; 17</code>, <code>now['weekday'] in ['Monday', 'Friday']</code>
+                                    </li>
+                                    <li>
+                                        <b>Argument checks:</b>
+                                        <code>'debug' in args and args['debug']</code>, <code>user_role == "manager"</code>
+                                    </li>
+                                    <li>
+                                        <b>Complex logic:</b>
+                                        <code>(record and record['country_id']['id'] == 233) or env['lang'] == "en_US"</code>
+                                    </li>
+                                    <li>
+                                        <b>Thread context:</b>
+                                        <code>thread and thread['model'] == "sale.order"</code>
+                                    </li>
+                                </ul>
+                                <strong>Amazing things you can achieve</strong>
+                                <ul>
+                                    <li>
+                                        <b>Context-Aware Prompts:</b> Automatically adapt prompts based on the current record, user, or environment.<br/>
+                                        <i>Example:</i> "Analyzing {{record.display_name}} (Status: {{record.state|title}}) for {{user.company}}"
+                                    </li>
+                                    <li>
+                                        <b>Multi-Language Support:</b> Show different templates based on user language.<br/>
+                                        <i>Example condition:</i> <code>user['lang'] == "es_ES"</code> - Spanish instructions
+                                    </li>
+                                    <li>
+                                        <b>Time-Sensitive Instructions:</b> Provide different guidance based on time of day or day of week.<br/>
+                                        <i>Example:</i> Include "after-hours support" template when <code>now['hour'] >= 18</code>
+                                    </li>
+                                    <li>
+                                        <b>Role-Based Prompt Flows:</b> Show specialized templates for different user roles or departments.<br/>
+                                        <i>Example:</i> Include financial analysis template only when <code>"account" in user['email']</code>
+                                    </li>
+                                    <li>
+                                        <b>Dynamic Record Analysis:</b> Build prompts that automatically reference current record data.<br/>
+                                        <i>Example:</i> "Customer {{record.partner_id.display_name}} has {{record.order_line_count}} items totaling {{record.amount_total}}"
+                                    </li>
+                                    <li>
+                                        <b>Conditional Expertise:</b> Add specialized instructions based on record state or type.<br/>
+                                        <i>Example:</i> Only include legal compliance text when <code>record and record['amount_total'] &gt; 10000</code>
+                                    </li>
+                                    <li>
+                                        <b>Smart Defaults:</b> Use Jinja2 filters to handle missing data gracefully.<br/>
+                                        <i>Example:</i> "Contact: {{record.email|default('No email provided')}}"
+                                    </li>
+                                </ul>
+                            </div>
 
 </page>
 <page string="Arguments" name="arguments">

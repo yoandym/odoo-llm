@@ -244,7 +244,6 @@ class LLMThread(models.Model):
         self.ensure_one()
         return []
 
-    @tools.ormcache('self.id')
     def get_related_record(self):
         """Get the related record if this thread is connected to a model.
 
