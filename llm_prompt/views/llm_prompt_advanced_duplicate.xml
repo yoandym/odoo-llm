@@ -1,0 +1,23 @@
+<odoo>
+    <!-- Advanced Duplicate server action -->
+    <record id="action_llm_prompt_advanced_duplicate" model="ir.actions.server">
+        <field name="name">Advanced Duplicate</field>
+        <field name="model_id" ref="model_llm_prompt"/>
+        <field name="binding_model_id" ref="model_llm_prompt"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code">
+            action = {
+                'type': 'ir.actions.act_window',
+                'name': 'Advanced Duplicate',
+                'res_model': 'llm.prompt.copy.wizard',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {
+                    'default_prompt_id': record.id,
+                    'default_name': record.name + ' (copy)',
+                },
+            }
+        </field>
+    </record>
+</odoo>
