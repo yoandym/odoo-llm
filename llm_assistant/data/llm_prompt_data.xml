@@ -32,12 +32,6 @@
     "description": "Specific instructions for the assistant to follow",
     "required": true
   },
-  "user_language": {
-    "type": "string",
-    "description": "The user's preferred language code (e.g., 'en_US', 'fr_FR')",
-    "required": false,
-    "default": "en_US"
-  },
   "footer": {
     "type": "string",
     "description": "Optional footer text to add to the end of the prompt",
@@ -78,21 +72,31 @@ Instructions: {{ instructions }}.
                 <field name="sequence">20</field>
                 <field name="content"><![CDATA[
 Language Instructions:
-- The user's preferred language is: {{ user_language }}
-- Always respond in the user's language ({{ user_language }}).
+- The user's preferred language is: {{ user.lang }}
+- Always respond in the user's language ({{ user.lang }}).
 - If no language is specified, use English (en_US) as the default.
-                ]]></field>
+                                ]]></field>
         </record>
         <record id="llm_prompt_template_assistant_context" model="llm.prompt.template">
                 <field name="prompt_id" ref="llm_prompt_assistant" />
                 <field name="role">system</field>
                 <field name="sequence">30</field>
                 <field name="content"><![CDATA[
-Current context, use it to filter when the user is ambiguous (uses the terms current, this, etc.)
-- model: {{ get_related_record("_name") }}
-- id: {{ get_related_record("id") }}
-- display_name: {{ get_related_record("display_name") }}               
-                ]]></field>
+Current related record context, use it to filter when the user is ambiguous (uses the terms current, this, etc.)
+- model: {{ record.model|default('none') }}
+- id: {{ record.id|default('none') }}
+- display_name: {{ record.display_name|default('none') }}               
+
+Current time context: 
+- date time: {{ now.datetime }}
+- weekday: {{ now.weekday }}
+- timezone: {{env.tz}}
+
+Current user context:
+- username: {{user.name|default('guest')}}
+- user full name: {{user.display_name|default('guest')}}
+- user email: {{user.email|default('none')}}
+- user company: {{user.company|default('none')}}                ]]></field>
         </record>
         <record id="llm_prompt_template_assistant_examples" model="llm.prompt.template">
                 <field name="prompt_id" ref="llm_prompt_assistant" />
@@ -100,10 +104,7 @@ Current context, use it to filter when the user is ambiguous (uses the terms cur
                 <field name="sequence">40</field>
                 <field name="content"><![CDATA[
 Use The following examples to better understand, use tools, and answer user queries:
-{{ examples }}
-                ]]></field>
-                <field name="condition"><![CDATA[
-'examples' in arguments and arguments["examples"]
-                ]]></field>
+{{ examples }}]]></field>
+                <field name="condition"><![CDATA['examples' in arguments and arguments["examples"]]]></field>
         </record>
 </odoo>
