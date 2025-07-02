@@ -9,7 +9,7 @@ class LLMAssistantController(http.Controller):
 
         Args:
             thread_id (int): ID of the thread to update
-            assistant_id (int, optional): ID of the assistant to set, or False to clear
+            assistant_id (int, required): ID of the assistant to set
 
         Returns:
             dict: Result of the operation
@@ -20,16 +20,21 @@ class LLMAssistantController(http.Controller):
             if not thread.exists():
                 return {"success": False, "error": "Thread not found"}
 
-            # Set or clear the assistant on the thread
-            if assistant_id:
-                result = thread.set_assistant(assistant_id)
-            else:
-                result = thread.clear_assistant()
+            # Enforce assistant requirement
+            if not assistant_id:
+                return {
+                    "success": False,
+                    "error": "An assistant is required for all chat threads.",
+                    "thread_id": thread_id,
+                }
+
+            # Set the assistant on the thread
+            result = thread.set_assistant(assistant_id)
 
             return {
                 "success": bool(result),
                 "thread_id": thread_id,
-                "assistant_id": assistant_id if assistant_id else False,
+                "assistant_id": assistant_id,
             }
             
         except Exception as e:
@@ -62,3 +67,38 @@ class LLMAssistantController(http.Controller):
             
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    @http.route("/llm/assistant/get_default", type="json", auth="user")
+    def get_default_assistant(self):
+        """Get the default assistant for new threads
+
+        Returns:
+            dict: Assistant data or empty dict
+        """
+        try:
+            # Get default assistant
+            assistant_model = request.env["llm.assistant"]
+            default_assistant = assistant_model.get_default_assistant()
+            
+            if not default_assistant:
+                return {
+                    "success": False,
+                    "error": "No default assistant found",
+                    "assistant": None
+                }
+                
+            # Return assistant data
+            return {
+                "success": True,
+                "assistant": {
+                    "id": default_assistant.id,
+                    "name": default_assistant.name,
+                    "isDefault": default_assistant.is_default,
+                    "provider_id": default_assistant.provider_id.id if default_assistant.provider_id else False,
+                    "model_id": default_assistant.model_id.id if default_assistant.model_id else False,
+                    "tool_ids": default_assistant.tool_ids.ids,
+                }
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e), "assistant": None}

@@ -21,11 +21,7 @@
                         <i class="fa fa-caret-down ms-1" />
                     </t>
 
-                    <!-- Clear assistant option -->
-                    <DropdownItem onSelected="() => this.onClearAssistant()" class="{ 'active': !selectedAssistant }">
-                        <i class="fa fa-times me-2 text-muted"/>
-                        <span>No Assistant</span>
-                    </DropdownItem>
+                    <!-- "No Assistant" option removed to enforce assistant usage -->
 
                     <!-- Assistant list -->
                     <t t-if="!state.isLoadingAssistants and llmAssistants.length">
@@ -47,15 +43,15 @@
             </div>
         </xpath>
 
-        <!-- Hide Provider/Model/Tools dropdowns when assistant is selected -->
+        <!-- Always hide Provider/Model/Tools dropdowns to enforce assistant usage -->
         <xpath expr="//div[@id='providerDropdown']" position="attributes">
-            <attribute name="t-if">shouldShowProviderModelTools</attribute>
+            <attribute name="t-if">false</attribute>
         </xpath>
         <xpath expr="//div[@id='modelDropdown']" position="attributes">
-            <attribute name="t-if">shouldShowProviderModelTools</attribute>
+            <attribute name="t-if">false</attribute>
         </xpath>
         <xpath expr="//div[@id='toolsDropdown']" position="attributes">
-            <attribute name="t-if">shouldShowProviderModelTools</attribute>
+            <attribute name="t-if">false</attribute>
         </xpath>
 
         <!-- Mobile view: Add assistant info after the title -->
