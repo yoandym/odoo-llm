@@ -1,3 +1,4 @@
+import json
 import logging
 
 from odoo import _, api, fields, models
@@ -36,6 +37,7 @@ class ModelLine(models.TransientModel):
     )
     selected = fields.Boolean(default=True)
     details = fields.Json()
+    model_info = fields.Json()
     existing_model_id = fields.Many2one("llm.model")
 
     _sql_constraints = [
@@ -76,6 +78,11 @@ class FetchModelsWizard(models.TransientModel):
         compute="_compute_model_count",
         string="Modified Models",
     )
+    has_selectable_lines = fields.Boolean(
+        compute="_compute_has_selectable_lines",
+        string="Has Selectable Lines",
+        store=False,
+    )
 
     @api.depends("line_ids", "line_ids.status")
     def _compute_model_count(self):
@@ -89,21 +96,40 @@ class FetchModelsWizard(models.TransientModel):
                 wizard.line_ids.filtered(lambda record: record.status == "modified")
             )
 
+    @api.depends("line_ids", "line_ids.status")
+    def _compute_has_selectable_lines(self):
+        for wizard in self:
+            wizard.has_selectable_lines = any(
+                line.status in ("new", "modified") for line in wizard.line_ids
+            )
+
     @api.model
     def default_get(self, fields_list):
-        """Fetch models and prepare wizard data"""
+        """
+        Override of Odoo's default_get method.
+
+        This method is called automatically by Odoo when a new record is created via the UI or an action,
+        to provide default values for the specified fields. It is commonly used in wizards and forms to
+        pre-populate fields based on context or business logic.
+
+        Args:
+            fields_list (list): List of field names for which default values are requested.
+
+        Returns:
+            dict: A dictionary mapping field names to their default values, which will be used to initialize
+            the form or wizard record.
+
+        In this implementation, the method:
+        - Determines the provider to use from the context (either 'default_provider_id' or 'active_id').
+        - Fetches available models from the provider and prepares a list of model lines for the wizard.
+        - Returns a dictionary of default values for the wizard, including the provider and model lines.
+        """
         res = super().default_get(fields_list)
 
-        # Check for provider_id in context first (from model form)
-        default_provider_id = self._context.get("default_provider_id")
-        if default_provider_id:
-            provider = self.env["llm.provider"].browse(default_provider_id)
-            if not provider.exists():
-                raise UserError(_("Provider not found."))
-            res["provider_id"] = provider.id
-        # If no default_provider_id, try active_id (from provider form)
-        elif self._context.get("active_id"):
-            provider = self.env["llm.provider"].browse(self._context["active_id"])
+        # Get a provider_id
+        _provider_id = self._context.get("default_provider_id") or self._context.get("active_id")
+        if _provider_id:
+            provider = self.env["llm.provider"].browse(_provider_id)
             if not provider.exists():
                 raise UserError(_("Provider not found."))
             res["provider_id"] = provider.id
@@ -129,7 +155,12 @@ class FetchModelsWizard(models.TransientModel):
 
         for model_data in models_data:
             details = model_data.get("details", {})
+            model_info = model_data.get("model_info", {})
             name = model_data.get("name") or details.get("id")
+
+            # Log details received from the provider
+            # in a properly formatted json so its easy to see the structure in a json viewer
+            _logger.info(f"Received model data from provider: {json.dumps(model_data, indent=2)}")
 
             if not name:
                 continue
@@ -142,13 +173,25 @@ class FetchModelsWizard(models.TransientModel):
             existing = existing_models.get(name)
             status = "new"
             if existing:
-                status = "modified" if existing.details != details else "existing"
+                status = "modified" if (existing.details != details or existing.model_info != model_info) else "existing"
+
+            # Make sure both JSON fields are properly set
+            if model_info is None or model_info is False:
+                # Create a simple, basic model_info dictionary if none exists
+                model_info = {
+                    "name": name,
+                    "provider": "ollama",
+                    "family": "unknown",
+                    "parameters": {}
+                }
+                _logger.info(f"Created default model_info for {name}: {model_info}")
 
             line_vals = {
                 "name": name,
                 "model_use": model_use,
                 "status": status,
                 "details": details,
+                "model_info": model_info,
                 "existing_model_id": existing.id if existing else False,
                 "selected": status in ["new", "modified"],
             }
@@ -184,13 +227,68 @@ class FetchModelsWizard(models.TransientModel):
             raise UserError(_("Please select at least one model to import."))
 
         for line in selected_lines:
+            # Get the values directly from the wizard line
+            details = line.details
+            model_info = line.model_info
+            
+            _logger.info(f"Pre-processing model data for '{line.name}': ")
+            _logger.info(f"details_type={type(details)}, details={details} ")
+            _logger.info(f"model_info_type={type(model_info)}, model_info={model_info} ")
+            
+            # Process details field
+            if details:
+                try:
+                    # Ensure we have a Python dict (not a string)
+                    if isinstance(details, str):
+                        details = json.loads(details)
+                    
+                    # Log the processed details
+                    _logger.info(f"Processed details: type={type(details)} ")
+                    _logger.info(f"Processed details value: {details} ")
+                except (ValueError, TypeError) as e:
+                    _logger.warning(f"Invalid JSON in details: {e}")
+                    details = {"error": "Invalid JSON format", "message": str(e)}
+            
+            # Process model_info field
+            if model_info:
+                try:
+                    # Ensure we have a Python dict (not a string)
+                    if isinstance(model_info, str):
+                        model_info = json.loads(model_info)
+                    
+                    # Log the processed model_info
+                    _logger.info(f"Processed model_info: type={type(model_info)} ")
+                    _logger.info(f"Processed model_info value: {model_info} ")
+                except (ValueError, TypeError) as e:
+                    _logger.warning(f"Invalid JSON in model_info: {e}")
+                    model_info = {"error": "Invalid JSON format", "message": str(e)}
+            else:
+                # If model_info is None, False, or empty, create a default one
+                model_info = {
+                    "name": line.name,
+                    "provider": "ollama",
+                    "family": "unknown",
+                    "parameters": {}
+                }
+                _logger.info(f"Created default model_info in confirm: {model_info}")
+
             values = {
                 "name": line.name.strip(),
                 "provider_id": self.provider_id.id,
                 "model_use": line.model_use,
-                "details": line.details,
+                "details": details,
+                "model_info": model_info,
                 "active": True,
             }
+            
+            # Log what we're saving to the model record
+            _logger.info(
+                f"Saving model values for '{line.name}': "
+                f"details_type={type(details)}, "
+                f"model_info_type={type(model_info)}, "
+                f"details={details}, "
+                f"model_info={model_info}"
+            )
 
             if line.existing_model_id:
                 line.existing_model_id.write(values)

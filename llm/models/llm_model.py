@@ -29,7 +29,19 @@ class LLMModel(models.Model):
 
     # Model details
     details = fields.Json()
+    details_str = fields.Text(
+        string="Model Details",
+        compute="_compute_details_str",
+        store=False,
+        help="Technical details about the model, such as architecture, training data, etc.",
+    )
     model_info = fields.Json()
+    model_info_str = fields.Text(
+        string="Model Metadata",
+        compute="_compute_details_str",
+        store=False,
+        help="Additional metadata about the model, such as capabilities, limitations, etc.",
+    )
     parameters = fields.Text()
     template = fields.Text()
 
@@ -69,6 +81,26 @@ class LLMModel(models.Model):
         default=60.0,
         help="How long to wait for a response from the model",
     )
+    
+    @api.depends("details")
+    def _compute_details_str(self):
+        """Convert model details JSON to a readable string"""
+        for record in self:
+            if record.details:
+                try:
+                    record.details_str = json.dumps(record.details, indent=2)
+                except (TypeError, ValueError):
+                    record.details_str = _("Invalid JSON format")
+            else:
+                record.details_str = ""
+
+            if record.model_info:
+                try:
+                    record.model_info_str = json.dumps(record.model_info, indent=2)
+                except (TypeError, ValueError):
+                    record.model_info_str = _("Invalid JSON format")
+            else:
+                record.model_info_str = ""
 
     @api.model
     def _get_available_model_usages(self):

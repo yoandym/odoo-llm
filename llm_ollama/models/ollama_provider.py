@@ -669,26 +669,66 @@ class LLMProvider(models.Model):
                 yield self._ollama_parse_model(model)
 
     def _ollama_parse_model(self, model, model_name=None):
+        """
+        Parse an Ollama model into a format that can be stored in llm.model.
+        This function needs to return simple, flat, JSON-serializable data structures.
+        """
         model_name = model_name or model.model
-
+        _logger.info(f"Ollama model parse for '{model_name}': ")
+        
+        # Simple list of capabilities for this model
+        capabilities = ["chat"]
+        if "embedding" in model_name.lower():
+            capabilities.append("embedding")
+        
+        # Create a flat, simple details dictionary with only simple values
+        details = {
+            "id": model_name,
+            "capabilities": capabilities,
+            "modified_at": str(getattr(model, "modified_at", None)),
+            "size": getattr(model, "size", None),
+            "digest": getattr(model, "digest", None)
+        }
+        
+        # Create model info with only simple values
         model_info = {
             "name": model_name,
-            "details": {
-                "id": model_name,
-                "capabilities": ["chat"],  # Default capability
-                "modified_at": str(model.modified_at)
-                if hasattr(model, "modified_at")
-                else None,
-                "size": model.size if hasattr(model, "size") else None,
-                "digest": model.digest if hasattr(model, "digest") else None,
-            },
+            "provider": "ollama",
+            "model_details": details,
+            "parameters": {}
         }
-
-        # Add embedding capability if model name suggests it
-        if "embedding" in model_name.lower():
-            model_info["details"]["capabilities"].append("embedding")
-
-        return model_info
+        
+        # Log the JSON-serialized versions to verify they're properly formatted
+        details_json = json.dumps(details)
+        model_info_json = json.dumps(model_info)
+        
+        _logger.info(f"details_json={details_json} ")
+        _logger.info(f"model_info_json={model_info_json} ")
+        
+        # Return a simple structure with all values properly serialized
+        return {
+            "name": model_name,
+            "details": details,
+            "model_info": model_info,
+        }
+    
+    def _determine_model_family(self, model_name):
+        """Determine the model family based on the name"""
+        model_lower = model_name.lower()
+        if "llama" in model_lower:
+            return "llama"
+        elif "mistral" in model_lower:
+            return "mistral"
+        elif "qwen" in model_lower:
+            return "qwen" 
+        elif "phi" in model_lower:
+            return "phi"
+        elif "gemma" in model_lower:
+            return "gemma"
+        elif "deepseek" in model_lower:
+            return "deepseek"
+        else:
+            return "unknown"
 
     def ollama_format_messages(self, messages, system_prompt=None):
         """Format messages for Ollama API

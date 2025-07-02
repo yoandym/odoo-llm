@@ -244,13 +244,13 @@
 <div class="card-body">
 <div class="form-group mb-5">
 <span class="o_form_label">Model Details</span>
-<field name="details" widget="ace" readonly="1" style="height: 200px;" />
+<field name="details_str" readonly="1" widget="ace" />
 <small class="text-muted">Technical model information from the provider</small>
 </div>
 
 <div class="form-group">
 <span class="o_form_label">Model Metadata</span>
-<field name="model_info" widget="ace" readonly="1" style="height: 200px;" />
+<field name="model_info_str" readonly="1" widget="ace" />
 <small class="text-muted">Additional metadata and capabilities</small>
 </div>
 </div>
