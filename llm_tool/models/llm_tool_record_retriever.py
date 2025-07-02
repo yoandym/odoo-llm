@@ -36,6 +36,10 @@ class LLMToolRecordRetriever(models.Model):
         )
         model_obj = self.env[model]
 
+        if not isinstance(domain, list):
+            # cast the domain to a list
+            domain = eval(domain)
+
         # Using search_read for efficiency
         if fields:
             result = model_obj.search_read(domain=domain, fields=fields, limit=limit)
