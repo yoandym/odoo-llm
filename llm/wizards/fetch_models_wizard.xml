@@ -16,71 +16,46 @@
                         <group>
                             <field name="new_count" readonly="1" />
                             <field name="modified_count" readonly="1" />
+                            <field name="has_selectable_lines" invisible="1"/>
                         </group>
                     </group>
 
                     <!-- Models List -->
-                    <field
-            name="line_ids"
-            options="{'reload_on_button': false}"
-          >
+                    <field name="line_ids" options="{'reload_on_button': false}">
                         <tree editable="bottom" create="0" delete="0">
                             <!-- Selection -->
-                            <field name="selected" widget="boolean_toggle" />
+                            <field name="selected" widget="boolean_toggle" readonly="status == 'existing'"/>
 
                             <!-- Basic Info -->
                             <field name="name" readonly="1" force_save="1" />
-                            <field
-                name="model_use"
-                readonly="1"
-                force_save="1"
-              />
+                            <field name="model_use" readonly="1" force_save="1" />
 
                             <!-- Status with decoration -->
-                            <field
-                name="status"
-                readonly="1"
-                force_save="1"
-                decoration-info="status=='existing'"
-                decoration-success="status=='new'"
-                decoration-warning="status=='modified'"
-              />
+                            <field name="status" readonly="1" force_save="1" decoration-info="status=='existing'" decoration-success="status=='new'" decoration-warning="status=='modified'" />
 
                             <!-- Technical Details -->
-                            <field
-                name="details"
-                widget="json_inline"
-                optional="show"
-                readonly="1"
-                force_save="1"
-              />
+                            <field name="details" widget="json_inline" optional="show" readonly="1" force_save="1" />
+                            <field name="model_info" widget="json_inline" optional="show" readonly="1" force_save="1" />
                             <field name="existing_model_id" column_invisible="1" />
                         </tree>
                     </field>
 
                     <!-- Helpful Note -->
-                    <div class="text-muted mt-3">
-                        <p>
+                    <div class="text-muted mt-3" >
+                        <p invisible="not has_selectable_lines">
                             <i class="fa fa-info-circle" />
-                            Select the models you want to import or update. New models will be created, and existing ones will be updated if modified.
+                            Select the models you want to import or update. New models will be created, and modified ones will be updated.
+                        </p>
+                        <p invisible="has_selectable_lines">
+                            <i class="fa fa-info-circle" />
+                            All models are up to date. There are no new or modified models to import or update.
                         </p>
                     </div>
                 </sheet>
 
                 <footer>
-                    <button
-            string="Import Selected Models"
-            name="action_confirm"
-            type="object"
-            class="btn-primary"
-            data-hotkey="q"
-          />
-                    <button
-            string="Cancel"
-            class="btn-secondary"
-            special="cancel"
-            data-hotkey="z"
-          />
+                    <button string="Import Selected Models" name="action_confirm" type="object" class="btn-primary" data-hotkey="q" invisible="has_selectable_lines == False"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="z" />
                 </footer>
             </form>
         </field>
