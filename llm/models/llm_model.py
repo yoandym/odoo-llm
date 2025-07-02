@@ -82,7 +82,7 @@ class LLMModel(models.Model):
         help="How long to wait for a response from the model",
     )
     
-    @api.depends("details")
+    @api.depends("details", "model_info")
     def _compute_details_str(self):
         """Convert model details JSON to a readable string"""
         for record in self:
