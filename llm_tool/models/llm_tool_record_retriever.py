@@ -1,5 +1,6 @@
 import json
 import logging
+import ast
 from typing import Any
 
 from odoo import api, models
@@ -38,7 +39,7 @@ class LLMToolRecordRetriever(models.Model):
 
         if not isinstance(domain, list):
             # cast the domain to a list
-            domain = eval(domain)
+            domain = ast.literal_eval(domain)
 
         # Using search_read for efficiency
         if fields:
