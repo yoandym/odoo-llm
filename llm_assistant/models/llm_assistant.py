@@ -882,31 +882,6 @@ class LLMAssistant(models.Model):
             markdown_parts.append(f"## {role} Message\n\n{content_text}")
         
         return '\n\n---\n\n'.join(markdown_parts)
-
-    @api.constrains('is_default')
-    def _check_default_assistant(self):
-        """Ensure that only one assistant can be the default at a time"""
-        for assistant in self.filtered(lambda a: a.is_default):
-            # Count other default assistants (excluding the current one)
-            other_defaults = self.search_count([
-                ('is_default', '=', True),
-                ('id', '!=', assistant.id),
-                ('active', '=', True),
-            ])
-            
-            if other_defaults > 0:
-                # Unset the default flag on other assistants
-                self.search([
-                    ('is_default', '=', True),
-                    ('id', '!=', assistant.id),
-                    ('active', '=', True),
-                ]).write({'is_default': False})
-                
-                # Log the change for audit purposes
-                _logger.info(
-                    "Assistant '%s' (ID: %s) set as default, unset %s other default assistant(s)",
-                    assistant.name, assistant.id, other_defaults
-                )
     
     def write(self, vals):
         """Override write to handle is_default changes properly"""
