@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<odoo>
+<odoo noupdate="1">
         <!-- Assistant Prompt Template -->
         <record id="llm_prompt_assistant" model="llm.prompt">
                 <field name="name">Assistant Template</field>

@@ -1,6 +1,7 @@
 import logging
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
@@ -13,7 +14,47 @@ class LLMThread(models.Model):
         string="Assistant",
         ondelete="restrict",
         help="The assistant used for this thread",
+        required=True,  # Make assistant required at database level
     )
+    
+    @api.constrains('assistant_id')
+    def _check_assistant_required(self):
+        """Ensure an assistant is always set"""
+        for thread in self:
+            if not thread.assistant_id:
+                raise ValidationError(_("An assistant is required for all chat threads."))
+
+    # Default assistant for new threads
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Ensure all new threads have an assistant"""
+        for vals in vals_list:
+            if not vals.get('assistant_id'):
+                # Get default assistant using the specialized method
+                assistant_service = self.env["llm.assistant"]
+                default_assistant = assistant_service.get_default_assistant()
+                
+                if default_assistant:
+                    vals['assistant_id'] = default_assistant.id
+                    
+                    # Also set provider, model and tools for consistency
+                    if default_assistant.provider_id and not vals.get('provider_id'):
+                        vals['provider_id'] = default_assistant.provider_id.id
+                    
+                    if default_assistant.model_id and not vals.get('model_id'):
+                        vals['model_id'] = default_assistant.model_id.id
+                    
+                    if default_assistant.tool_ids and not vals.get('tool_ids'):
+                        vals['tool_ids'] = [(6, 0, default_assistant.tool_ids.ids)]
+                else:
+                    # No assistant found, show clear error
+                    raise ValidationError(
+                        _("Cannot create chat thread: No assistants available. "
+                          "Please create at least one assistant first.")
+                    )
+        
+        # Call super to create the records
+        return super().create(vals_list)
 
     @api.onchange("assistant_id")
     def _onchange_assistant_id(self):

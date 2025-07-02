@@ -1,7 +1,7 @@
 {
     "name": "LLM Assistant",
     "summary": """
-        LLM/AI Assistant module for Odoo
+        LLM/AI Assistant module for Odoo - Enforces assistant usage for all chats
     """,
     "description": """
 Assistantic AI (LLM) Assistant for Odoo
@@ -12,7 +12,7 @@ Key Features:
 - Create and configure AI assistants with specific roles and goals
 - Assign preferred tools to each assistant
 - Automatically generate system prompts based on assistant configuration
-- Attach assistants to chat threads for consistent behavior
+- Enforce assistant usage for all chat threads (prevents direct model access)
 - Full integration with the LLM chat system
 
 Use cases include creating specialized assistants for customer support, data analysis, training assistance, and more.

@@ -220,6 +220,39 @@ export const llmAssistantService = {
             }
         });
 
+        /**
+         * Get the default assistant for new threads
+         * @returns {Promise<Object|null>} Default assistant or null
+         */
+        async function getDefaultAssistant() {
+            try {
+                // If assistants are already loaded, check the cache
+                if (state.isLoaded && state.assistants.length > 0) {
+                    // First look for an assistant marked as default
+                    let defaultAssistant = state.assistants.find(a => a.isDefault);
+
+                    if (defaultAssistant) {
+                        return defaultAssistant;
+                    }
+
+                    // If no default marked, get the first one
+                    return state.assistants[0];
+                }
+
+                // Call backend to get the default assistant
+                const result = await rpc("/llm/assistant/get_default", {});
+
+                if (result.success && result.assistant) {
+                    return result.assistant;
+                }
+
+                return null;
+            } catch (error) {
+                console.error("LLM Assistant Service: Failed to get default assistant:", error);
+                return null;
+            }
+        }
+
         // Return service interface
         return {
             // State access
@@ -231,6 +264,7 @@ export const llmAssistantService = {
             setThreadAssistant,
             getAssistantValuesForThread,
             getThreadAssistant,
+            getDefaultAssistant,
             clearCache,
 
             // Convenience getters

@@ -5,13 +5,13 @@
         <field name="name">llm.assistant.tree</field>
         <field name="model">llm.assistant</field>
         <field name="arch" type="xml">
-            <tree>
+            <tree multi_edit="1">
                 <field name="name" />
-                <field name="provider_id" />
-                <field name="model_id" />
-                <field name="prompt_id" />
-                <field name="thread_count" />
-                <field name="active" />
+                <field name="provider_id" optional="show"/>
+                <field name="model_id" optional="show"/>
+                <field name="prompt_id" optional="show"/>
+                <field name="is_default" optional="show"/>
+                <field name="thread_count" optional="hide"/>
             </tree>
         </field>
     </record>
@@ -41,6 +41,7 @@
                         <group>
                             <field name="provider_id" />
                             <field name="model_id" />
+                            <field name="is_default" help="If checked, this assistant will be used as the default for new threads. Only one assistant can be default at a time."/>
                         </group>
                         <group>
                             <field name="prompt_id" options="{'no_create': False, 'no_open': False}" />
