@@ -9,3 +9,6 @@ camelot-py[cv]
 tabula-py
 markdownify
 opencv-python-headless
+opentelemetry-instrumentation-requests
+opentelemetry-instrumentation-psycopg2
+openinference-semantic-conventions
