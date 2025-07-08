@@ -1,8 +1,8 @@
-# User Guide for Llm Knowledge
+# User Guide for Llm Tool Knowledge
 
 ## Overview
 
-Llm Knowledge provides [brief description of what the module does and its value proposition].
+Llm Tool Knowledge provides [brief description of what the module does and its value proposition].
 
 ## Getting Started
 

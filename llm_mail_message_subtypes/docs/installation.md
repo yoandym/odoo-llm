@@ -1,4 +1,4 @@
-# Installation Guide for Llm Knowledge
+# Installation Guide for Llm Mail Message Subtypes
 
 ## Prerequisites
 

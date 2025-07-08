@@ -1,8 +1,8 @@
-# User Guide for Llm Knowledge
+# User Guide for Llm Mail Message Subtypes
 
 ## Overview
 
-Llm Knowledge provides [brief description of what the module does and its value proposition].
+Llm Mail Message Subtypes provides [brief description of what the module does and its value proposition].
 
 ## Getting Started
 

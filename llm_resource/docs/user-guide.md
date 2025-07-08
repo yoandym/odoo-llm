@@ -1,8 +1,8 @@
-# User Guide for Llm Knowledge
+# User Guide for Llm Resource
 
 ## Overview
 
-Llm Knowledge provides [brief description of what the module does and its value proposition].
+Llm Resource provides [brief description of what the module does and its value proposition].
 
 ## Getting Started
 
