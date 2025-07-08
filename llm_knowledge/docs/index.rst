@@ -13,8 +13,8 @@ LLM Knowledge Module
 Overview
 --------
 
-The LLM Knowledge module provides a comprehensive Retrieval-Augmented Generation (RAG) 
-system for Odoo. It allows for indexing, storage, and retrieval of documents to enhance 
+The LLM Knowledge module provides a comprehensive Retrieval-Augmented Generation (RAG)
+system for Odoo. It allows for indexing, storage, and retrieval of documents to enhance
 LLM responses with domain-specific knowledge.
 
 Key Features

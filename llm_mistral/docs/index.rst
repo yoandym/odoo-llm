@@ -1,5 +1,5 @@
 Mistral Provider Module
-====================
+=======================
 
 Overview
 --------

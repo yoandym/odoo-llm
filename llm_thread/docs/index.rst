@@ -1,5 +1,5 @@
 Thread Management Module
-======================
+========================
 
 Overview
 --------

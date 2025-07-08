@@ -1,5 +1,5 @@
 OpenAI Provider Module
-====================
+======================
 
 Overview
 --------
