@@ -247,7 +247,8 @@ class LLMKnowledgeChunker(models.Model):
             "target": "current",
         }
 
-    def on_chunked(self, chunks, metadata=None):
+    @classmethod
+    def on_chunked(cls, chunks, metadata=None):
         """
         Subscriber method to receive a list of chunks from the parser via pypubsub.
         Creates chunk records associated with the resource provided in metadata.
@@ -256,7 +257,7 @@ class LLMKnowledgeChunker(models.Model):
         resource = metadata.get('resource') if metadata else None
         if not resource or not chunks:
             return
-        env = self.env
+        env = resource.env
         chunk_model = env["llm.knowledge.chunk"]
         for idx, chunk in enumerate(chunks, 1):
             chunk_model.create({
