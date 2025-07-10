@@ -5,7 +5,7 @@
 - [Installation](installation.md)
 - [User Guide](user-guide.md)
 - [Admin Guide](admin-guide.md)
-- [Developer Guide](developer-guide.md)
+- [Developer Guide](developer-guide/index.md)
 - [API Reference](api.rst)
 
 ## Overview
