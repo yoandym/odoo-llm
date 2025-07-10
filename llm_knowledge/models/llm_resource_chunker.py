@@ -3,12 +3,17 @@ import re
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
+from pubsub import pub
 
 _logger = logging.getLogger(__name__)
 
 # Define default values as constants
 DEFAULT_CHUNK_SIZE = 200
 DEFAULT_CHUNK_OVERLAP = 20
+
+
+# Subscribe the on_chunked classmethod to the 'parser.chunked' event from the parser via pypubsub.
+pub.subscribe(lambda chunks, metadata=None: LLMKnowledgeChunker.on_chunked(chunks, metadata), "parser.chunked")
 
 
 class LLMKnowledgeChunker(models.Model):
@@ -241,3 +246,23 @@ class LLMKnowledgeChunker(models.Model):
             "view_mode": "form" if len(self) == 1 else "tree,form",
             "target": "current",
         }
+
+    def on_chunked(self, chunks, metadata=None):
+        """
+        Subscriber method to receive a list of chunks from the parser via pypubsub.
+        Creates chunk records associated with the resource provided in metadata.
+        After creation, updates the resource state to 'chunked'.
+        """
+        resource = metadata.get('resource') if metadata else None
+        if not resource or not chunks:
+            return
+        env = self.env
+        chunk_model = env["llm.knowledge.chunk"]
+        for idx, chunk in enumerate(chunks, 1):
+            chunk_model.create({
+                "resource_id": resource.id,
+                "sequence": idx,
+                "content": chunk,
+            })
+        resource.write({"state": "chunked"})
+

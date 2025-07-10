@@ -135,13 +135,13 @@ class DefaultParser(BaseDocumentParser):
 
     def _smart_parse_pdf(self, resource, field):
         """Parse PDF content using PyMuPDF with enhanced resume detection and semantic sectioning."""
-        # Import fitz only when needed
+        # Import pymupdf4llm only when needed
         try:
-            import fitz  # PyMuPDF
+            import pymupdf, pymupdf4llm  # PyMuPDF4LLM
         except ImportError:
-            self._log_error("PyMuPDF (fitz) library not available for PDF parsing")
+            self._log_error("PyMuPDF4LLM library not available for PDF parsing")
             return None
-            
+        
         content_parts = []
         field_name = field.get("field_name", "")
         
@@ -162,7 +162,7 @@ class DefaultParser(BaseDocumentParser):
         
         try:
             # Open PDF with PyMuPDF
-            with fitz.open(stream=pdf_file, filetype="pdf") as doc:
+            with pymupdf.open(stream=pdf_file, filetype="pdf") as doc:
                 page_count = len(doc)
                 
                 # Get document metadata
@@ -180,7 +180,7 @@ class DefaultParser(BaseDocumentParser):
                         content_parts.append(f"- **Keywords**: {metadata.get('keywords')}")
                     if metadata.get('creationDate'):
                         content_parts.append(f"- **Creation Date**: {metadata.get('creationDate')}")
-                
+                                
                 # Extract content from each page
                 for page_num in range(page_count):
                     page = doc[page_num]
@@ -222,7 +222,15 @@ class DefaultParser(BaseDocumentParser):
                                         content_parts.append(f"\n![{image_name}]({image_url})\n")
                             except Exception as e:
                                 self._log_error(f"Error extracting image: {str(e)}")
-        
+
+                # Extract chunks of text for better semantic understanding
+                chunks = pymupdf4llm.to_markdown(doc=doc, page_chunks=True, write_images=True)
+                # Publish chunks via pypubsub
+                try:
+                    from pubsub import pub
+                    pub.sendMessage("parser.chunked", chunks=chunks, metadata={"resource": resource})
+                except ImportError:
+                    self._log_error("PyPubSub library not available for chunk publishing")
         except Exception as e:
             self._log_error(f"Error parsing PDF: {str(e)}")
             return f"## {field_name}\n\nError: Could not parse PDF content: {str(e)}"
