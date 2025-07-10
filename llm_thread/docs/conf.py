@@ -19,6 +19,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "myst_parser",
+    "sphinxcontrib.httpdomain"
 ]
 
 # HTML output
@@ -39,3 +40,14 @@ source_suffix = {
 
 # Master doc
 master_doc = "index"
+
+# Mock imports for Odoo
+autodoc_mock_imports = [
+    "odoo",
+    "odoo.api",
+    "odoo.fields",
+    "odoo.models",
+    "odoo.tools",
+    "odoo.addons",
+    "odoo.http",
+]

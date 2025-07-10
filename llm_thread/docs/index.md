@@ -2,11 +2,14 @@
 
 ## Contents
 
-- [Installation](installation.md)
-- [User Guide](user-guide.md)
-- [Admin Guide](admin-guide.md)
-- [Developer Guide](developer-guide/index.md)
-- [API Reference](api.rst)
+```{toctree}
+:maxdepth: 2
+
+installation
+user-guide
+admin-guide
+developer-guide/index
+```
 
 ## Overview
 
@@ -91,29 +94,3 @@ The module integrates seamlessly with:
 * [LLM Integration Base](../llm/index.md) - Core AI provider integration
 * [LLM Tool](../llm_tool/index.md) - Tool and function calling framework
 * [LLM Mail Message Subtypes](../llm_mail_message_subtypes/index.md) - Specialized message types
-
-## Troubleshooting
-
-Common issues and their solutions:
-
-* **Thread Lock Error**: Thread is already generating - wait for completion
-* **Missing Provider**: Configure at least one AI provider in settings
-* **Tool Not Found**: Ensure tools are active and assigned to the thread
-
-For detailed troubleshooting, see the [Troubleshooting Guide](troubleshooting.md)
-
-## Support
-
-For issues and questions:
-
-* Email: support@apexive.com
-* GitHub: [Report an issue](https://github.com/apexive/odoo-llm/issues)
-* Documentation: [Full Documentation](https://github.com/apexive/odoo-llm)
-
-## Contributing
-
-We welcome contributions! Please see:
-
-* [Contributing Guide](https://github.com/apexive/odoo-llm/blob/main/CONTRIBUTING.md)
-* [Code of Conduct](https://github.com/apexive/odoo-llm/blob/main/CODE_OF_CONDUCT.md)
-* [Development Setup](developer-guide.md#development-setup)
