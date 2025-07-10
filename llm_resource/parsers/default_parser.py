@@ -224,7 +224,7 @@ class DefaultParser(BaseDocumentParser):
                                 self._log_error(f"Error extracting image: {str(e)}")
 
                 # Extract chunks of text for better semantic understanding
-                chunks = pymupdf4llm.to_markdown(doc=doc, page_chunks=True, write_images=True)
+                chunks = pymupdf4llm.to_markdown(doc=doc, page_chunks=True)
                 # Publish chunks via pypubsub
                 try:
                     from pubsub import pub
