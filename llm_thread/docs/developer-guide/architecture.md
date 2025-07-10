@@ -6,7 +6,7 @@ The LLM Thread module provides a comprehensive AI chat integration for Odoo, ena
 
 The module follows Odoo's MVC architecture and integrates deeply with Odoo's mail system to provide AI chat capabilities. It supports multiple AI providers (OpenAI, Anthropic, Grok, Ollama, DeepSeek) and enables real-time streaming responses with tool/function calling capabilities.
 
-```mermaid
+```{mermaid}
 graph TB
     subgraph "Frontend Layer"
         UI[Chat UI Components]
@@ -66,7 +66,7 @@ llm_thread/
 
 The module integrates with several Odoo modules to provide its functionality:
 
-```mermaid
+```{mermaid}
 graph BT
     LLM_THREAD[llm_thread<br/>AI Chat Module]
     BASE[base<br/>Core Framework]
@@ -116,7 +116,7 @@ Tools are implemented as separate records with a unified interface:
 
 ## Data Flow Overview
 
-```mermaid
+```{mermaid}
 sequenceDiagram
     participant User
     participant Frontend

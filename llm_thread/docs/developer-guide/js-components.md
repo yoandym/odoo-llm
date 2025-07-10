@@ -4,7 +4,7 @@ The LLM Thread module uses Odoo's OWL (Odoo Web Library) framework for its front
 
 ## Component Architecture Overview
 
-```mermaid
+```{mermaid}
 graph TD
     subgraph "Container Components"
         LCC[LLMChatContainer]
@@ -466,7 +466,7 @@ Each component has associated SCSS files following BEM naming:
 
 ### Initialization Flow
 
-```mermaid
+```{mermaid}
 sequenceDiagram
     participant Action
     participant Container

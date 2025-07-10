@@ -119,7 +119,7 @@ await fetch('/llm/message/vote', {
 
 ### Server-Sent Events (SSE) Flow
 
-```mermaid
+```{mermaid}
 sequenceDiagram
     participant Browser
     participant Controller

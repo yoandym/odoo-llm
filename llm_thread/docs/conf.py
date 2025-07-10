@@ -18,6 +18,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinxcontrib.mermaid",
     "myst_parser",
     "sphinxcontrib.httpdomain"
 ]

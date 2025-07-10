@@ -32,7 +32,7 @@ The main model representing an AI chat conversation.
 
 ### Inheritance Diagram
 
-```mermaid
+```{mermaid}
 classDiagram
     class MailThread {
         +One2many message_ids
@@ -118,7 +118,7 @@ The `@execute_with_new_cursor` decorator ensures lock operations are immediately
 
 ### Message Orchestration
 
-```mermaid
+```{mermaid}
 stateDiagram-v2
     [*] --> UserMessage: User sends message
     UserMessage --> AssistantResponse: Process

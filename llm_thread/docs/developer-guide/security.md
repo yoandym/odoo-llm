@@ -52,7 +52,7 @@ System administrators can access all threads for support and maintenance purpose
 
 ### 1. Data Isolation
 
-```mermaid
+```{mermaid}
 graph TD
     subgraph "User A Space"
         UA[User A]

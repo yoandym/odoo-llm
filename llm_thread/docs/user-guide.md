@@ -211,7 +211,7 @@ Discuss
 
 ### Standard Conversation Flow
 
-```mermaid
+```{mermaid}
 graph LR
     A[User Message] --> B[AI Processing]
     B --> C{Tools Needed?}
@@ -225,7 +225,7 @@ graph LR
 
 ### Tool Execution Flow
 
-```mermaid
+```{mermaid}
 graph TD
     A[AI Identifies Need] --> B[Select Tool]
     B --> C[Prepare Arguments]
@@ -304,28 +304,3 @@ A: Yes, use Odoo's standard export features on the thread list view.
 **Problem**: Tools not working
 - **Cause**: Insufficient permissions or tool not activated
 - **Solution**: Verify user permissions and thread tool configuration
-
-## Getting Help
-
-If you need additional help:
-
-1. Check the [FAQ](#faq) section above
-2. Review the [Admin Guide](admin-guide.md) for configuration help
-3. Contact support at support@apexive.com
-4. Visit the [GitHub repository](https://github.com/apexive/odoo-llm)
-
-## Video Tutorials
-
-Coming soon:
-
-- Getting Started with AI Chat
-- Advanced Tool Configuration
-- Building Custom AI Workflows
-
-## Next Steps
-
-After mastering the basics:
-
-- Explore [Tool Development](developer-guide.md#creating-custom-tools)
-- Learn about [API Integration](api.rst)
-- Read about [Advanced Configuration](admin-guide.md#advanced-configuration)
