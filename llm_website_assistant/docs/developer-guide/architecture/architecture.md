@@ -120,20 +120,62 @@ patch(ChatbotService.prototype, {
 });
 ```
 
-## LLM-Specific Architecture
+## Data Flow
 
-### 1. Conversation Flow with LLM
+### 1. Initialization Sequence (LLM)
+
+```
+1. Visitor loads website page
+2. LivechatService calls /im_livechat/init
+3. Server checks matching rules (URL, country, etc.)
+4. Returns channel configuration if rule matches
+5. Frontend displays chat button based on settings
+6. Creates discuss.channel when chat starts
+7. Frontend calls /chatbot/post_welcome_steps to post initial bot message(s)
+```
 
 ```{mermaid}
 sequenceDiagram
     participant V as Visitor
+    participant F as Frontend
+    participant S as Server
+    participant DC as discuss.channel
+    V->>F: Load website page
+    F->>S: /im_livechat/init
+    S->>S: Check matching rules
+    S-->>F: Return channel config
+    F->>V: Display chat button
+    V->>F: Start chat
+    F->>S: Create discuss.channel
+    S->>DC: Create channel
+    F->>S: /chatbot/post_welcome_steps
+    S->>DC: Post welcome steps
+```
+
+### 2. Message Flow (LLM)
+
+```
+1. User sends message via frontend
+2. ChatbotService calls /chatbot/step/process
+3. LlmChatbotController processes message and invokes LLM assistant
+4. LLM assistant may invoke tools if needed
+5. LLM assistant returns response and flow actions
+6. Controller posts message to discuss.channel
+7. Frontend updates conversation display
+```
+
+```{mermaid}
+:zoom:
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
     participant CS as ChatbotService
     participant LCC as LlmChatbotController
     participant LA as LLM Assistant
     participant T as LLM Tools
     participant DC as discuss.channel
-
-    V->>CS: Send message
+    U->>F: Send message
+    F->>CS: Process message
     CS->>LCC: /chatbot/step/process
     LCC->>LA: Generate response
     LA->>T: Invoke tools if needed
@@ -141,57 +183,57 @@ sequenceDiagram
     LA-->>LCC: Response + metadata
     LCC->>DC: Post message
     LCC-->>CS: Format response
-    CS-->>V: Display message
+    CS-->>F: Update conversation
+    F->>U: Display message
 ```
 
-### 2. Tool-Driven Flow Actions
+### 3. Chatbot Processing (LLM)
 
-The module implements a dynamic dispatch pattern that bridges LLM tool responses with native Odoo actions:
-
-```python
-# Tool response format
-{
-    "message": "I'll connect you with an operator.",
-    "flow_action": "forward_to_operator",
-    "data": {...}
-}
-
-# Dynamic method dispatch
-method_name = f"_process_flow_action_{flow_action}"
-if hasattr(self, method_name):
-    return getattr(self, method_name)(response_data)
+```
+1. User input triggers /chatbot/step/process
+2. LlmChatbotController validates input and current step
+3. LLM assistant generates response and may invoke tools
+4. Controller processes flow actions and determines next step
+5. Posts bot message for next step
+6. Updates conversation state
+7. Handles special actions (operator handover, etc.)
 ```
 
-**Supported Flow Actions:**
-- `forward_to_operator`: Leverages native operator handover
-- `phone_callback`: Uses existing phone step type
-- `create_ticket`: Integrates with helpdesk if available
-- `collect_email`: Reuses email validation logic
-
-### 3. LLM Tools Integration
-
-The module provides specialized tools that understand livechat context:
-
-#### LivechatHandoverTool
-```python
-class LivechatHandoverTool(models.Model):
-    _name = "llm.tool.livechat.handover"
-    
-    def _run(self, thread_id):
-        # Check operator availability
-        # Return appropriate flow action
-        # Maintain conversation context
+```{mermaid}
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant CS as ChatbotService
+    participant LCC as LlmChatbotController
+    participant LA as LLM Assistant
+    participant T as LLM Tools
+    participant DC as discuss.channel
+    U->>F: Input message
+    F->>CS: Process input
+    CS->>LCC: /chatbot/step/process
+    LCC->>LA: Generate response
+    LA->>T: Invoke tools if needed
+    T-->>LA: Tool results + flow_action
+    LA-->>LCC: Response + flow_action
+    LCC->>DC: Post bot message
+    LCC-->>CS: Format next step
+    CS-->>F: Update state
+    LCC->>LCC: Handle special actions
 ```
 
-#### PhoneHandoverTool
-```python
-class PhoneHandoverTool(models.Model):
-    _name = "llm.tool.phone.handover"
-    
-    def _run(self, thread_id, phone_number):
-        # Validate phone number
-        # Create callback request
-        # Trigger appropriate workflow
+
+## Data Flow Comparison
+
+### Standard Chatbot Flow (Native)
+```
+User Input → Script Step → Fixed Response → Next Step
+```
+
+### LLM-Enhanced Flow
+```
+User Input → LLM Processing → Dynamic Response → Tool Action → Flow Dispatch
+                     ↑                                              ↓
+                     ←─────────── Stays on Same Step ←──────────────
 ```
 
 ## Key Integration Points
@@ -216,19 +258,6 @@ class PhoneHandoverTool(models.Model):
 - Adds LLM-specific visibility rules
 - Maintains session isolation
 
-## Data Flow Comparison
-
-### Standard Chatbot Flow (Native)
-```
-User Input → Script Step → Fixed Response → Next Step
-```
-
-### LLM-Enhanced Flow
-```
-User Input → LLM Processing → Dynamic Response → Tool Action → Flow Dispatch
-                     ↑                                              ↓
-                     ←─────────── Stays on Same Step ←──────────────
-```
 
 ## Performance Optimizations
 
@@ -247,31 +276,6 @@ User Input → LLM Processing → Dynamic Response → Tool Action → Flow Disp
 - Shows typing indicators during processing
 - Handles timeouts gracefully
 
-## Security Considerations
-
-### 1. Public Access Control
-```python
-# Only website-visible assistants
-domain="[('is_website_visible', '=', True)]"
-
-# Restricted knowledge access
-if collection_id not in assistant.allowed_knowledge_collections:
-    raise AccessError()
-```
-
-### 2. Session Isolation
-- Each visitor gets isolated thread
-- No cross-session data leakage
-- Proper sudo usage for public operations
-
-## Migration Path
-
-For existing chatbot scripts:
-1. Enable LLM on existing script
-2. Select appropriate assistant
-3. Run `action_create_llm_steps()`
-4. Configure tool permissions
-5. Test with existing rules
 
 ## Extension Examples
 

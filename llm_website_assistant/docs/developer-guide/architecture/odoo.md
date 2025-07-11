@@ -16,74 +16,94 @@ The livechat functionality in Odoo is provided by several interconnected modules
 
 ### 1. Models
 
-#### im_livechat.channel
-The main configuration model for livechat channels:
-- Defines livechat channel properties (name, button text, colors)
-- Manages operator assignments
-- Controls channel availability rules
+```{mermaid}
+:zoom:
+classDiagram
+    direction TB
+    %% Backend Models
+    class im_livechat_channel
+    class im_livechat_channel_rule
+    class discuss_channel
+    class website_visitor
+    class chatbot_script
+    class chatbot_script_step
 
-#### im_livechat.channel.rule
-Defines when and where livechat appears:
-- URL regex patterns for page targeting
-- Display modes (show, auto-popup, hide)
-- Country-based restrictions
-- Chatbot script assignment
+    %% Relationships
+    im_livechat_channel --> im_livechat_channel_rule : "follow rules"
+    im_livechat_channel --> discuss_channel : "creates/manages"
+    discuss_channel --> website_visitor : "links to"
+    discuss_channel --> chatbot_script : "uses script"
+    chatbot_script --> chatbot_script_step : "has steps"
 
-#### discuss.channel
-The actual conversation channel:
-- Inherits from mail.thread for messaging capabilities
-- Stores chat history
-- Manages participant information
-- Links to visitors via `livechat_visitor_id`
-
-#### website.visitor
-Tracks website visitors:
-- Anonymous visitor identification
-- Page visit history
-- Geographic information
-- Livechat interaction history
-
-#### chatbot.script
-Defines automated conversation flows:
-- Step-based conversation structure
-- Multiple step types (text, question, email, phone, etc.)
-- Conditional branching logic
-- Operator handover capabilities
-
-#### chatbot.script.step
-Individual conversation steps:
-- Message content and type
-- Answer options for questions
-- Validation rules
-- Next step logic
+    %% Notes for key components
+    note for im_livechat_channel "Defines channel properties<br />Manages operator assignments<br />Controls channel availability rules"
+    note for im_livechat_channel_rule "URL regex patterns for page targeting<br />Display modes (show, auto-popup, hide)<br />Country-based restrictions<br />Chatbot script assignment"
+    note for discuss_channel "Inherits from mail.thread<br />Stores chat history<br />Manages participant information<br />Links to visitors via livechat_visitor_id"
+    note for website_visitor "Anonymous visitor identification<br />Page visit history<br />Geographic information<br />Livechat interaction history"
+    note for chatbot_script "Step-based conversation structure<br />Multiple step types<br />Conditional branching logic<br />Operator handover capabilities"
+    note for chatbot_script_step "Message content and type<br />Answer options for questions<br />Validation rules<br />Next step logic"
+```
 
 ### 2. Controllers
 
 #### LivechatController (`/im_livechat/*`)
 Main controller handling:
 - `/init`: Channel initialization and rule matching
-- `/visitor_leave_session`: Visitor departure handling
-- `/feedback`: Chat satisfaction ratings
-- `/history`: Chat transcript requests
+- `/get_session`: Create or fetch a livechat session
+- `/visitor_leave_session`: End visitor session and notify operator
 
 #### LivechatChatbotScriptController (`/chatbot/*`)
 Handles chatbot interactions:
-- `/step/trigger`: Process user responses
-- `/step/validate_email`: Email validation
-- `/step/validate_phone`: Phone validation
-- Message posting and step progression
+- `/restart`: Restart chatbot conversation
+- `/post_welcome_steps`: Post initial/welcome steps for chatbot
+- `/answer/save`: Save selected answer for a chatbot step
+- `/step/trigger`: Process user responses and advance script
+- `/step/validate_email`: Validate email input in chatbot
+- `/step/validate_phone`: Validate phone input in chatbot
 
 ### 3. Frontend Architecture
 
-#### JavaScript Services
+#### OWL Services
 - **LivechatService**: Core service managing chat state
 - **ChatbotService**: Handles automated conversations
 - **MessagingService**: Underlying messaging infrastructure
 
-#### Components
+#### OWL Components
 - **LivechatButton**: Floating chat button widget
 - **LivechatWindow**: Chat conversation interface
 - **ChatbotMessages**: Renders bot messages and options
+
+```{mermaid}
+:zoom:
+---
+config:
+  look: handDrawn
+---
+classDiagram
+    direction TB
+    %% OWL Services
+    class LivechatService
+    class ChatbotService
+    class MessagingService
+    %% OWL Components
+    class LivechatButton
+    class LivechatWindow
+    class ChatbotMessages
+
+    %% Relationships
+    LivechatService --> LivechatButton : "controls"
+    LivechatService --> LivechatWindow : "controls"
+    LivechatService --> MessagingService : "uses"
+    ChatbotService --> ChatbotMessages : "renders"
+
+    %% Notes for key components
+    note for LivechatService "Core JS service managing chat state"
+    note for ChatbotService "Handles automated conversations and script logic"
+    note for MessagingService "Underlying messaging infrastructure"
+    note for LivechatButton "Floating chat button widget"
+    note for LivechatWindow "Chat conversation interface"
+    note for ChatbotMessages "Renders bot messages and options"
+```
 
 ## Data Flow
 
@@ -96,6 +116,7 @@ Handles chatbot interactions:
 4. Returns channel configuration if rule matches
 5. Frontend displays chat button based on settings
 6. Creates discuss.channel when chat starts
+7. Frontend calls /chatbot/post_welcome_steps to post initial bot message(s)
 ```
 
 ```{mermaid}
@@ -112,6 +133,8 @@ sequenceDiagram
     V->>F: Start chat
     F->>S: Create discuss.channel
     S->>DC: Create channel
+    F->>S: /chatbot/post_welcome_steps
+    S->>DC: Post welcome steps
 ```
 
 ### 2. Message Flow

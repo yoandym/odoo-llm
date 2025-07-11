@@ -35,7 +35,7 @@ autodoc_mock_imports = [
 ]
 
 # HTML output
-html_theme = "agogo"
+html_theme = "sphinx_book_theme"
 
 # Intersphinx
 intersphinx_mapping = {
