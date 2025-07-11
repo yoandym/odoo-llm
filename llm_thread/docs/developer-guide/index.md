@@ -7,7 +7,7 @@ This guide provides comprehensive information for developers working with the Ea
 ## Contents
 
 ```{toctree}
-:maxdepth: 3
+:maxdepth: 4
 :caption: Contents
 
 architecture
@@ -18,8 +18,6 @@ js-components
 performance
 security
 extending
-testing
-deployment
 ```
 
 

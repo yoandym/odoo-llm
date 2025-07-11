@@ -1,4 +1,4 @@
-# User Guide for LLM Integration Base
+# User Guide
 
 ## Overview
 
@@ -329,11 +329,3 @@ If you need additional help:
 1. Check provider-specific documentation
 2. Review error logs in Odoo
 3. Contact support at support@apexive.com
-
-## Next Steps
-
-After mastering the basics:
-
-- Install [LLM Tool](../llm_tool/index.md) for function calling
-- Try [Easy AI Chat](../llm_thread/index.md) for conversational AI
-- Explore custom integrations in your modules

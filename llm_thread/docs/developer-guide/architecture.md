@@ -94,11 +94,18 @@ Instead of building a custom messaging system, the module extends Odoo's `mail.t
 - Search and filtering capabilities
 
 ### 2. Streaming Over Polling
-The module uses Server-Sent Events for real-time streaming rather than polling or websockets:
-- Lower server resource usage
-- Better compatibility with proxies
-- Natural fit for one-way data flow
-- Built-in reconnection handling
+
+The module uses **Server-Sent Events (SSE)** for real-time streaming of AI responses, instead of polling or websockets. SSE allows the backend to push data to the frontend over a single HTTP connection, enabling live updates as the AI generates a response.
+
+**Benefits:**
+- Lower server resource usage (one connection per client, no repeated polling)
+- Better compatibility with proxies and firewalls
+- Natural fit for one-way data flow (server to client)
+- Built-in reconnection handling by the browser
+
+**Implementation:**
+- **Backend:** The SSE endpoint is implemented in a controller (see `llm_thread/controllers/`), which streams data using `content_type='text/event-stream'`.
+- **Frontend:** The chat service uses the browser’s `EventSource` API to receive streamed updates and update the UI in real time (see `static/src/services/llm_chat_service.js`).
 
 ### 3. Service-Based State Management
 Frontend state is managed through a centralized service (`LLMChatService`) rather than component-level state:

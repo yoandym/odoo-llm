@@ -69,17 +69,6 @@ After installation, configure the module:
 4. **Access Rights**: Configure user permissions through security groups
 5. **Default Settings**: Set default provider, model, and tools for new threads
 
-## Screenshots
-
-![AI Chat Interface](_static/img/chat_interface.png)
-*The main chat interface showing conversation threads and real-time responses*
-
-![Thread Configuration](_static/img/thread_config.png)
-*Configuration options for AI threads including model and tool selection*
-
-![Integration Example](_static/img/integration_example.png)
-*AI chat integrated with a sales order for contextual assistance*
-
 ## Integration
 
 The module integrates seamlessly with:
@@ -88,9 +77,3 @@ The module integrates seamlessly with:
 * **LLM Tool Module**: Enables function calling and tool execution
 * **Mail System**: Full integration with Odoo's mail system for message handling
 * **Any Odoo Model**: Link threads to any record for contextual AI assistance
-
-## Related Modules
-
-* [LLM Integration Base](../llm/index.md) - Core AI provider integration
-* [LLM Tool](../llm_tool/index.md) - Tool and function calling framework
-* [LLM Mail Message Subtypes](../llm_mail_message_subtypes/index.md) - Specialized message types

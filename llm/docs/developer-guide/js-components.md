@@ -1,18 +1,3 @@
 # JavaScript Components
 
-If your module includes JavaScript/OWL components, document them here:
-
-```javascript
-// Component: ExampleComponent
-class ExampleComponent extends Component {
-    // Explain component purpose and functionality
-    static template = 'module.ExampleComponentTemplate';
-    static props = { /* explain props */ };
-    
-    setup() {
-        // Explain setup logic
-    }
-    
-    // Document key methods
-}
-```
+The LLM Integration Base module currently does not include JavaScript components, focusing instead on backend models and services. However, this guide provides patterns and examples for implementing JS components in dependent modules.

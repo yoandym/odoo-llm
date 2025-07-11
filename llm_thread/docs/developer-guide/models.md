@@ -60,45 +60,83 @@ classDiagram
 ### Core Methods
 
 #### `generate(user_message_body, **kwargs)`
-Main orchestration method that handles the conversation flow:
+Main orchestration method that handles the conversation flow and AI response streaming.
 
-```python
-def generate(self, user_message_body, **kwargs):
-    """
-    Generator that orchestrates the conversation flow.
-    Yields events for frontend consumption.
-    
-    Args:
-        user_message_body: Initial user message or None to continue
-        **kwargs: Additional message parameters
-        
-    Yields:
-        dict: Events with type and data
-    """
+**Where/How is it used?**
+- **Streaming AI responses to the frontend:**
+  - Called directly by the controller for Server-Sent Events (SSE) streaming (see `controllers/llm_thread.py`).
+  - Used in the chat UI to stream responses chunk by chunk.
+- **Advanced integrations:**
+  - Can be called in custom code to process or post-process AI responses.
+- **Example:**
+  ```python
+  for event in thread.generate("What's the status of my order?"):
+      if event['type'] == 'message_chunk':
+          print(event['message']['body'])
+  ```
+
+**Flow Diagram:**
+
+```{mermaid}
+flowchart TD
+    Start([Start]) --> Lock[Lock thread]
+    Lock --> PostUserMsg{User message provided?}
+    PostUserMsg -- Yes --> PostMsg[Post user message]
+    PostUserMsg -- No --> AI[Start AI response]
+    PostMsg --> AI
+    AI --> ToolCalls{Tool calls?}
+    ToolCalls -- Yes --> ToolExec[Execute tools]
+    ToolExec --> AI
+    ToolCalls -- No --> Stream[Stream AI response]
+    Stream --> Unlock[Unlock thread]
+    Unlock --> End([End])
 ```
-
-**Flow**:
-1. Locks the thread to prevent concurrent generation
-2. Posts user message (if provided)
-3. Loops through assistant responses and tool calls
-4. Yields events for streaming updates
-5. Unlocks thread on completion
 
 #### `send_message(message_content)`
-Simplified message sending for API/RPC usage:
+Simplified message sending for API/RPC usage. Handles posting the user message and triggers AI response generation.
 
-```python
-def send_message(self, message_content):
-    """
-    Send a user message and trigger AI response.
-    
-    Args:
-        message_content (str): The message to send
-        
-    Returns:
-        dict: Success status and message info
-    """
+
+**Where/How is it used?**
+- **User/API message submission:**
+  - Called when a user sends a message in the chat UI or via API.
+  - Handles posting the message to the thread and then triggers `generate` to process the AI response.
+- **Typical entry point for external integrations:**
+  - Used in automation, tests, or scripts to send a message and get a response.
+- **Example:**
+  ```python
+  response = thread.send_message("Hello, I need help with my order")
+  print(response['success'])
+  ```
+
+**Flow Diagram:**
+
+```{mermaid}
+flowchart TD
+    A_Start --> B_UserOrApi
+    B_UserOrApi --> C_PostMsg
+    C_PostMsg --> D_CallGen
+    D_CallGen --> E_Resp
+    E_Resp --> F_End
+
+    A_Start["Start"]
+    B_UserOrApi["User/API calls send_message"]
+    C_PostMsg["Post user message"]
+    D_CallGen["Call generate()"]
+    E_Resp["Return response"]
+    F_End["End"]
 ```
+
+**Method Reference:**
+
+- send_message
+    - Post user message & trigger AI response.
+    - **Typical usage:** User/API message submission.
+    - **Example:** `thread.send_message("Hello")`
+
+- generate
+    - Orchestrate/stream AI response.
+    - **Typical usage:** Streaming, controller, integrations.
+    - **Example:** `for chunk in thread.generate(...):`
 
 #### Thread Locking Mechanism
 

@@ -1,4 +1,4 @@
-# Installation Guide for LLM Integration Base
+# Installation Guide
 
 ## Prerequisites
 

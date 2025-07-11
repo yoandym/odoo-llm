@@ -1,4 +1,4 @@
-# Configuration for Llm
+# Admin / Configuration guide
 
 This page explains how to configure the module after installation.
 

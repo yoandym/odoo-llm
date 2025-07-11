@@ -129,10 +129,9 @@ async loadThreads(additionalFields = [], forceReload = false) {
 
 ### 3. Message Virtualization
 
-For threads with many messages:
+For threads with many messages: Use Odoo's ThreadView which implements virtualization
 
 ```javascript
-// Using Odoo's ThreadView which implements virtualization
 <ThreadView 
     thread={this.threadWrapper}
     onLoadMore={this.loadOlderMessages}

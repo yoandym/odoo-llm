@@ -25,7 +25,7 @@ graph TD
     end
     
     subgraph "Core Extensions"
-        LMP[LLMMessagePatch]
+        LMP[MessagePatch]
         LMTS[LLMMessageTypeService]
     end
     
@@ -305,7 +305,7 @@ export class LLMChatThreadList extends Component {
 
 ## Core Patches and Extensions
 
-### LLMMessagePatch
+### MessagePatch
 
 Extends Odoo's native Message component with AI-specific features.
 
@@ -429,37 +429,6 @@ env.bus.trigger("llm_chat:message_sent", {
     message,
     response,
 });
-```
-
-## Styling and SCSS
-
-Each component has associated SCSS files following BEM naming:
-
-```scss
-// llm_chat.scss
-.o_llm_chat {
-    display: flex;
-    height: 100%;
-    
-    &__sidebar {
-        width: 300px;
-        border-right: 1px solid $border-color;
-    }
-    
-    &__content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    &--mobile {
-        .o_llm_chat__sidebar {
-            position: absolute;
-            width: 100%;
-            z-index: 10;
-        }
-    }
-}
 ```
 
 ## Component Lifecycle

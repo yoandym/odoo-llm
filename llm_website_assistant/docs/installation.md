@@ -113,15 +113,3 @@ To uninstall the module:
 
 **Issue**: [Other common issue]
 - **Solution**: [Solution]
-
-### Getting Help
-
-If you encounter issues:
-
-1. Check the [error logs](/troubleshooting#logs)
-2. Search [existing issues](https://github.com/fime-project/fime/issues)
-3. Create a new issue with:
-   - Odoo version
-   - Module version
-   - Error messages
-   - Steps to reproduce

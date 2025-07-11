@@ -260,54 +260,6 @@ The chat interface supports URL parameters:
 
 Example: `/web#action=123&active_id=llm.thread_45`
 
-## Mobile Responsiveness
-
-The chat interface adapts to mobile devices:
-
-```scss
-.o_llm_chat {
-    &--mobile {
-        .o_llm_chat__sidebar {
-            position: absolute;
-            width: 100%;
-            z-index: 10;
-        }
-    }
-}
-```
-
-Mobile features:
-- Collapsible sidebar
-- Touch-optimized controls
-- Responsive message layout
-
-## View Inheritance Examples
-
-### Adding Fields to Thread Form
-
-```xml
-<record id="llm_thread_form_inherit" model="ir.ui.view">
-    <field name="name">llm.thread.form.inherit</field>
-    <field name="model">llm.thread</field>
-    <field name="inherit_id" ref="llm_thread.llm_thread_view_form"/>
-    <field name="arch" type="xml">
-        <field name="model_id" position="after">
-            <field name="custom_field"/>
-        </field>
-    </field>
-</record>
-```
-
-### Extending the Chat Interface
-
-```javascript
-patch(LLMChatContainer.prototype, {
-    setup() {
-        super.setup();
-        // Add custom initialization
-    }
-});
-```
 
 ## View Security
 

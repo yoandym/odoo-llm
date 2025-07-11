@@ -5,7 +5,7 @@
 :maxdepth: 3
 :caption: Contents
 
-architecture
+architecture/index
 models
 views
 controllers
