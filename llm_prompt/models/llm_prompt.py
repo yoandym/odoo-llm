@@ -575,7 +575,7 @@ class LLMPrompt(models.Model):
             # Add thread context if available
             thread_id = self.env.context.get('thread_id')
             if thread_id:
-                thread = self.env['llm.thread'].browse(thread_id)
+                thread = self.env['discuss.channel'].browse(thread_id)
                 if thread.exists():
                     ctx['thread'] = {
                         'id': thread.id,

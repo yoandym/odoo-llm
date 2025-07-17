@@ -56,9 +56,9 @@ class LLMToolUserGreeting(models.Model):
             if thread_id:
                 # Try to get thread-specific tools, but safely handle if thread model not available
                 try:
-                    # Get thread information if the llm.thread model is available
-                    if 'llm.thread' in self.env:
-                        thread_data = self.env['llm.thread'].search_read([
+                    # Get thread information if the discuss.channel model is available
+                    if 'discuss.channel' in self.env:
+                        thread_data = self.env['discuss.channel'].search_read([
                             ('id', '=', thread_id)
                         ], ['tool_ids'], limit=1)
                         

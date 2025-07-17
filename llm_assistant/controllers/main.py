@@ -16,7 +16,7 @@ class LLMAssistantController(http.Controller):
         """
         try:
             # Get thread
-            thread = request.env["llm.thread"].browse(int(thread_id))
+            thread = request.env["discuss.channel"].browse(int(thread_id))
             if not thread.exists():
                 return {"success": False, "error": "Thread not found"}
 
@@ -36,7 +36,7 @@ class LLMAssistantController(http.Controller):
                 "thread_id": thread_id,
                 "assistant_id": assistant_id,
             }
-            
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -53,7 +53,7 @@ class LLMAssistantController(http.Controller):
         """
         try:
             # Get thread
-            thread = request.env["llm.thread"].browse(int(thread_id))
+            thread = request.env["discuss.channel"].browse(int(thread_id))
             if not thread.exists():
                 return {"success": False, "error": "Thread not found"}
 
@@ -64,7 +64,7 @@ class LLMAssistantController(http.Controller):
 
             # Get assistant values with the thread context
             return assistant.get_assistant_values(thread)
-            
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -79,14 +79,10 @@ class LLMAssistantController(http.Controller):
             # Get default assistant
             assistant_model = request.env["llm.assistant"]
             default_assistant = assistant_model.get_default_assistant()
-            
+
             if not default_assistant:
-                return {
-                    "success": False,
-                    "error": "No default assistant found",
-                    "assistant": None
-                }
-                
+                return {"success": False, "error": "No default assistant found", "assistant": None}
+
             # Return assistant data
             return {
                 "success": True,
@@ -97,8 +93,8 @@ class LLMAssistantController(http.Controller):
                     "provider_id": default_assistant.provider_id.id if default_assistant.provider_id else False,
                     "model_id": default_assistant.model_id.id if default_assistant.model_id else False,
                     "tool_ids": default_assistant.tool_ids.ids,
-                }
+                },
             }
-            
+
         except Exception as e:
             return {"success": False, "error": str(e), "assistant": None}

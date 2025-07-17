@@ -13,18 +13,13 @@ classDiagram
     class LlmLivechatController {
         +livechat_init(channel_id)
         -_get_matching_rule(channel_id)
-    }
-    
-    class LivechatChatbotScriptController {
-        +chatbot_process_step(channel_uuid, step_id, user_input)
-    }
-    
-    class LlmChatbotController {
-        +chatbot_process_step(channel_uuid, step_id, user_input)
+        +get_or_create_thread(channel_id, assistant_id)
+        +post_website_message(thread_id, message)
+        +stream_llm_response(thread_id)
+        -_stream_generator(thread_id)
     }
     
     LivechatController <|-- LlmLivechatController : extends
-    LivechatChatbotScriptController <|-- LlmChatbotController : extends
 ```
 
 ## Main Controllers
@@ -70,63 +65,108 @@ def livechat_init(self, channel_id):
 }
 ```
 
-### LlmChatbotController
+### Additional LLM Endpoints in LlmLivechatController
 
-**Inherits:** `im_livechat.controllers.chatbot.LivechatChatbotScriptController`
-
-**Purpose:** Handles LLM-powered chatbot step processing.
+The main controller now includes dedicated endpoints for LLM chat functionality:
 
 #### Methods
 
-##### `chatbot_process_step(channel_uuid, step_id, user_input)`
+##### `get_or_create_thread(channel_id, assistant_id=None)`
 
 ```python
-@http.route('/chatbot/step/process', type="json", auth="public", cors="*")
-def chatbot_process_step(self, channel_uuid, step_id, user_input):
-    """Process user input for LLM-enabled chatbot steps"""
+@http.route("/im_livechat/llm/thread", type="json", auth="public", website=True)
+def get_or_create_thread(self, channel_id, assistant_id=None, **kwargs):
+    """Create or retrieve an LLM thread for a livechat channel"""
 ```
 
-**Endpoint:** `/chatbot/step/process`
+**Endpoint:** `/im_livechat/llm/thread`
 
 **Parameters:**
-- `channel_uuid` (str): UUID of the discussion channel
-- `step_id` (int): Current chatbot step ID
-- `user_input` (str): User's message text
+- `channel_id` (int): ID of the discussion channel
+- `assistant_id` (int, optional): Specific assistant to use
 
 **Process:**
-1. Validates channel and step existence
-2. Checks if script is LLM-enabled
-3. Calls `process_llm_step()` on the step
-4. Formats response for frontend consumption
+1. Validates channel existence
+2. If no assistant configured, selects default or available assistant
+3. Configures channel with LLM model and provider
+4. Returns thread information
 
-**Response Format:**
+**Response:**
 ```javascript
 {
-    "chatbot_posted_message": {
-        "id": 123,
-        "body": "<p>AI response here...</p>",
-        "author_id": [45, "AI Assistant"],
-        // Standard message fields...
-    },
-    "chatbot_step": {
-        "id": 67,
-        "type": "llm_processed_input",
-        "isLlmStep": true,
-        "operatorFound": false,
-        "isLast": false,
-        "message": "How can I help you?",
-        "answers": []
-    }
+    "success": true,
+    "thread_id": 123,
+    "has_assistant": true
 }
 ```
+
+##### `post_website_message(thread_id, channel_id=None, message=None)`
+
+```python
+@http.route("/chatbot/llm/post", type="json", auth="public", website=True)
+def post_website_message(self, thread_id, channel_id=None, message=None, **kwargs):
+    """Post a message to an LLM thread from website"""
+```
+
+**Endpoint:** `/chatbot/llm/post`
+
+**Parameters:**
+- `thread_id` (int): Thread/channel ID (same in new architecture)
+- `message` (str): User's message content
+- `channel_id` (int, optional): Legacy parameter for compatibility
+
+**Response:**
+```javascript
+{
+    "success": true,
+    "message_id": 456,
+    "thread_id": 123
+}
+```
+
+##### `stream_llm_response(thread_id, channel_id=None)`
+
+```python
+@http.route("/chatbot/llm/stream", type="http", auth="public", website=True)
+def stream_llm_response(self, thread_id, channel_id=None, **kwargs):
+    """Stream LLM responses via Server-Sent Events (SSE)"""
+```
+
+**Endpoint:** `/chatbot/llm/stream`
+
+**Parameters:**
+- `thread_id` (int): Thread/channel ID to stream responses for
+
+**SSE Events:**
+```javascript
+// Content chunk
+data: {"type": "content", "content": "AI response text..."}
+
+// Error event
+data: {"type": "error", "error": "Error message"}
+
+// Completion event
+data: {"type": "done"}
+```
+
+**Headers:**
+- `Content-Type: text/event-stream`
+- `Cache-Control: no-cache`
+- `X-Accel-Buffering: no` (for nginx compatibility)
 
 ## Integration Points
 
 ### Authentication
 
-- Both controllers use `auth="public"` for website visitor access
+- All endpoints use `auth="public"` for website visitor access
 - Operations use `sudo()` with proper security checks
-- Channel UUID validation prevents unauthorized access
+- Channel ID/UUID validation prevents unauthorized access
+
+### Implementation Notes
+
+- The controller consolidates all LLM functionality in one place
+- SSE streaming is handled directly without a separate service
+- Missing `json` import in the controller should be added for the `_stream_generator` method
 
 ### Language Support
 

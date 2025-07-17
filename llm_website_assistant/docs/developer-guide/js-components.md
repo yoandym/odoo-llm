@@ -95,33 +95,97 @@ async _getNextStep() {
 
 ```javascript
 async _processUserAnswer(message) {
+    // Check conditions for processing
+    if (!this.active || 
+        message.originThread.localId !== this.livechatService.thread?.localId ||
+        !this.currentStep?.expectAnswer) {
+        return;
+    }
+    
     const isLlmStep = this.currentStep?.isLlmStep || 
                       this.currentStep?.type === 'llm_processed_input';
     
     if (isLlmStep) {
         this.isTyping = true;
+        this.currentStep.hasAnswer = true;
         
         try {
-            const result = await this.rpc("/chatbot/step/process", {
-                channel_uuid: channelUuid,
-                step_id: this.currentStep.id,
-                user_input: message.body,
+            // Use the standard trigger endpoint for LLM processing
+            const nextStepData = await this.rpc("/chatbot/step/trigger", {
+                channel_uuid: this.livechatService.thread.uuid,
+                chatbot_script_id: this.chatbot.scriptId,
             });
             
-            // Handle response...
+            // Handle chatbot message and next step
+            const { chatbot_posted_message, chatbot_step } = nextStepData ?? {};
+            
+            if (chatbot_posted_message) {
+                this.livechatService.thread?.messages.add({
+                    ...chatbot_posted_message,
+                    body: markup(chatbot_posted_message.body),
+                });
+            }
+            
+            if (chatbot_step) {
+                this.currentStep = new ChatbotStep(chatbot_step);
+                if (this.currentStep.type === 'llm_processed_input') {
+                    this.currentStep.isLlmStep = true;
+                    this.currentStep.expectAnswer = true;
+                }
+            }
+            
+            this.save();
         } catch (error) {
-            // Error handling...
+            console.error("[LLM Debug] Error processing LLM answer:", error);
+        } finally {
+            this.isTyping = false;
         }
     } else {
-        return super._processUserAnswer(...arguments);
+        return super._processUserAnswer(message);
     }
 }
 ```
 
 **Features:**
 - Shows typing indicator during AI processing
-- Calls LLM-specific endpoint for processing
+- Uses standard `/chatbot/step/trigger` endpoint
+- Properly marks step as answered
+- Maintains conversation state on same LLM step
 - Falls back to standard behavior for non-LLM steps
+
+##### `_triggerNextStep()`
+
+```javascript
+_triggerNextStep() {
+    if (this.completed) {
+        return;
+    }
+    this.isTyping = !this.isRestoringSavedState;
+    this.nextStepTimeout = browser.setTimeout(async () => {
+        const { step, stepMessage } = await this._getNextStep();
+        if (!this.active) {
+            return;
+        }
+        this.isTyping = false;
+        if (!step && this.currentStep) {
+            this.currentStep.isLast = true;
+            return;
+        }
+        // Only post messages with non-empty body
+        if (stepMessage && stepMessage.body) {
+            this.livechatService.thread?.messages.add({
+                ...stepMessage,
+                body: markup(stepMessage.body),
+            });
+        }
+        this.currentStep = step;
+        // ... rest of method
+    }, this.messageDelay);
+}
+```
+
+**Improvement:**
+- Prevents posting empty messages (important for LLM steps)
 
 ### llm_chatbot_step_model.js
 
@@ -198,6 +262,20 @@ console.log("[LLM Debug] _getNextStep called", {
 - API calls
 - Error conditions
 
+## Additional Components
+
+### LivechatButton Extension
+
+**File:** `/static/src/js/livechat_button_extension.js`
+
+**Purpose:** Extends the livechat button to handle LLM streaming messages.
+
+#### Key Methods
+
+- `_handleLLMStreamingMessage()`: Processes SSE events for AI responses
+- `_updateMessage()`: Updates message content during streaming
+- Manages typing indicators during AI response generation
+
 ## Asset Registration
 
 The JavaScript files are registered in the manifest:
@@ -208,6 +286,7 @@ The JavaScript files are registered in the manifest:
         "llm_website_assistant/static/src/embed/common/chatbot/llm_chatbot_model.js",
         "llm_website_assistant/static/src/embed/common/chatbot/llm_chatbot_step_model.js",
         "llm_website_assistant/static/src/embed/common/chatbot/llm_chatbot_service.js",
+        "llm_website_assistant/static/src/js/livechat_button_extension.js",
     ],
 }
 ```

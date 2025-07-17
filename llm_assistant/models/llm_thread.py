@@ -7,17 +7,17 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMThread(models.Model):
-    _inherit = "llm.thread"
+    _inherit = "discuss.channel"
 
     assistant_id = fields.Many2one(
         "llm.assistant",
         string="Assistant",
         ondelete="restrict",
         help="The assistant used for this thread",
-        required=True,  # Make assistant required at database level
+        required=False,
     )
-    
-    @api.constrains('assistant_id')
+
+    @api.constrains("assistant_id")
     def _check_assistant_required(self):
         """Ensure an assistant is always set"""
         for thread in self:
@@ -29,30 +29,27 @@ class LLMThread(models.Model):
     def create(self, vals_list):
         """Ensure all new threads have an assistant"""
         for vals in vals_list:
-            if not vals.get('assistant_id'):
+            if not vals.get("assistant_id"):
                 # Get default assistant using the specialized method
                 assistant_service = self.env["llm.assistant"]
                 default_assistant = assistant_service.get_default_assistant()
-                
+
                 if default_assistant:
-                    vals['assistant_id'] = default_assistant.id
-                    
+                    vals["assistant_id"] = default_assistant.id
+
                     # Also set provider, model and tools for consistency
-                    if default_assistant.provider_id and not vals.get('provider_id'):
-                        vals['provider_id'] = default_assistant.provider_id.id
-                    
-                    if default_assistant.model_id and not vals.get('model_id'):
-                        vals['model_id'] = default_assistant.model_id.id
-                    
-                    if default_assistant.tool_ids and not vals.get('tool_ids'):
-                        vals['tool_ids'] = [(6, 0, default_assistant.tool_ids.ids)]
+                    if default_assistant.provider_id and not vals.get("provider_id"):
+                        vals["provider_id"] = default_assistant.provider_id.id
+
+                    if default_assistant.model_id and not vals.get("model_id"):
+                        vals["model_id"] = default_assistant.model_id.id
+
+                    if default_assistant.tool_ids and not vals.get("tool_ids"):
+                        vals["tool_ids"] = [(6, 0, default_assistant.tool_ids.ids)]
                 else:
                     # No assistant found, show clear error
-                    raise ValidationError(
-                        _("Cannot create chat thread: No assistants available. "
-                          "Please create at least one assistant first.")
-                    )
-        
+                    raise ValidationError(_("Cannot create chat thread: No assistants available. " "Please create at least one assistant first."))
+
         # Call super to create the records
         return super().create(vals_list)
 
@@ -75,12 +72,6 @@ class LLMThread(models.Model):
         """
         self.ensure_one()
 
-        # If assistant_id is False or 0, clear the assistant and reset to defaults
-        if not assistant_id:
-            self.write({"assistant_id": False})
-            # Reset thread to default values
-            return self.reset_to_defaults()
-
         # Get the assistant record
         assistant = self.env["llm.assistant"].browse(assistant_id)
         if not assistant.exists():
@@ -89,18 +80,25 @@ class LLMThread(models.Model):
         # Update the thread with the assistant and related fields
         update_vals = {
             "assistant_id": assistant_id,
-            "tool_ids": [(6, 0, assistant.tool_ids.ids)],
         }
-        if assistant.provider_id.id:
-            update_vals["provider_id"] = assistant.provider_id.id
-        if assistant.model_id.id:
-            update_vals["model_id"] = assistant.model_id.id
-            
-        # Clear any selected prompts since assistant provides its own prompts
-        if hasattr(self, 'prompt_id'):
-            update_vals["prompt_id"] = False
-            
+        self.reset_to_defaults()
+
         return self.write(update_vals)
+
+    def reset_to_defaults(self):
+        """Set thread parameters based on the assistant"""
+
+        for thread in self:
+            # call super
+            if not thread.assistant_id:
+                # If no assistant, just call the base method
+                return super(LLMThread, thread).reset_to_defaults()
+
+            # Update llm related params (tools, prompt) based on the assistant
+            thread.provider_id = thread.assistant_id.provider_id
+            thread.model_id = thread.assistant_id.model_id
+            thread.tool_ids = thread.assistant_id.tool_ids
+            thread.prompt_id = False
 
     def action_open_thread(self):
         """Open the thread in the chat client interface
@@ -144,15 +142,11 @@ class LLMThread(models.Model):
             if assistant_messages:
                 # Use the helper method from llm_prompt to merge the messages
                 messages = self.merge_message_lists(assistant_messages, messages)
-                _logger.info(
-                    "Added %d messages from assistant", len(assistant_messages)
-                )
+                _logger.info("Added %d messages from assistant", len(assistant_messages))
             else:
                 # Fallback to the old method if get_messages returns empty
                 # This ensures backward compatibility
-                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(
-                    thread=self
-                )
+                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(thread=self)
                 if assistant_system_prompt:
                     # Create a system message with the assistant's prompt
                     assistant_message = {
@@ -167,9 +161,7 @@ class LLMThread(models.Model):
                         for msg in messages:
                             if msg.get("role") == "system":
                                 # Append to existing system message
-                                msg["content"] = (
-                                    f"{assistant_system_prompt}\n\n{msg['content']}"
-                                )
+                                msg["content"] = f"{assistant_system_prompt}\n\n{msg['content']}"
                                 has_system_message = True
                                 break
 
@@ -243,9 +235,9 @@ class LLMThread(models.Model):
 
         # Use the base thread method to reset to defaults
         result = self.reset_to_defaults()
-        
+
         # Also clear the assistant_id
         if result:
             result = self.write({"assistant_id": False})
-        
+
         return result

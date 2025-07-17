@@ -19,7 +19,7 @@ class LLMThreadControllerExtended(LLMThreadController):
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         }
         user_message_body = message
-        generation_inputs = request.env["llm.thread"].process_prompt_for_media_gen(
+        generation_inputs = request.env["discuss.channel"].process_prompt_for_media_gen(
             thread_id, generation_inputs
         )
         return Response(

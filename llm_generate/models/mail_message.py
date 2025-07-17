@@ -31,7 +31,7 @@ class MailMessage(models.Model):
         self, thread, stream, subtype_xmlid, placeholder_text="Generated media:"
     ):
         """
-        thread: the llm.thread record
+        thread: the discuss.channel record
         stream: iterator of provider media gen method response
         subtype_xmlid: assistant vs tool result XMLID
 

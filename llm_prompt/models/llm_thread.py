@@ -6,7 +6,7 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMThreadPrompt(models.Model):
-    _inherit = "llm.thread"
+    _inherit = "discuss.channel"
 
     prompt_id = fields.Many2one(
         "llm.prompt",

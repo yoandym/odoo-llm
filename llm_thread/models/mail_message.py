@@ -85,7 +85,7 @@ class MailMessage(models.Model):
         self, thread, stream, subtype_xmlid, placeholder_text="…"
     ):
         """
-        thread: the llm.thread record
+        thread: the discuss.channel record
         stream: iterator of provider chunks (content/tool_calls/error)
         subtype_xmlid: assistant vs tool result XMLID
 

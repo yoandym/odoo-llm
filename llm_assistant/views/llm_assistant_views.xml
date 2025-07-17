@@ -94,7 +94,6 @@
                             <field name="thread_ids" readonly="1">
                                 <tree>
                                     <field name="name" />
-                                    <field name="user_id" />
                                     <field name="write_date" />
                                     <button name="action_open_thread" string="Open" type="object" class="btn btn-primary btn-sm" />
                                 </tree>

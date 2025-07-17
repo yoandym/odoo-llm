@@ -18,7 +18,7 @@ class LLMThreadControllerExtended(http.Controller):
         Returns:
             bool: True if successful, False otherwise
         """
-        thread = request.env["llm.thread"].browse(int(thread_id))
+        thread = request.env["discuss.channel"].browse(int(thread_id))
         if not thread.exists():
             return False
 

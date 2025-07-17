@@ -13,6 +13,7 @@ js-components
 performance
 security
 extending
+tools/index
 ```
 
 

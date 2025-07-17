@@ -34,7 +34,7 @@ Contact: support@apexive.com
     "external_dependencies": {"python": ["emoji", "markdown2"]},
     "data": [
         "security/llm_thread_security.xml",
-        "security/ir.model.access.csv",
+        # "security/ir.model.access.csv",
         "views/llm_thread_views.xml",
         "views/menu.xml",
     ],
@@ -45,62 +45,48 @@ Contact: support@apexive.com
             "llm_thread/static/src/core/llm_message_patch.xml",
             "llm_thread/static/src/core/llm_message_patch.scss",
             "llm_thread/static/src/core/llm_message_type_service.js",
-            
             # Services
             "llm_thread/static/src/services/llm_chat_service.js",
             "llm_thread/static/src/services/llm_composer_service.js",
-
             # Components
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.js",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.xml",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.scss",
-
             "llm_thread/static/src/components/llm_chat/llm_chat.js",
             "llm_thread/static/src/components/llm_chat/llm_chat.xml",
             "llm_thread/static/src/components/llm_chat/llm_chat.scss",
-
             "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.js",
             "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.xml",
             "llm_thread/static/src/components/llm_chat_thread_list/llm_chat_thread_list.scss",
-
             "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.js",
             "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.xml",
             "llm_thread/static/src/components/llm_chat_thread/llm_chat_thread.scss",
-
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.js",
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.xml",
             "llm_thread/static/src/components/llm_chat_sidebar/llm_chat_sidebar.scss",
-
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.js",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.xml",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.scss",
-
             # Removed llm_chat_message_list - using Odoo's ThreadView
             # Removed llm_message - using Odoo's Message with patches
-
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
-
             "llm_thread/static/src/components/llm_chatter/llm_chatter_interface.js",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.js",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.scss",
             "llm_thread/static/src/components/llm_chatter/llm_chatter_interface.scss",
-
             # Form Button Widget
             "llm_thread/static/src/components/llm_form_button/llm_form_button.js",
             "llm_thread/static/src/components/llm_form_button/llm_form_button.xml",
-
             # Streaming indicator component
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.js",
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.xml",
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.scss",
-
             # Contact selector dialog
             "llm_thread/static/src/components/contact_selector_dialog/contact_selector_dialog.js",
             "llm_thread/static/src/components/contact_selector_dialog/contact_selector_dialog.xml",
-            
             # Client Actions
             "llm_thread/static/src/llm_chat_client_action.js",
             "llm_thread/static/src/llm_message_actions.js",

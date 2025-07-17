@@ -12,7 +12,7 @@ _logger = logging.getLogger(__name__)
 
 
 class LLMThread(models.Model):
-    _inherit = "llm.thread"
+    _inherit = "discuss.channel"
 
     def _next_step(self, last_message):
         """Dispatch to the next generator based on message type."""

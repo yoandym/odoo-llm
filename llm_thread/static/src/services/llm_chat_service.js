@@ -112,7 +112,7 @@ export const LLMChatService = {
                     }
 
                     const [model, id] = typeof this.initActiveId === "number"
-                        ? ["llm.thread", this.initActiveId]
+                        ? ["discuss.channel", this.initActiveId]
                         : this.initActiveId.split("_");
 
                     const thread = this.threads.find(t => t.id === Number(id));
@@ -170,7 +170,7 @@ export const LLMChatService = {
                     });
 
                     const result = await orm.searchRead(
-                        "llm.thread",
+                        "discuss.channel",
                         [["create_uid", "=", user.userId]],
                         [...THREAD_SEARCH_FIELDS, ...extendedFields],
                         { order: "write_date desc" }
@@ -268,7 +268,7 @@ export const LLMChatService = {
                         });
 
                         const result = await orm.searchRead(
-                            "llm.thread",
+                            "discuss.channel",
                             [["id", "=", threadId]],
                             [...THREAD_SEARCH_FIELDS, ...extendedFields]
                         );
@@ -372,13 +372,13 @@ export const LLMChatService = {
                         threadData.res_id = res_id;
                     }
 
-                    const threadId = await orm.create("llm.thread", [threadData]);
+                    const threadId = await orm.create("discuss.channel", [threadData]);
 
                     // Handle both array return and single ID return
                     const actualThreadId = Array.isArray(threadId) ? threadId[0] : threadId;
 
                     const threadDetails = await orm.read(
-                        "llm.thread",
+                        "discuss.channel",
                         [actualThreadId],
                         ["name", "model_id", "provider_id", "write_date", "tool_ids", "model", "res_id"]
                     );
@@ -507,7 +507,7 @@ export const LLMChatService = {
                     try {
                         // First get the thread to get message IDs
                         const threadResult = await orm.searchRead(
-                            "llm.thread",
+                            "discuss.channel",
                             [["id", "=", threadId]],
                             ["message_ids"]
                         );
@@ -556,7 +556,7 @@ export const LLMChatService = {
                     try {
                         // Create a new message using RPC to call a Python method
                         const result = await rpc("/web/dataset/call_kw", {
-                            model: "llm.thread",
+                            model: "discuss.channel",
                             method: "send_message",
                             args: [threadId, messageContent],
                             kwargs: {},
@@ -584,7 +584,7 @@ export const LLMChatService = {
                 async setThreadAssistant(threadId, assistantId) {
                     try {
 
-                        await orm.write("llm.thread", [threadId], {
+                        await orm.write("discuss.channel", [threadId], {
                             assistant_id: assistantId
                         });
 
@@ -606,7 +606,7 @@ export const LLMChatService = {
                 async clearThreadAssistant(threadId) {
                     try {
 
-                        await orm.write("llm.thread", [threadId], {
+                        await orm.write("discuss.channel", [threadId], {
                             assistant_id: false
                         });
 
@@ -636,7 +636,7 @@ export const LLMChatService = {
                         const numericThreadId = typeof threadId === 'string' ? parseInt(threadId, 10) : threadId;
 
                         // Delete the thread from database
-                        await orm.unlink("llm.thread", [numericThreadId]);
+                        await orm.unlink("discuss.channel", [numericThreadId]);
 
                         // Remove from local threads array
                         const threadIndex = this.threads.findIndex(t => t.id === numericThreadId);

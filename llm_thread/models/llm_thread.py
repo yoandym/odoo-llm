@@ -3,10 +3,12 @@ import json
 import logging
 
 import emoji
-from odoo import _, api, fields, models, tools
-from odoo.addons.llm_mail_message_subtypes.const import (
-    LLM_ASSISTANT_SUBTYPE_XMLID, LLM_TOOL_RESULT_SUBTYPE_XMLID,
-    LLM_USER_SUBTYPE_XMLID)
+from odoo import _, api, fields, models
+from odoo.addons.llm_mail_message_subtypes.const import (  # pyright:ignore
+    LLM_ASSISTANT_SUBTYPE_XMLID,
+    LLM_TOOL_RESULT_SUBTYPE_XMLID,
+    LLM_USER_SUBTYPE_XMLID,
+)
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -31,43 +33,27 @@ def execute_with_new_cursor(func_to_decorate):
 
 
 class LLMThread(models.Model):
-    _name = "llm.thread"
-    _description = "LLM Chat Thread"
-    _inherit = ["mail.thread"]
+    _inherit = "discuss.channel"
+    _description = "LLM-Enabled Chat Channel"
     _order = "write_date DESC"
 
-    name = fields.Char(
-        string="Title",
-        required=True,
-    )
-    user_id = fields.Many2one(
-        "res.users",
-        string="User",
-        default=lambda self: self.env.user,
-        required=True,
-        ondelete="restrict",
-    )
+    # LLM specific fields added to discuss.channel
     provider_id = fields.Many2one(
         "llm.provider",
         string="Provider",
-        required=True,
         ondelete="restrict",
     )
     model_id = fields.Many2one(
         "llm.model",
         string="Model",
-        required=True,
         domain="[('provider_id', '=', provider_id), ('model_use', 'in', ['chat', 'multimodal'])]",
         ondelete="restrict",
     )
+
     active = fields.Boolean(default=True)
-    message_ids = fields.One2many(
-        comodel_name="mail.message",
-        inverse_name="res_id",
-        string="Messages",
-        domain=lambda self: [("model", "=", self._name)],
-    )
-    # same field names from mail.message model
+    # The message_ids field is now inherited from discuss.channel
+
+    # These fields are needed to link an LLM thread with another record (e.g., a sales order)
     model = fields.Char("Related Document Model")
     res_id = fields.Many2oneReference("Related Document ID", model_field="model")
 
@@ -84,23 +70,50 @@ class LLMThread(models.Model):
         string="Available Tools",
         help="Tools that can be used by the LLM in this thread",
     )
+    source = fields.Selection(
+        [
+            ("website_livechat", "Website Livechat"),
+            ("backend", "Backend"),
+            ("api", "API"),
+            # Add more sources as needed
+        ],
+        string="Source",
+        default="backend",
+        index=True,
+        help="Origin of the thread (e.g., website livechat, backend, API, etc.)",
+    )
+
+    # LLM enabled field - base computation depends on model_id
+    llm_enabled = fields.Boolean(
+        string="Enable AI Assistant",
+        compute="_compute_llm_enabled",
+        store=True,
+        help="Whether AI assistant is enabled for this channel",
+    )
+
+    @api.depends("model_id")
+    def _compute_llm_enabled(self):
+        for record in self:
+            record.llm_enabled = bool(record.model_id)
 
     @api.model_create_multi
     def create(self, vals_list):
         """Set default title and tools if not provided"""
         for vals in vals_list:
             if not vals.get("name"):
-                vals["name"] = f"Chat with {self.model_id.name}"  # type: ignore
-            
+                model_id = vals.get("model_id")
+                if model_id:
+                    model = self.env["llm.model"].browse(model_id)
+                    vals["name"] = f"Chat with {model.name}" if model.exists() else "New Chat"
+                else:
+                    vals["name"] = "New Chat"
+
             # Set default tools if not explicitly provided
             if "tool_ids" not in vals:
-                default_tools = self.env["llm.tool"].search([
-                    ("active", "=", True),
-                    ("default", "=", True)
-                ])
+                default_tools = self.env["llm.tool"].search([("active", "=", True), ("default", "=", True)])
                 if default_tools:
                     vals["tool_ids"] = [(6, 0, default_tools.ids)]
-        
+
         return super().create(vals_list)
 
     def _post_message(self, **kwargs):
@@ -118,11 +131,11 @@ class LLMThread(models.Model):
             kwargs.get("tool_name"),
         )
         post_vals = self.build_post_vals(subtype_xmlid, body, author_id, email_from)
- 
+
         message = self.message_post(**post_vals)
 
         extra_vals = self.build_update_vals(**kwargs)
-        
+
         if extra_vals:
             message.write(extra_vals)
         return message
@@ -150,9 +163,7 @@ class LLMThread(models.Model):
             ("message_type", "=", "comment"),
             ("subtype_id", "in", subtype_ids),
         ]
-        messages = self.env["mail.message"].search(
-            domain, order=order_clause, limit=limit
-        )
+        messages = self.env["mail.message"].search(domain, order=order_clause, limit=limit)
         return messages
 
     def _get_last_message_from_history(self):
@@ -181,10 +192,7 @@ class LLMThread(models.Model):
         """Whether to keep looping on the last_message."""
         if not last_message:
             return False
-        if (
-            last_message.is_llm_user_message()
-            or last_message.is_llm_tool_result_message()
-        ):
+        if last_message.is_llm_user_message() or last_message.is_llm_tool_result_message():
             return True
         if last_message.is_llm_assistant_message() and last_message.tool_calls:
             return True
@@ -192,10 +200,7 @@ class LLMThread(models.Model):
 
     def _next_step(self, last_message):
         """Dispatch to the next generator based on message type."""
-        if (
-            last_message.is_llm_user_message()
-            or last_message.is_llm_tool_result_message()
-        ):
+        if last_message.is_llm_user_message() or last_message.is_llm_tool_result_message():
             return self._get_assistant_response()
         if last_message.is_llm_assistant_message() and last_message.tool_calls:
             return self._process_tool_calls(last_message)
@@ -204,9 +209,7 @@ class LLMThread(models.Model):
     def generate(self, user_message_body, **kwargs):
         self.ensure_one()
         if self.is_locked:
-            raise UserError(
-                _("This thread is already generating a response. Please wait.")
-            )
+            raise UserError(_("This thread is already generating a response. Please wait."))
         self._lock()
 
         try:
@@ -285,35 +288,32 @@ class LLMThread(models.Model):
         if not tool:
             raise UserError(f"Tool '{tool_name}' not found in this thread")
         arguments = json.loads(arguments_str)
-        
+
         # Automatically inject thread_id for tools that need it
         # Check if the tool's execute method accepts thread_id parameter
         impl_method_name = f"{tool.implementation}_execute"
         if hasattr(tool, impl_method_name):
             method = getattr(tool, impl_method_name)
             import inspect
+
             sig = inspect.signature(method)
-            if 'thread_id' in sig.parameters:
-                arguments['thread_id'] = self.id
-        
+            if "thread_id" in sig.parameters:
+                arguments["thread_id"] = self.id
+
         return tool.execute(arguments)
 
     def _lock(self):
         """Acquires a lock on the thread, ensuring immediate commit."""
         self.ensure_one()
-        if self._read_is_locked_decorated():
-            raise UserError(
-                _(
-                    "Lock Error: This thread is already generating a response. Please wait."
-                )
-            )
-        self._write_vals_decorated({"is_locked": True})
+        if self._read_is_locked_decorated():  # pyright:ignore
+            raise UserError(_("Lock Error: This thread is already generating a response. Please wait."))
+        self._write_vals_decorated({"is_locked": True})  # pyright:ignore
 
     def _unlock(self):
         """Releases the lock on the thread, ensuring immediate commit."""
         self.ensure_one()
-        if self._read_is_locked_decorated():
-            self._write_vals_decorated({"is_locked": False})
+        if self._read_is_locked_decorated():  # pyright:ignore
+            self._write_vals_decorated({"is_locked": False})  # pyright:ignore
 
     @execute_with_new_cursor
     def _read_is_locked_decorated(self, record_in_new_env):
@@ -332,7 +332,7 @@ class LLMThread(models.Model):
             message_content (str): The message content to send
 
         Returns:
-            dict: Success status and message info
+            dict: Success status and the posted message
         """
 
         try:
@@ -348,33 +348,23 @@ class LLMThread(models.Model):
             # Trigger AI response generation in the background
             # We don't pass user_message_body since we already posted it
             try:
-                
+
                 list(self.generate(None))  # Convert generator to list to fully execute it
-                
+
             except Exception as gen_error:
                 # Log the generation error but don't fail the message sending
                 _logger.error("Failed to generate AI response for thread %s: %s", self.id, gen_error)
-            
-            return {
-                'success': True,
-                'message_id': message.id,
-                'message': 'Message sent successfully'
-            }
-            
+
+            return {"success": True, "message_id": message.id, "message": "Message sent successfully"}
+
         except Exception as e:
             _logger.error("Failed to send message to thread %s: %s", self.id, e)
-            return {
-                'success': False,
-                'error': str(e),
-                'message': 'Failed to send message'
-            }
+            return {"success": False, "error": str(e), "message": "Failed to send message"}
 
     @api.ondelete(at_uninstall=False)
     def _unlink_llm_thread(self):
         unlink_ids = [record.id for record in self]
-        self.env["bus.bus"]._sendone(
-            self.env.user.partner_id, "llm.thread/delete", {"ids": unlink_ids}
-        )
+        self.env["bus.bus"]._sendone(self.env.user.partner_id, "llm.thread/delete", {"ids": unlink_ids})
 
     @api.model
     def get_email_from(
@@ -400,16 +390,15 @@ class LLMThread(models.Model):
         """Process message body content - keep as plain text to avoid HTML encoding issues."""
         if not body:
             return body
-            
+
         # Just apply emoji processing, no HTML conversion
         return emoji.demojize(body)
 
     @api.model
     def build_post_vals(self, subtype_xmlid, body, author_id, email_from):
-        # Debug logging to track HTML encoding issue
-        original_body = body
+        # Process the message body to handle emojis
         processed_body = self._process_message_body(body)
-        
+
         return {
             "body": processed_body,
             "message_type": "comment",
@@ -442,17 +431,17 @@ class LLMThread(models.Model):
     @api.model
     def get_thread_from_context(self):
         """
-        Try to get the llm.thread from the context.
+        Try to get the thread from the context.
         This is useful when the template is used in a thread context.
 
         Returns:
-            llm.thread recordset or False
+            discuss.channel recordset or False
         """
 
         # Check if we have a thread_id in the context
         thread_id = self.env.context.get("thread_id", False)
         if thread_id:
-            thread = self.env["llm.thread"].browse(thread_id).exists()
+            thread = self.env["discuss.channel"].browse(thread_id).exists()
             if thread:
                 return thread
             else:
@@ -461,82 +450,44 @@ class LLMThread(models.Model):
 
         return False
 
-    @api.model
-    def get_thread_and_assistant(self, thread_id, assistant_id=False):
-        """Get thread and assistant records by their IDs
-
-        Args:
-            thread_id (int): ID of the thread
-            assistant_id (int, optional): ID of the assistant, or False to clear
-
-        Returns:
-            tuple: (thread, assistant, error_response)
-                  If successful, error_response will be None
-                  If error, thread and/or assistant will be None
-        """
-        # Get thread
-        thread, error = self.get_thread_by_id(thread_id)
-        if error:
-            return None, None, error
-
-        # If no assistant_id, return just the thread
-        if not assistant_id:
-            return thread, None, None
-
-        # Get assistant from the assistant model
-        assistant, error = self.env["llm.assistant"].get_assistant_by_id(assistant_id)
-        if error:
-            return thread, None, error
-
-        return thread, assistant, None
-
     def reset_to_defaults(self):
         """Reset thread to system default values
-        
+
         Returns:
             bool: True if successful
         """
         self.ensure_one()
-        
+
         # Get default provider
-        default_provider = self.env["llm.provider"].search(
-            [("active", "=", True)], 
-            limit=1
-        )
-        
+        default_provider = self.env["llm.provider"].search([("active", "=", True)], limit=1)
+
         # Get default model
         default_model = None
         if default_provider:
-            default_models = self.env["llm.model"].search([
-                ("provider_id", "=", default_provider.id),
-                ("default", "=", True),
-                ("model_use", "=", "chat")
-            ], limit=1)
-            
+            default_models = self.env["llm.model"].search(
+                [("provider_id", "=", default_provider.id), ("default", "=", True), ("model_use", "=", "chat")], limit=1
+            )
+
             if not default_models:
                 # Fallback to any chat model for this provider
-                default_models = self.env["llm.model"].search([
-                    ("provider_id", "=", default_provider.id),
-                    ("model_use", "=", "chat")
-                ], limit=1)
-            
+                default_models = self.env["llm.model"].search([("provider_id", "=", default_provider.id), ("model_use", "=", "chat")], limit=1)
+
             default_model = default_models[0] if default_models else None
-        
+
         # Get default tools
-        default_tools = self.env["llm.tool"].search([
-            ("active", "=", True),
-            ("default", "=", True)
-        ])
-        
+        default_tools = self.env["llm.tool"].search([("active", "=", True), ("default", "=", True)])
+
         # Build update values
-        update_vals = {
-            "tool_ids": [(6, 0, default_tools.ids)],
-        }
-        
+        update_vals = {}
+
+        # Set tools with proper many2many format
+        if default_tools:
+            update_vals["tool_ids"] = [(6, 0, default_tools.ids)]
+
         # Set default provider and model if found
         if default_provider:
             update_vals["provider_id"] = default_provider.id
         if default_model:
             update_vals["model_id"] = default_model.id
-        
+
         return self.write(update_vals)

@@ -86,13 +86,31 @@ Dynamic dispatch pattern for tool-triggered actions:
 ```python
 def _process_flow_action_forward_to_operator(self, response_data):
     """Handle operator handover request"""
+    # Transitions to the forward_operator step
+    # Returns (next_step, {'reason': reason})
     
 def _process_flow_action_phone_callback(self, response_data):
     """Handle phone callback scheduling"""
+    # Collects phone information
+    # Returns (phone_step, params)
     
 def _process_flow_action_create_ticket(self, response_data):
     """Handle ticket creation"""
+    # Creates support ticket
+    # Returns (confirmation_step, params)
 ```
+
+**Extensibility Pattern:**
+This module uses method name dispatch similar to Odoo's standard patterns:
+1. Tools return responses with `flow_action` field
+2. System looks for `_process_flow_action_{action_name}` method
+3. If found, calls it with response data
+4. Method returns `(next_step, params_dict)`
+
+To add new flow actions in other modules:
+1. Define action in `FlowAction` enum
+2. Add handler method following naming convention
+3. Return appropriate step and parameters
 
 ##### `process_llm_step(discuss_channel, user_input)`
 ```python
@@ -154,6 +172,61 @@ When context contains `from_website_livechat=True`:
 - Sets `source='website_livechat'`
 - Auto-fills provider, model, prompt from assistant
 - Copies tool configuration
+
+### llm.tool (Livechat Handover)
+
+**Inherits:** `llm.tool`
+
+Provides a specialized tool for handing over conversations to human operators.
+
+#### Implementation
+
+```python
+def livechat_handover_execute(
+    self,
+    reason: str = "",
+    thread_id: Optional[int] = None,
+    urgent: bool = False,
+) -> Dict[str, Any]:
+    """Handover a livechat conversation to a human operator"""
+```
+
+**Parameters:**
+- `reason`: The reason for handover (shown to operator)
+- `thread_id`: ID of the thread requesting handover
+- `urgent`: Priority flag for urgent requests
+
+**Returns:** StandardToolResponse with:
+- `flow_action`: `FORWARD_TO_OPERATOR`
+- `message`: Handover message for the user
+- `flow_params`: Additional parameters for the flow
+
+### llm.tool (Phone Handover)
+
+**Inherits:** `llm.tool`
+
+Provides a tool for scheduling phone callbacks.
+
+#### Implementation
+
+```python
+def phone_handover_execute(
+    self,
+    phone_number: str = "",
+    preferred_time: str = "",
+    reason: str = "",
+    thread_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Schedule a phone callback with the customer"""
+```
+
+**Parameters:**
+- `phone_number`: Customer's phone number
+- `preferred_time`: When to call back
+- `reason`: Purpose of the callback
+- `thread_id`: Associated thread ID
+
+**Returns:** StandardToolResponse with phone callback flow
 
 ## Relationships
 

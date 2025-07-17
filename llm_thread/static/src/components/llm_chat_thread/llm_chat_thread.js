@@ -192,7 +192,7 @@ export class LLMChatThread extends Component {
         // Create thread object for Odoo's mail system
         this.state.thread = this.store.Thread.insert({
             id: threadId,
-            model: "llm.thread",
+            model: "discuss.channel",
             name: threadData.name || threadData.display_name || "LLM Chat",
             displayName: threadData.name || threadData.display_name || "LLM Chat",
         });
@@ -224,7 +224,7 @@ export class LLMChatThread extends Component {
 
         try {
             const result = await this.rpc("/mail/thread/messages", {
-                thread_model: "llm.thread",
+                thread_model: "discuss.channel",
                 thread_id: threadId,
                 limit: 30,
             });
@@ -264,7 +264,7 @@ export class LLMChatThread extends Component {
 
         try {
             const result = await this.rpc("/mail/thread/messages", {
-                thread_model: "llm.thread",
+                thread_model: "discuss.channel",
                 thread_id: threadId,
                 max_id: oldestMessage.id,
                 limit: 30,

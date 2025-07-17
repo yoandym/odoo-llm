@@ -322,7 +322,7 @@ export class LLMChatThreadHeader extends Component {
      */
     async updateThreadSettings(values) {
         try {
-            await this.orm.write("llm.thread", [this.props.thread.id], values);
+            await this.orm.write("discuss.channel", [this.props.thread.id], values);
 
             // Refresh thread in llmChat
             await this.llmChat.refreshThread(this.props.thread.id);

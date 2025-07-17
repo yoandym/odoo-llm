@@ -12,7 +12,89 @@ The livechat functionality in Odoo is provided by several interconnected modules
 - **discuss**: Chat interface and channel management
 - **website**: Web frontend integration
 
-## Core Components
+## Key Features
+
+### 1. Multi-Channel Support
+- Multiple livechat channels with different configurations
+- Channel-specific operators and rules
+- Independent chatbot scripts per channel
+
+### 2. Visitor Tracking
+- Anonymous visitor identification using cookies
+- Persistent visitor history across sessions
+- Geographic detection via GeoIP
+
+### 3. Operator Management
+- Operator availability status
+- Automatic distribution of chats
+- Operator chat capacity limits
+- Away/offline handling
+
+### 4. Chatbot Capabilities
+- Visual script builder
+- Multiple step types:
+  - Text: Simple messages
+  - Question: Multiple choice
+  - Email: Email collection with validation
+  - Phone: Phone number collection
+  - Forward to Operator: Human handover
+- Conditional logic and branching
+- Integration with other Odoo apps (CRM, Helpdesk)
+
+### 5. Session Persistence
+- Chat history preservation
+- Visitor context maintenance
+- Conversation resumption
+
+
+## High-Level Architecture
+
+```{mermaid}
+graph TB
+    subgraph "Frontend Layer"
+        WV[Website Visitor]
+        LCB[LiveChat Button]
+        LCW[LiveChat Window]
+        CSS[ChatbotService]
+    end
+    
+    subgraph "Controller Layer"
+        LC[LivechatController]
+        LCBC[ChatbotScriptController]
+    end
+    
+    subgraph "Model Layer"
+        LCC[im_livechat.channel]
+        LCCR[im_livechat.channel.rule]
+        CBS[chatbot.script]
+        CSS2[chatbot.script.step]
+        WVS[website.visitor]
+        DC[discuss.channel]
+    end
+    
+    WV -->|Interacts With| LCB
+    LCB -->|Opens| LCW
+    LCW -->|Uses| CSS
+    
+    LCB -->|Init| LC
+    CSS -->|Process Steps| LCBC
+    
+    LC -->|Creates/Manages| DC
+    LC -->|Follows| LCCR
+    LCCR -->|Belongs To| LCC
+    LCCR -->|References| CBS
+    CBS -->|Contains| CSS2
+    LC -->|Links To| WVS
+    DC -->|References| WVS
+    
+    classDef frontend fill:#e3f2fd,stroke:#1976d2
+    classDef controller fill:#f3e5f5,stroke:#7b1fa2
+    classDef model fill:#e8f5e9,stroke:#388e3c
+    
+    class WV,LCB,LCW,CSS frontend
+    class LC,LCBC controller
+    class LCC,LCCR,CBS,CSS2,WVS,DC model
+```
 
 ### 1. Models
 
@@ -105,36 +187,65 @@ classDiagram
     note for ChatbotMessages "Renders bot messages and options"
 ```
 
-## Data Flow
+## Relevant Sequences
 
 ### 1. Initialization Sequence
 
 ```
 1. Visitor loads website page
-2. LivechatService calls /im_livechat/init
-3. Server checks matching rules (URL, country, etc.)
-4. Returns channel configuration if rule matches
-5. Frontend displays chat button based on settings
-6. Creates discuss.channel when chat starts
-7. Frontend calls /chatbot/post_welcome_steps to post initial bot message(s)
+2. LivechatService.initialize() calls /im_livechat/init
+3. Server checks matching livechat channel rules
+4. Returns channel configuration and availability if a rule matches
+5. Frontend creates LivechatButton component based on settings
+6. User clicks chat button which calls ThreadService.openChat()
+7. ThreadService.openChat() calls LivechatService.getOrCreateThread()
+8. LivechatService calls /im_livechat/get_session to create a discuss.channel
+9. ChatBotService.start() runs to begin the chatbot flow
+10. ChatBotService.postWelcomeSteps() calls /chatbot/post_welcome_steps
+11. ChatBotService._triggerNextStep() begins the conversation
 ```
 
 ```{mermaid}
+:zoom:
 sequenceDiagram
-    participant V as Visitor
-    participant F as Frontend
-    participant S as Server
-    participant DC as discuss.channel
-    V->>F: Load website page
-    F->>S: /im_livechat/init
-    S->>S: Check matching rules
-    S-->>F: Return channel config
-    F->>V: Display chat button
-    V->>F: Start chat
-    F->>S: Create discuss.channel
-    S->>DC: Create channel
-    F->>S: /chatbot/post_welcome_steps
-    S->>DC: Post welcome steps
+    participant Visitor
+    participant LivechatButton
+    participant ThreadService
+    participant LivechatService
+    participant ChatBotService
+    participant Server
+    participant DiscussChannel
+    
+    Visitor->>LivechatButton: Load page with widget
+    LivechatButton->>LivechatService: initialize()
+    LivechatService->>Server: rpc("/im_livechat/init", {channel_id})
+    Server->>Server: Check im_livechat.channel.rule entries
+    Server-->>LivechatService: {available: true, rule: {...}}
+    LivechatService->>LivechatButton: Display button (available=true)
+    
+    Visitor->>LivechatButton: Click chat button
+    LivechatButton->>ThreadService: onClick() → openChat()
+    ThreadService->>LivechatService: getOrCreateThread({persist: false})
+    
+    alt No existing thread
+        LivechatService->>Server: rpc("/im_livechat/get_session", {channel_id, anonymous_name})
+        Server->>DiscussChannel: create()
+        Server-->>LivechatService: {channel: {id, uuid, operator_pid, ...}}
+        LivechatService->>LivechatService: updateSession(threadData)
+        LivechatService->>LivechatService: store.Thread.insert({...})
+    end
+    
+    ThreadService->>ChatBotService: start()
+    
+    alt Has chatbot script
+        ChatBotService->>ChatBotService: postWelcomeSteps()
+        ChatBotService->>Server: rpc("/chatbot/post_welcome_steps", {channel_uuid, chatbot_script_id})
+        Server->>DiscussChannel: _post_welcome_steps()
+        Server-->>ChatBotService: [{message_1}, {message_2}, ...]
+        ChatBotService->>ChatBotService: _triggerNextStep()
+        ChatBotService->>Server: rpc("/chatbot/step/trigger", {channel_uuid})
+        Server-->>ChatBotService: {chatbot_posted_message, chatbot_step}
+    end
 ```
 
 ### 2. Message Flow
@@ -194,41 +305,8 @@ sequenceDiagram
     CSS->>CSS: Handle special actions
 ```
 
-## Key Features
 
-### 1. Multi-Channel Support
-- Multiple livechat channels with different configurations
-- Channel-specific operators and rules
-- Independent chatbot scripts per channel
-
-### 2. Visitor Tracking
-- Anonymous visitor identification using cookies
-- Persistent visitor history across sessions
-- Geographic detection via GeoIP
-
-### 3. Operator Management
-- Operator availability status
-- Automatic distribution of chats
-- Operator chat capacity limits
-- Away/offline handling
-
-### 4. Chatbot Capabilities
-- Visual script builder
-- Multiple step types:
-  - Text: Simple messages
-  - Question: Multiple choice
-  - Email: Email collection with validation
-  - Phone: Phone number collection
-  - Forward to Operator: Human handover
-- Conditional logic and branching
-- Integration with other Odoo apps (CRM, Helpdesk)
-
-### 5. Session Persistence
-- Chat history preservation
-- Visitor context maintenance
-- Conversation resumption
-
-## Security Model
+## Security
 
 ### 1. Access Rights
 - Public users: Limited to their own chat sessions
@@ -275,15 +353,3 @@ sequenceDiagram
 - Operator load balancing
 - Channel capacity management
 - Database query optimization
-
-## Extension Points
-
-The im_livechat module is designed to be extended by other modules:
-
-1. **Model Inheritance**: Extend core models with new fields
-2. **Controller Override**: Modify endpoints behavior
-3. **JavaScript Extension**: Patch frontend services
-4. **View Inheritance**: Customize UI components
-5. **Chatbot Step Types**: Add custom step types
-
-This architecture provides a solid foundation for real-time customer communication while maintaining flexibility for customization and integration with other Odoo modules.
