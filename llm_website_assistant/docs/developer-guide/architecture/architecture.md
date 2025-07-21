@@ -209,50 +209,7 @@ The module uses a clean separation of concerns with patched services and a new c
 
 #### Service Architecture
 
-```javascript
-// llm_livechat_service.js - Handles all network/thread operations
-patch(LivechatService.prototype, {
-    // Thread management
-    async getOrCreateLLMThread(channelId, assistantId) { },
-    async startLLMStreaming(threadId, message) { },
-    async processLLMMessage(message, assistantId) { },
-    cleanupLLMResources(channelId) { }
-});
 
-// llm_chatbot_service.js - Focuses only on script flow
-patch(ChatbotService.prototype, {
-    async _processUserAnswer(message) {
-        if (this._isLLMStep()) {
-            // Processes LLM step directly
-            return this.processLLMStep({...});
-        }
-        return super._processUserAnswer(message);
-    }
-});
-
-// Note: LLM Coordinator Service has been removed, with its functionality moved to:
-// - ChatBotService (processLLMStep)
-// - LivechatService (handleStreamingMessage)
-            cleanup(channelId) { }
-        };
-    }
-};
-
-// livechat_button_extension.js - Pure UI component
-patch(LivechatButton.prototype, {
-    // Only visual state management
-    state: {
-        isLLMEnabled: false,
-        showTypingIndicator: false
-    },
-    // Delegates all logic to coordinator
-    onMessage(ev) {
-        if (this.state.isLLMEnabled) {
-            this.livechatService.handleStreamingMessage({...});
-        }
-    }
-});
-```
 
 #### Key Design Principles
 

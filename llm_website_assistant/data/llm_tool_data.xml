@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Register the Livechat Handover Tool -->
+        <record id="llm_tool_livechat_handover" model="llm.tool">
+            <field name="name">livechat_handover</field>
+            <field name="implementation">livechat_handover</field>
+            <field name="description">Request handover to a human operator for the current livechat conversation. Use this tool when you determine that a human should take over the conversation, such as when dealing with complex issues, sensitive matters, or when specifically requested by the user.</field>
+            <field name="user_description">I can transfer your conversation to a human operator when needed.</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- Register the Phone Handover Tool -->
+        <record id="llm_tool_phone_handover" model="llm.tool">
+            <field name="name">phone_handover</field>
+            <field name="implementation">phone_handover</field>
+            <field name="description">Create a phone callback request when a user prefers to be contacted by phone rather than chat. This creates a to-do item for an operator to call the user back.</field>
+            <field name="user_description">I can arrange for a support representative to call you back at your preferred phone number.</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

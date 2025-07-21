@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add fields to the assistant form -->
+    <record id="view_llm_assistant_form_inherit_website" model="ir.ui.view">
+        <field name="name">llm.assistant.form.inherit.website</field>
+        <field name="model">llm.assistant</field>
+        <field name="inherit_id" ref="llm_assistant.view_llm_assistant_form"/>
+        <field name="arch" type="xml">
+            <!-- Add website visibility field -->
+            <xpath expr="//field[@name='is_default']" position="after">
+                <field name="is_website_visible"/>
+            </xpath>
+
+            <!-- Add website tab with knowledge collection restrictions -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Website Settings" name="website_settings">
+                    <group>
+                        <group string="Knowledge Access">
+                            <field name="allowed_knowledge_collection_ids" widget="many2many_tags"/>
+                            <div class="alert alert-info" role="alert">
+                                <p>
+                                    <i class="fa fa-info-circle"/>
+ If no collections are selected, the assistant will not have access to any knowledge.</p>
+                            </div>
+                        </group>
+                        <group string="Stats">
+                            <field name="website_session_count"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add is_website_visible to search view -->
+    <record id="view_llm_assistant_search_inherit_website" model="ir.ui.view">
+        <field name="name">llm.assistant.search.inherit.website</field>
+        <field name="model">llm.assistant</field>
+        <field name="inherit_id" ref="llm_assistant.view_llm_assistant_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='inactive']" position="before">
+                <filter string="Website Visible" name="website_visible" domain="[('is_website_visible', '=', True)]"/>
+                <separator/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

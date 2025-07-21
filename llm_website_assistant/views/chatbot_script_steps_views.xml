@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Extend chatbot script step form to add LLM step option -->
+    <record id="chatbot_script_step_view_form_llm" model="ir.ui.view">
+        <field name="name">chatbot.script.step.form.llm</field>
+        <field name="model">chatbot.script.step</field>
+        <field name="inherit_id" ref="im_livechat.chatbot_script_step_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='step_type']" position="attributes">
+                <attribute name="widget">radio</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='message']" position="attributes">
+                <attribute name="required">step_type not in ['forward_operator', 'llm_processed_input']</attribute>
+            </xpath>
+            
+            <xpath expr="//field[@name='message']" position="after">
+                <div class="alert alert-info"  role="alert" invisible="step_type != 'llm_processed_input'">
+                    <strong>LLM Processed Input: </strong>This step will use an AI assistant to respond to the visitor's messages.
+                    Make sure to configure an AI assistant on the livechat channel settings.
+                </div>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Extend chatbot script form to add LLM assistant configuration -->
+    <record id="chatbot_script_view_form_llm" model="ir.ui.view">
+        <field name="name">chatbot.script.form.llm</field>
+        <field name="model">chatbot.script</field>
+        <field name="inherit_id" ref="im_livechat.chatbot_script_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="before">
+                <group name="llm_config" string="AI Assistant Configuration">
+                    <field name="llm_assistant_id" options="{'no_create': True}" />
+                    <div class="text-muted">
+                        This assistant will be used for all LLM Processed Input steps in this script.
+                        If not set here, the livechat channel's assistant will be used.
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

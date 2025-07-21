@@ -281,28 +281,82 @@ sequenceDiagram
 
 ### 3. Chatbot Processing
 
-```
-1. User input triggers /chatbot/step/trigger
-2. Current step validates input
-3. Determines next step based on answer/logic
-4. Posts bot message for next step
-5. Updates conversation state
-6. Handles special actions (operator handover, etc.)
-```
+
+1. User submits a message via the chat interface
+2. ChatbotService processes the message via `_processUserAnswer()`
+3. Service sends a request to `/chatbot/step/trigger` endpoint
+4. ChatbotScriptController (`chatbot_trigger_step()`) retrieves the latest user message
+5. Current step processes the answer via `_process_answer()` method
+6. System determines the next appropriate step based on user input
+7. Next step executes `_process_step()` to generate bot response
+8. Controller returns the step data and message to frontend
+9. ChatbotService updates the thread with new messages and saves state
+10. Special step types (email validation, operator forwarding) trigger additional actions
 
 ```{mermaid}
+:zoom:
 sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant CBC as ChatbotController
-    participant CSS as ChatbotScriptStep
-    U->>F: Input message
-    F->>CBC: /chatbot/step/trigger
-    CBC->>CSS: Validate input
-    CSS->>CSS: Determine next step
-    CSS-->>CBC: Bot message for next step
-    CBC-->>F: Update state
-    CSS->>CSS: Handle special actions
+    participant User
+    participant ChatWindow as LivechatWindow Component
+    participant ChatbotSvc as ChatbotService
+    participant LivechatSvc as LivechatService
+    participant Controller as ChatbotScriptController
+    participant DiscussChannel as discuss.channel
+    participant Step as chatbot.script.step
+
+    User->>ChatWindow: Submit message
+    ChatWindow->>ChatbotSvc: bus.addEventListener("MESSAGE_POST")
+    
+    alt Multi-line input step
+        ChatbotSvc->>ChatbotSvc: debouncedProcessUserAnswer(message)
+    else Other step types
+        ChatbotSvc->>ChatbotSvc: _processUserAnswer(message)
+    end
+    
+    Note over ChatbotSvc: Process user answer
+    ChatbotSvc->>ChatbotSvc: currentStep.hasAnswer = true
+    ChatbotSvc->>ChatbotSvc: save() to localStorage
+    
+    alt Selected answer has redirect
+        ChatbotSvc->>ChatbotSvc: browser.location.assign(answer.redirectLink)
+    end
+    
+    ChatbotSvc->>Controller: rpc("/chatbot/answer/save", {channel_uuid, message_id, selected_answer_id})
+    ChatbotSvc->>ChatbotSvc: _triggerNextStep()
+    ChatbotSvc->>ChatbotSvc: isTyping = true (simulate bot typing)
+    
+    Note over ChatbotSvc: After MESSAGE_DELAY
+    ChatbotSvc->>ChatbotSvc: _getNextStep()
+    ChatbotSvc->>Controller: rpc("/chatbot/step/trigger", {channel_uuid, chatbot_script_id})
+    Controller->>DiscussChannel: Find channel by UUID
+    Controller->>Step: currentStep._process_answer(channel, user_message.body)
+    Step->>Step: Determine next step based on logic
+    
+    alt Next step exists
+        Step->>Step: _process_step(discuss_channel)
+        Step-->>Controller: Generate bot message
+        Controller-->>ChatbotSvc: {chatbot_posted_message, chatbot_step}
+    end
+    
+    ChatbotSvc->>ChatbotSvc: isTyping = false
+    ChatbotSvc->>LivechatSvc: thread.messages.add(stepMessage)
+    ChatbotSvc->>ChatbotSvc: currentStep = step
+    
+    alt Special step: Email validation
+        ChatbotSvc->>ChatbotSvc: validateEmail()
+        ChatbotSvc->>Controller: rpc("/chatbot/step/validate_email", {channel_uuid})
+        Controller->>DiscussChannel: _validate_email(message.body, channel)
+        Controller-->>ChatbotSvc: {success, posted_message}
+        ChatbotSvc->>LivechatSvc: thread.messages.add(validationMessage)
+    end
+    
+    ChatbotSvc->>ChatbotSvc: save() state to localStorage
+    
+    alt Step expects answer
+        Note over ChatbotSvc: Wait for user input
+    else No answer expected
+        ChatbotSvc->>ChatbotSvc: _triggerNextStep() after STEP_DELAY
+    end
 ```
 
 

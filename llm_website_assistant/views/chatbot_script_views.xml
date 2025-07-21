@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add LLM assistant fields to the chatbot script form -->
+    <record id="chatbot_script_view_form_inherit" model="ir.ui.view">
+        <field name="name">chatbot.script.form.inherit.llm_website_assistant</field>
+        <field name="model">chatbot.script</field>
+        <field name="inherit_id" ref="im_livechat.chatbot_script_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Add LLM assistant settings group -->
+            <xpath expr="//field[@name='title']/.." position="after">
+                <group string="AI Assistant Configuration">
+                    <field name="is_llm_enabled"/>
+                    <field name="llm_assistant_id" options="{'no_create': True}" invisible="not is_llm_enabled"/>
+                </group>
+                <div class="alert alert-warning" role="alert">
+                    <p>
+                        <i class="fa fa-exclamation-triangle"/>
+                        When using an AI assistant, you need to create appropriate steps for your chatbot.
+                    </p>
+                </div>
+                <button name="action_create_llm_steps" type="object"
+                    string="Generate AI Assistant Steps" class="btn btn-primary"
+                    invisible="script_step_ids or not is_llm_enabled or not llm_assistant_id"/>
+                <button name="action_create_llm_steps" type="object"
+                    string="Reset AI Assistant Steps" class="btn btn-primary"
+                    invisible="not script_step_ids or not is_llm_enabled or not llm_assistant_id"/>
+
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add is_llm_enabled to list view -->
+    <record id="chatbot_script_view_tree_inherit" model="ir.ui.view">
+        <field name="name">chatbot.script.tree.inherit.llm_website_assistant</field>
+        <field name="model">chatbot.script</field>
+        <field name="inherit_id" ref="im_livechat.chatbot_script_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='title']" position="after">
+                <field name="is_llm_enabled"/>
+                <field name="llm_assistant_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

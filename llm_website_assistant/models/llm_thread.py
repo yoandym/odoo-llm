@@ -1,7 +1,7 @@
 from odoo import api, models
 
 
-class LLMThreadWebsiteAssistant(models.Model):
+class LLMThread(models.Model):
     _inherit = "discuss.channel"
 
     @api.model_create_multi
