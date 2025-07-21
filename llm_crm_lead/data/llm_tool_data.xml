@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Register the CRM Lead Creation Tool -->
+        <record id="llm_tool_crm_lead" model="llm.tool">
+            <field name="name">crm_lead</field>
+            <field name="implementation">crm_lead</field>
+            <field name="description">Create a CRM lead from an LLM conversation. This tool should only be used when the conversation has a clear commercial context and the customer is expressing interest in products, services, or requesting a quote. Do not use for general inquiries, technical support, or non-commercial conversations.</field>
+            <field name="user_description">I can create a lead in our CRM system to ensure our sales team follows up with you.</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>
