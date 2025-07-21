@@ -67,8 +67,6 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.js",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.xml",
             "llm_thread/static/src/components/llm_chat_composer/llm_chat_composer.scss",
-            # Removed llm_chat_message_list - using Odoo's ThreadView
-            # Removed llm_message - using Odoo's Message with patches
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.js",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.xml",
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
