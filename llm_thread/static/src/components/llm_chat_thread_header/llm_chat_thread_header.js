@@ -30,10 +30,8 @@ export class LLMChatThreadHeader extends Component {
 
     setup() {
 
-        // Services
-        this.llmChatService = useService("llm_chat");
         // Use useState to make the service reactive in this component
-        this.llmChat = useState(this.llmChatService);
+        this.llmChat = useState(useService("llm_chat"));
 
         this.notificationService = useService("notification");
         this.uiService = useService("ui");
@@ -52,11 +50,12 @@ export class LLMChatThreadHeader extends Component {
             // Model selection
             selectedProviderId: this.props.thread?.llmModel?.llmProvider?.id || null,
             selectedModelId: this.props.thread?.llmModel?.id || null,
-            modelSearchQuery: "",
-            isModelDropdownOpen: false,
 
             // Tool selection
             selectedToolIds: [...(this.props.thread?.selectedToolIds || [])],
+
+            modelSearchQuery: "",
+            isModelDropdownOpen: false,
 
             // UI state
             isSaving: false,

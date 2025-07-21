@@ -38,14 +38,19 @@ class LLMThread(models.Model):
                     vals["assistant_id"] = default_assistant.id
 
                     # Also set provider, model and tools for consistency
-                    if default_assistant.provider_id and not vals.get("provider_id"):
+                    if default_assistant.provider_id:
                         vals["provider_id"] = default_assistant.provider_id.id
 
-                    if default_assistant.model_id and not vals.get("model_id"):
+                    if default_assistant.model_id:
                         vals["model_id"] = default_assistant.model_id.id
 
-                    if default_assistant.tool_ids and not vals.get("tool_ids"):
+                    if default_assistant.tool_ids:
                         vals["tool_ids"] = [(6, 0, default_assistant.tool_ids.ids)]
+
+                    # Set default name if not provided
+                    if not vals.get("name"):
+                        vals["name"] = f"Chat with {default_assistant.name}"
+
                 else:
                     # No assistant found, show clear error
                     raise ValidationError(_("Cannot create chat thread: No assistants available. " "Please create at least one assistant first."))

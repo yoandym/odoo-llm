@@ -5,6 +5,25 @@ import { reactive } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 
 /**
+ * Global thread search fields for LLM chat service.
+ * Can be patched/extended by other modules if needed.
+ * By default, does NOT include assistant_id. Assistant modules should extend this array.
+ */
+export const THREAD_SEARCH_FIELDS = [
+    "name",
+    "message_ids",
+    "create_uid",
+    "create_date",
+    "write_date",
+    "model_id",
+    "provider_id",
+    "model",
+    "res_id",
+    "tool_ids",
+    "prompt_id",
+];
+
+/**
  * LLM Chat Service for Odoo v17
  * 
  * This service replaces the old messaging patch pattern from v16
@@ -55,12 +74,17 @@ export const LLMChatService = {
         const store = reactive({
             llmChat: {
                 llmChatView: null,
+
                 isInitThreadHandled: false,
                 initActiveId: null,
                 activeThread: null,
+
                 threads: [],
+                
                 llmModels: [],
-                tools: [],                // Methods
+                tools: [],  
+              
+                // Methods
                 async initializeLLMChat(actionData, initActiveId, postInitializationPromises = []) {
                     this.llmChatView = {
                         actionId: actionData.id,
@@ -147,21 +171,6 @@ export const LLMChatService = {
                         return;
                     }
 
-                    const THREAD_SEARCH_FIELDS = [
-                        "name",
-                        "message_ids",
-                        "create_uid",
-                        "create_date",
-                        "write_date",
-                        "model_id",
-                        "provider_id",
-                        "model",
-                        "res_id",
-                        "tool_ids",
-                        "assistant_id",
-                        "prompt_id",
-                    ];
-
                     // Allow extensions to add additional fields via event
                     const extendedFields = [...additionalFields];
                     env.bus.trigger("llm_chat:extend_load_fields", {
@@ -214,16 +223,6 @@ export const LLMChatService = {
                         };
                     }
 
-                    // Handle assistant data if present
-                    if (threadData.assistant_id) {
-                        mappedData.assistant_id = threadData.assistant_id[0];
-                        mappedData.assistant_name = threadData.assistant_id[1];
-                    } else {
-                        // Explicitly clear assistant data when not present
-                        mappedData.assistant_id = null;
-                        mappedData.assistant_name = null;
-                    }
-
                     // Handle prompt data if present
                     if (threadData.prompt_id) {
                         if (Array.isArray(threadData.prompt_id)) {
@@ -244,21 +243,6 @@ export const LLMChatService = {
                     return mappedData;
                 }, async refreshThread(threadId, additionalFields = []) {
                     try {
-                        const THREAD_SEARCH_FIELDS = [
-                            "name",
-                            "message_ids",
-                            "create_uid",
-                            "create_date",
-                            "write_date",
-                            "model_id",
-                            "provider_id",
-                            "model",
-                            "res_id",
-                            "tool_ids",
-                            "assistant_id",
-                            "prompt_id",
-                        ];
-
                         // Allow extensions to add additional fields via event
                         const extendedFields = [...additionalFields];
                         env.bus.trigger("llm_chat:extend_load_fields", {
@@ -334,38 +318,10 @@ export const LLMChatService = {
                 },
 
                 async createThread({ name, model, res_id }) {
-
-                    let defaultModel = this.defaultLLMModel;
-
-                    if (!defaultModel) {
-                        notification.add(
-                            _t("No default LLMModel. Using the first available model"),
-                            {
-                                title: _t("Warning"),
-                                type: "warning",
-                            }
-                        );
-                        // no default, so select the first available model
-                        if (this.llmModels.length > 0) {
-                            defaultModel = this.llmModels[0];
-                        } else {
-                            throw new Error("No LLM model available");
-                        }
-                    }
-
-                    // Get default tools
-                    const defaultTools = await this.getDefaultTools();
-
+                    // set minimal thread data, let the backend handle defaults
                     const threadData = {
                         name,
-                        model_id: defaultModel.id,
-                        provider_id: defaultModel.llmProvider.id,
                     };
-
-                    // Add default tools if any are found
-                    if (defaultTools.length > 0) {
-                        threadData.tool_ids = [[6, 0, defaultTools.map(tool => tool.id)]];
-                    }
 
                     if (model && res_id) {
                         threadData.model = model;
@@ -399,7 +355,7 @@ export const LLMChatService = {
                         name: threadDetails[0].name,
                         message_needaction_counter: 0,
                         isServerPinned: true,
-                        llmModel: defaultModel,
+                        llmModel: threadDetails[0].model_id,
                         updatedAt: threadDetails[0].write_date,
                         tool_ids: threadDetails[0].tool_ids || [],
                         selectedToolIds: threadDetails[0].tool_ids || [],
@@ -484,25 +440,6 @@ export const LLMChatService = {
                     }
                 },
 
-                async getDefaultTools() {
-                    try {
-                        const result = await orm.searchRead(
-                            "llm.tool",
-                            [["active", "=", true], ["default", "=", true]],
-                            ["name", "id", "title"]
-                        );
-
-                        return result.map(tool => ({
-                            id: tool.id,
-                            name: tool.name,
-                            title: tool.title,
-                        }));
-                    } catch (error) {
-                        console.error("Error loading default tools:", error);
-                        return [];
-                    }
-                },
-
                 async getMessages(threadId) {
                     try {
                         // First get the thread to get message IDs
@@ -572,51 +509,6 @@ export const LLMChatService = {
 
                     } catch (error) {
                         console.error("Error sending message to thread:", threadId, error);
-                        throw error;
-                    }
-                },
-
-                /**
-                 * Set an assistant for a thread
-                 * @param {number} threadId - Thread ID
-                 * @param {number} assistantId - Assistant ID
-                 */
-                async setThreadAssistant(threadId, assistantId) {
-                    try {
-
-                        await orm.write("discuss.channel", [threadId], {
-                            assistant_id: assistantId
-                        });
-
-                        // Refresh thread to get updated data including tools
-                        await this.refreshThread(threadId);
-
-
-                        return true;
-                    } catch (error) {
-                        console.error("Error setting thread assistant:", error);
-                        throw error;
-                    }
-                },
-
-                /**
-                 * Clear the assistant from a thread
-                 * @param {number} threadId - Thread ID
-                 */
-                async clearThreadAssistant(threadId) {
-                    try {
-
-                        await orm.write("discuss.channel", [threadId], {
-                            assistant_id: false
-                        });
-
-                        // Refresh thread to get updated data
-                        await this.refreshThread(threadId);
-
-
-                        return true;
-                    } catch (error) {
-                        console.error("Error clearing thread assistant:", error);
                         throw error;
                     }
                 },

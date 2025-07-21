@@ -98,8 +98,35 @@ class LLMThread(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Set default title and tools if not provided"""
+        """Set default title, provider, model, and tools if not provided"""
         for vals in vals_list:
+
+            # Set default provider if not explicitly provided
+            if "provider_id" not in vals:
+                default_provider = self.env["llm.provider"].search([("active", "=", True)], limit=1)
+                if default_provider:
+                    vals["provider_id"] = default_provider.id
+
+            # Set default model if not explicitly provided
+            if "provider_id" in vals and "model_id" not in vals:
+                provider_id = vals.get("provider_id")
+                default_models = self.env["llm.model"].search(
+                    [("provider_id", "=", provider_id), ("default", "=", True), ("model_use", "=", "chat")], limit=1
+                )
+                if not default_models:
+                    # Fallback to any chat model for this provider
+                    default_models = self.env["llm.model"].search([("provider_id", "=", provider_id), ("model_use", "=", "chat")], limit=1)
+                default_model = default_models[0] if default_models else None
+                if default_model:
+                    vals["model_id"] = default_model.id
+
+            # Set default tools if not explicitly provided
+            if "provider_id" in vals and "model_id" in vals and "tool_ids" not in vals:
+                default_tools = self.env["llm.tool"].search([("active", "=", True), ("default", "=", True)])
+                if default_tools:
+                    vals["tool_ids"] = [(6, 0, default_tools.ids)]
+
+            # Set default name if not provided
             if not vals.get("name"):
                 model_id = vals.get("model_id")
                 if model_id:
@@ -107,12 +134,6 @@ class LLMThread(models.Model):
                     vals["name"] = f"Chat with {model.name}" if model.exists() else "New Chat"
                 else:
                     vals["name"] = "New Chat"
-
-            # Set default tools if not explicitly provided
-            if "tool_ids" not in vals:
-                default_tools = self.env["llm.tool"].search([("active", "=", True), ("default", "=", True)])
-                if default_tools:
-                    vals["tool_ids"] = [(6, 0, default_tools.ids)]
 
         return super().create(vals_list)
 

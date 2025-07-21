@@ -6,35 +6,35 @@
         <xpath expr="//div[@id='providerDropdown']" position="before">
             <!-- LLM Assistant Dropdown (NEW) -->
             <div id="assistantDropdown" class="d-inline-block">
-                <Dropdown togglerClass="state.isLoadingAssistants ? 'btn btn-light btn-sm disabled' : 'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
+                <Dropdown togglerClass="'btn btn-light btn-sm'" menuClass="'o_LLMChatThreadHeader_dropdown'">
                     <t t-set-slot="toggler">
                         <span class="text-truncate" style="max-width: 200px;">
-                            <!-- Loading spinner -->
-                            <i t-if="state.isLoadingAssistants" class="fa fa-spinner fa-spin me-1"/>
-
-                            <!-- Assistant name or placeholder -->
+                            <!-- Display current assistant or placeholder -->
                             <t t-if="selectedAssistant">
                                 <t t-esc="selectedAssistant.name"/>
                             </t>
-                            <t t-else="">Select Assistant</t>
+                            <t t-else="">
+                                Select Assistant
+                            </t>
                         </span>
                         <i class="fa fa-caret-down ms-1" />
                     </t>
-
-                    <!-- "No Assistant" option removed to enforce assistant usage -->
-
+                    
                     <!-- Assistant list -->
-                    <t t-if="!state.isLoadingAssistants and llmAssistants.length">
+                    <t t-if="llmAssistants.length">
                         <t t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
-                            <DropdownItem onSelected="() => this.onSelectAssistant(assistant)" class="{ 'active': selectedAssistant and selectedAssistant.id === assistant.id }">
+                            <DropdownItem 
+                                onSelected="() => this.onSelectAssistant(assistant)" 
+                                class="{'active': state.selectedAssistantId === assistant.id || (selectedAssistant and selectedAssistant.id === assistant.id)}"
+                            >
                                 <!-- Assistant name -->
                                 <span class="text-truncate me-2">
                                     <t t-esc="assistant.name"/>
                                 </span>
 
-                                <!-- Prompt indicator -->
+                                <!-- Prompt indicator if available -->
                                 <t t-if="assistant.promptId">
-                                    <i class="fa fa-file-text-o text-muted" t-att-title="assistant.llmPrompt ? assistant.llmPrompt.name : 'Has prompt'"/>
+                                    <i class="fa fa-file-text-o text-muted ms-1" t-att-title="assistant.llmPrompt ? assistant.llmPrompt.name : 'Has prompt'"/>
                                 </t>
                             </DropdownItem>
                         </t>

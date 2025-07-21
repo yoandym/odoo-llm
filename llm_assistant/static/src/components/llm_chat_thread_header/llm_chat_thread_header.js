@@ -13,55 +13,42 @@ patch(LLMChatThreadHeader.prototype, {
     },
 
     _setupAssistantFeatures() {
-        // Add assistant service
-        this.llmAssistantService = useService("llm_assistant");
-
-        // Add notification service
-        this.notificationService = useService("notification");
-
-        // Add chat service to refresh threads
-        this.llmChatService = useService("llm_chat");
-
-        // Only keep transient UI state
-        if (!this.state._assistantInitialized) {
-            Object.assign(this.state, {
-                _assistantInitialized: true,
-                isLoadingAssistants: false,
-            });
-        }
-
-        // Load assistants on component mount
-        onMounted(async () => {
-            try {
-                await this.loadAssistants();
-                await this._syncToolsFromThread();
-                await this._ensureAssistantSelected();
-            } catch (error) {
-                console.error("Error loading assistants:", error);
-            }
+        // Add only the selectedAssistantId to state
+        this.state.selectedAssistantId = null;
+                
+        onMounted(() => {
             this._setupEventListeners();
+            
+            // Ensure the assistant dropdown reflects the thread's assistant
+            this._updateAssistantFromThread(this.props.thread);
         });
-
+        
         // Watch for thread changes to update dropdowns
-        onWillUpdateProps(async (nextProps) => {
-            const threadChanged = nextProps.thread?.id !== this.props.thread?.id;
-            const assistantChanged = nextProps.thread?.assistantId !== this.props.thread?.assistantId;
-            if (threadChanged || assistantChanged) {
-                if (nextProps.thread) {
-                    this._syncToolsFromThread(nextProps.thread);
-                }
+        onWillUpdateProps((nextProps) => {
+            if (nextProps.thread !== this.props.thread) {
+                // Update the assistant dropdown when thread changes
+                this._updateAssistantFromThread(nextProps.thread);
             }
         });
+    },
+    
+    /**
+     * Updates the selected assistant ID from thread data
+     * @private
+     * @param {Object} thread - Thread object
+     */
+    _updateAssistantFromThread(thread) {
+        if (thread?.assistantId) {
+            // Update the state with the thread's assistant ID
+            this.state.selectedAssistantId = thread.assistantId;
+        }
     },
 
     /**
      * Set up event listeners for the new bus-based architecture
      */
     _setupEventListeners() {
-        // Listen for bus events directly
         this.env.bus.addEventListener("llm_chat:thread_refreshed", this._onThreadRefreshed.bind(this));
-        this.env.bus.addEventListener("llm_chat:thread_updated", this._onThreadUpdated.bind(this));
-        this.env.bus.addEventListener("llm_chat:active_thread_updated", this._onActiveThreadUpdated.bind(this));
     },
 
     /**
@@ -69,55 +56,16 @@ patch(LLMChatThreadHeader.prototype, {
      */
     _onThreadRefreshed(event) {
         const { threadId, thread, updatedFields } = event.detail;
-
-        // Only process if this is our current thread
+        
         if (this.props.thread?.id === threadId) {
-
-            // Update assistant state if changed
-            if (updatedFields.assistantId !== undefined) {
+            // If the thread was refreshed, update our assistant info
+            if (thread) {
+                this._updateAssistantFromThread(thread);
+            } 
+            // If just the assistantId field was updated
+            else if (updatedFields?.assistantId !== undefined) {
                 this.state.selectedAssistantId = updatedFields.assistantId;
             }
-
-            // Sync tools from the updated thread data
-            this._syncToolsFromThread(thread);
-        }
-    },
-
-    /**
-     * Handle thread update events from legacy bus system
-     */
-    _onThreadUpdated(event) {
-        const { threadId, thread, updatedFields } = event.detail;
-
-        // Only process if this is our current thread
-        if (this.props.thread?.id === threadId) {
-
-            // Update assistant state if changed
-            if (updatedFields.assistantId !== undefined) {
-                this.state.selectedAssistantId = updatedFields.assistantId;
-            }
-
-            // Sync tools from the updated thread data
-            this._syncToolsFromThread(thread);
-        }
-    },
-
-    /**
-     * Handle active thread update events from legacy bus system
-     */
-    _onActiveThreadUpdated(event) {
-        const { threadId, thread, updatedFields } = event.detail;
-
-        // Only process if this is our current thread
-        if (this.props.thread?.id === threadId) {
-
-            // Update assistant state if changed
-            if (updatedFields.assistantId !== undefined) {
-                this.state.selectedAssistantId = updatedFields.assistantId;
-            }
-
-            // Sync tools from the updated thread data
-            this._syncToolsFromThread(thread);
         }
     },
 
@@ -125,72 +73,58 @@ patch(LLMChatThreadHeader.prototype, {
     // Assistant Getters
     // --------------------------------------------------------------------------
 
-    /**
-     * Get all available assistants
-     */
     get llmAssistants() {
-        return this._assistants || [];
+        return this.llmChat.assistants || [];
     },
 
-    /**
-     * Get currently selected assistant
-     */
     get selectedAssistant() {
-        if (!this.props.thread?.assistantId) {
+        // Try to get assistant ID from state or thread props
+        const assistantId = this.state.selectedAssistantId || this.props.thread?.assistantId;
+        
+        if (!assistantId) {
             return null;
         }
-        return (this._assistants || []).find(a => a.id === this.props.thread.assistantId) || null;
+        
+        // Find the assistant in the list
+        return this.llmChat.assistants.find(a => a.id === assistantId) || null;
     },
 
-    /**
-     * Check if we should show the provider/model/tools dropdowns
-     * Always return false to enforce assistant usage
-     */
     get shouldShowProviderModelTools() {
-        return false; // Always hide direct model selection to enforce assistant usage
+        return false;
     },
 
     // --------------------------------------------------------------------------
     // Assistant Management
     // --------------------------------------------------------------------------
 
-    /**
-     * Load available assistants
-     */
-    async loadAssistants() {
-        this.state.isLoadingAssistants = true;
-        try {
-            this._assistants = await this.llmAssistantService.loadAssistants();
-        } catch (error) {
-            console.error("Failed to load assistants:", error);
-            this.notificationService.add(
-                _t("Failed to load assistants"),
-                { type: "danger" }
-            );
-            this._assistants = [];
-        } finally {
-            this.state.isLoadingAssistants = false;
-        }
-    },
-
-    /**
-     * Handle assistant selection
-     * @param {Object} assistant - The selected assistant
-     */
     async onSelectAssistant(assistant) {
-        if (assistant.id === this.props.thread?.assistantId) return;
-        const previousAssistantId = this.props.thread?.assistantId;
-        const previousSelectedToolIds = [...this.state.selectedToolIds];
-        const previousModel = this.state.selectedModel;
+        // Check if the assistant is already selected
+        const currentAssistantId = this.state.selectedAssistantId || this.props.thread?.assistantId;
+        if (assistant.id === currentAssistantId) {
+            return;
+        }
+        
+        // Store previous values in case we need to restore them
+        const previousAssistantId = currentAssistantId;
+        
+        // Update local state immediately for UI responsiveness
+        this.state.selectedAssistantId = assistant.id;
+        
         try {
-            await this.llmAssistantService.setThreadAssistant(
+            // Update the assistant in the backend
+            await this.llmChat.setThreadAssistant(
                 this.props.thread.id,
                 assistant.id
             );
-            if (this.llmChatService?.refreshThread) {
-                await this.llmChatService.refreshThread(this.props.thread.id);
+            
+            // Refresh the thread
+            if (this.llmChat?.refreshThread) {
+                await this.llmChat.refreshThread(this.props.thread.id);
             }
         } catch (error) {
+            // Restore previous state if there was an error
+            this.state.selectedAssistantId = previousAssistantId;
+            
             this.notificationService.add(
                 _t("Failed to select assistant. Please try again."),
                 { type: "danger" }
@@ -198,12 +132,7 @@ patch(LLMChatThreadHeader.prototype, {
         }
     },
 
-    /**
-     * Clear the selected assistant - disabled as assistants are now required
-     * This method is kept for compatibility but won't be called from the UI
-     */
     async onClearAssistant() {
-        // Function retained for compatibility but assistant is now required
         this.notificationService.add(
             _t("An assistant is required for all chat threads."),
             { type: "warning" }
@@ -211,59 +140,4 @@ patch(LLMChatThreadHeader.prototype, {
         return false;
     },
 
-    /**
-     * Sync selected tools from thread's tool_ids
-     * This is the ONLY method needed for tool synchronization
-     */
-    _syncToolsFromThread(thread = null) {
-        const currentThread = thread || this.props.thread;
-
-        if (currentThread?.tool_ids) {
-            // Extract tool IDs from thread's tool_ids field
-            let toolIds = [];
-            if (Array.isArray(currentThread.tool_ids)) {
-                toolIds = currentThread.tool_ids.map(tool =>
-                    Array.isArray(tool) ? tool[0] : tool
-                );
-            }
-
-            this.state.selectedToolIds = [...toolIds];
-
-        } else {
-            this.state.selectedToolIds = [];
-        }
-    },
-
-    /**
-     * Ensure that an assistant is selected for the current thread
-     * This is called on initialization to enforce assistant-only mode
-     */
-    async _ensureAssistantSelected() {
-        if (this.props.thread?.assistantId) {
-            return;
-        }
-        if (!this._assistants || this._assistants.length === 0) {
-            this.notificationService.add(
-                _t("No assistants found. Please create at least one assistant."),
-                { type: "warning" }
-            );
-            return;
-        }
-        try {
-            const defaultAssistant = this.llmAssistantService.getDefaultAssistant();
-            await this.llmAssistantService.setThreadAssistant(
-                this.props.thread.id,
-                defaultAssistant.id
-            );
-            if (this.llmChatService?.refreshThread) {
-                await this.llmChatService.refreshThread(this.props.thread.id);
-            }
-        } catch (error) {
-            console.error("Failed to auto-select assistant:", error);
-            this.notificationService.add(
-                _t("Failed to automatically select an assistant. Please select one manually."),
-                { type: "danger" }
-            );
-        }
-    },
 });
