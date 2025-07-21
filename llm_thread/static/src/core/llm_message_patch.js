@@ -201,7 +201,6 @@ patch(Message.prototype, {
         const body = this.props.message?.body;
         const decodedBody = this._decodeHtmlContent(body);
 
-        console.log('Processing message body:', decodedBody?.substring(0, 100) + '...');
 
         // Check if it's markdown wrapped in basic HTML tags (like <p>)
         if (decodedBody && decodedBody.includes('<')) {
@@ -212,9 +211,7 @@ patch(Message.prototype, {
             if (content.match(/^<p>.*<\/p>$/s)) {
                 const innerContent = content.replace(/^<p>(.*)<\/p>$/s, '$1');
                 if (this._isMarkdown(innerContent)) {
-                    console.log('Content detected as Markdown wrapped in HTML, converting...');
                     const htmlContent = this._convertMarkdownToHtml(innerContent);
-                    console.log('Converted HTML:', htmlContent.substring(0, 200) + '...');
                     return markup(htmlContent);
                 }
             }
@@ -222,18 +219,15 @@ patch(Message.prototype, {
             // If it's proper HTML (has multiple tags or complex structure), treat as HTML
             const htmlTagCount = (content.match(/<[^>]+>/g) || []).length;
             if (htmlTagCount > 2 || content.includes('<div') || content.includes('<span') || content.includes('<ul')) {
-                console.log('Content detected as proper HTML');
                 return markup(decodedBody);
             }
 
             // If it's simple HTML but contains markdown patterns, convert as markdown
             if (this._isMarkdown(content)) {
-                console.log('Content detected as simple HTML with Markdown, converting...');
                 const htmlContent = this._convertMarkdownToHtml(content);
                 return markup(htmlContent);
             }
 
-            console.log('Content detected as simple HTML');
             return markup(decodedBody);
         }
 
