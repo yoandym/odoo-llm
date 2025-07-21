@@ -183,10 +183,6 @@ patch(LLMChatThreadHeader.prototype, {
             const assistants = await this.llmAssistantService.loadAssistants();
             this.state.assistants = assistants;
 
-            // Update selected assistant if thread has one
-            if (this.props.thread?.assistantId) {
-                this.state.selectedAssistantId = this.props.thread.assistantId;
-            }
         } catch (error) {
             console.error("Failed to load assistants:", error);
             this.notificationService.add(
@@ -296,7 +292,7 @@ patch(LLMChatThreadHeader.prototype, {
         }
 
         try {
-            // Select the first available assistant
+            // Get default assistant (backend model field)
             const defaultAssistant = this.state.assistants[0];
 
             // Set the assistant on the thread
