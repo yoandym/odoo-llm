@@ -12,6 +12,18 @@
         </field>
     </record>
 
+    <!-- Extend Thread Tree View -->
+    <record id="view_llm_thread_tree_inherit_assistant" model="ir.ui.view">
+        <field name="name">llm.thread.tree.inherit.assistant</field>
+        <field name="model">discuss.channel</field>
+        <field name="inherit_id" ref="llm_thread.llm_thread_view_tree" />
+        <field name="arch" type="xml">
+            <field name="provider_id" position="after">
+                <field name="assistant_id" />
+            </field>
+        </field>
+    </record>
+
     <!-- Extend Thread Search View -->
     <record id="view_llm_thread_search_inherit_assistant" model="ir.ui.view">
         <field name="name">llm.thread.search.inherit.assistant</field>
