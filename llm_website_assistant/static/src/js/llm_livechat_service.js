@@ -272,8 +272,4 @@ patch(LivechatService.prototype, {
         super.destroy?.();
     },
     
-    // We've removed the setupStreamHandler method as we handle all stream setup directly in startLLMStreaming
-    
-    // We've removed the _createStreamHandler method as it's no longer needed
-    // The event handling is now directly in startLLMStreaming
 });
