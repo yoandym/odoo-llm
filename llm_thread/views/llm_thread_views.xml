@@ -35,7 +35,7 @@
         <field name="inherit_id" ref="mail.discuss_channel_view_tree"/>
         <field name="arch" type="xml">
             <tree position="replace">
-                <tree>
+                <tree multi_edit="1">
                     <field name="name" />
                     <field name="create_uid" />
                     <field name="provider_id" optional="hide"/>
