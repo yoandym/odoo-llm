@@ -54,7 +54,7 @@ patch(ChatBotService.prototype, {
             // call LiveChatService.sendMessage to handle LLM processing
             // This will trigger the LLM response generation/streaming
             const result = await this.livechatService.sendMessage({
-                threadId: this.livechatService.thread.localId,
+                threadId: this.livechatService.thread.id,
                 messageContent: message.body,
 
             });
