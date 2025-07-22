@@ -86,9 +86,11 @@ class LLMThread(models.Model):
         update_vals = {
             "assistant_id": assistant_id,
         }
+
+        self.write(update_vals)
         self.reset_to_defaults()
 
-        return self.write(update_vals)
+        return True
 
     def reset_to_defaults(self):
         """Set thread parameters based on the assistant"""
