@@ -186,11 +186,6 @@ patch(Message.prototype, {
 
         const hasMarkdown = markdownPatterns.some(pattern => pattern.test(text));
 
-        // Debug logging
-        if (hasMarkdown) {
-            console.log('Markdown detected in text:', text.substring(0, 100) + '...');
-        }
-
         return hasMarkdown;
     },
 
