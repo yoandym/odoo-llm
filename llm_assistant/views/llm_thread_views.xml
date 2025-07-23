@@ -4,12 +4,26 @@
     <record id="view_llm_thread_form_inherit_assistant" model="ir.ui.view">
         <field name="name">llm.thread.form.inherit.assistant</field>
         <field name="model">discuss.channel</field>
-        <field name="inherit_id" ref="llm_thread.llm_thread_view_form" />
+        <field name="inherit_id" ref="llm_prompt.llm_thread_view_form_inherit_prompt" />
         <field name="arch" type="xml">
             <field name="provider_id" position="before">
                 <field name="assistant_id" options="{'no_create': True}" />
             </field>
-        </field>
+            
+            <!-- set llm related fields to readonly -->
+            <field name="provider_id" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </field>
+            <field name="model_id" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </field>
+            <field name="tool_ids" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </field>
+            <field name="prompt_id" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </field>
+            </field>
     </record>
 
     <!-- Extend Thread Tree View -->
@@ -19,8 +33,10 @@
         <field name="inherit_id" ref="llm_thread.llm_thread_view_tree" />
         <field name="arch" type="xml">
             <field name="provider_id" position="after">
-                <field name="assistant_id" />
+                <field name="assistant_id" readonly="1" />
             </field>
+
+
         </field>
     </record>
 
