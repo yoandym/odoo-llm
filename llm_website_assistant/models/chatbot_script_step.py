@@ -24,8 +24,7 @@ This allows other modules to extend the flow handling without modifying this fil
 """
 import logging
 
-from odoo import _, api, fields, models
-from odoo.tools import plaintext2html
+from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
 
