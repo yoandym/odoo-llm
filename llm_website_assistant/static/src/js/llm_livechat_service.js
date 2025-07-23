@@ -39,7 +39,7 @@ patch(LivechatService.prototype, {
     checkStreamingConsistency(threadId) {
         const eventSource = this.llmStreamSources.get(threadId);
         
-        if (!this.store.thread) {
+        if (!this.thread) {
             // Thread not found, clean up any hanging EventSource
             if (eventSource) {
                 this.stopLLMStreaming(threadId);
@@ -48,16 +48,16 @@ patch(LivechatService.prototype, {
         }
         
         // Case 1: Thread says streaming but no EventSource
-        if (this.store.thread.isStreaming && !eventSource) {
+        if (this.thread.isStreaming && !eventSource) {
             console.warn("[LLM] Inconsistent state: thread marked as streaming but no EventSource");
-            this.store.thread.isStreaming = false;
+            this.thread.isStreaming = false;
             // We don't restart streaming here as it should be triggered by user action
         }
         
         // Case 2: EventSource exists but thread not marked as streaming
-        if (!this.store.thread.isStreaming && eventSource) {
+        if (!this.thread.isStreaming && eventSource) {
             console.warn("[LLM] Inconsistent state: EventSource exists but thread not marked as streaming");
-            this.store.thread.isStreaming = true;
+            this.thread.isStreaming = true;
         }
     },
 
@@ -70,7 +70,7 @@ patch(LivechatService.prototype, {
     async startLLMStreaming(threadId) {
         try {
             // Find thread in store
-            if (!this.store.thread) {
+            if (!this.thread) {
                 throw new Error("Thread not found");
             }
             
@@ -129,7 +129,7 @@ patch(LivechatService.prototype, {
             this.llmStreamSources.set(threadId, eventSource);
             
             // Update thread streaming status
-            this.store.thread.isStreaming = true;
+            this.thread.isStreaming = true;
             
             return {
                 success: true,
@@ -159,8 +159,8 @@ patch(LivechatService.prototype, {
             this.llmStreamSources.delete(threadId);
             
             // Update thread streaming status
-            if (this.store.thread) {
-                this.store.thread.isStreaming = false;
+            if (this.thread) {
+                this.thread.isStreaming = false;
             }
         }
     },
@@ -209,8 +209,8 @@ patch(LivechatService.prototype, {
         this.stopLLMStreaming(channelId);
 
         // Reset thread streaming status
-        if (this.store.thread) {
-            thread.isStreaming = false;
+        if (this.thread) {
+            this.thread.isStreaming = false;
         }
     },
     
@@ -262,8 +262,8 @@ patch(LivechatService.prototype, {
                 eventSource.close();
                 
                 // Reset thread streaming status if possible
-                if (this.store.thread) {
-                    this.store.thread.isStreaming = false;
+                if (this.thread) {
+                    this.thread.isStreaming = false;
                 }
             }
             this.llmStreamSources.clear();
