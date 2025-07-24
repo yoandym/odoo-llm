@@ -16,9 +16,10 @@ patch(Chatbot, {
     parse(data) {
         const chatbot = originalParse.call(this, ...arguments);
         // Add LLM-specific properties
-        chatbot.isLlmEnabled = data.isLlmEnabled || false;
-        chatbot.llmAssistantId = data.llmAssistantId || false;
-        chatbot.llmAssistantName = data.llmAssistantName || '';
+        chatbot.assistantId = data.assistant_id || false;
+        chatbot.assistantName = data.assistant_name || '';
+        // Infer LLM capabilities from the presence of an assistant
+        chatbot.hasLLMCapabilities = Boolean(chatbot.assistantId);
         return chatbot;
     },
 });

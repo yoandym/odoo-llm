@@ -2,9 +2,10 @@
 import json
 import logging
 
-from odoo import http
+from odoo import api, http
 from odoo.addons.im_livechat.controllers.main import LivechatController
 from odoo.http import Response, request
+from odoo.modules.registry import Registry as registry
 from werkzeug.exceptions import BadRequest
 
 _logger = logging.getLogger(__name__)
@@ -24,12 +25,16 @@ class LlmLivechatController(LivechatController):
         matching_channel_rule = self._get_matching_rule(channel_id)
 
         if matching_channel_rule and matching_channel_rule.chatbot_script_id and matching_channel_rule.chatbot_script_id.is_llm_enabled:
-            # Add LLM-specific attributes to the result
+            # Add LLM-specific attributes to the result for reactive components
             result["rule"]["chatbot"].update(
                 {
-                    "isLlmEnabled": True,
-                    "llmAssistantId": matching_channel_rule.chatbot_script_id.llm_assistant_id.id,
-                    "llmAssistantName": matching_channel_rule.chatbot_script_id.llm_assistant_id.name,
+                    "assistant_id": matching_channel_rule.chatbot_script_id.llm_assistant_id.id,  # Presence of assistant_id implies LLM capabilities
+                    "assistant_name": matching_channel_rule.chatbot_script_id.llm_assistant_id.name,
+                    "assistant_partner_id": (
+                        matching_channel_rule.chatbot_script_id.llm_assistant_id.partner_id.id
+                        if matching_channel_rule.chatbot_script_id.llm_assistant_id.partner_id
+                        else False
+                    ),
                 }
             )
 
@@ -60,30 +65,26 @@ class LlmLivechatController(LivechatController):
             return channel_info
 
         # If chatbot_script_id is provided and channel was created successfully
-        if chatbot_script_id and persisted:
+        if chatbot_script_id:
             try:
                 # Get the script to check if it has an LLM assistant
                 chatbot_script = request.env["chatbot.script"].sudo().browse(int(chatbot_script_id))
 
-                if chatbot_script.exists() and chatbot_script.is_llm_enabled and chatbot_script.llm_assistant_id:
-
-                    # Validate that the assistant is allowed for website use
-                    assistant = chatbot_script.llm_assistant_id
-                    if assistant.is_website_visible:
-
-                        # Get the thread and set the assistant_id
-                        thread = request.env["discuss.channel"].sudo().browse(channel_info.get("id"))
-                        if thread.exists():
-                            thread.sudo().write(
-                                {
-                                    "assistant_id": assistant.id,
-                                }
-                            )
-                    else:
-                        _logger.warning(
-                            f"Requested Assistant {assistant.name} (ID: {assistant.id}) is not website visible, "
-                            f"not setting it on thread {channel_info.get('id')}"
-                        )
+                if (
+                    chatbot_script.exists()
+                    and chatbot_script.is_llm_enabled
+                    and chatbot_script.llm_assistant_id
+                    and chatbot_script.llm_assistant_id.is_website_visible
+                ):
+                    # Ensure the assistant_id is also passed back in the channel_info
+                    channel_info["assistant_id"] = chatbot_script.llm_assistant_id.id
+                    channel_info["assistant_name"] = chatbot_script.llm_assistant_id.name
+                    channel_info["assistant_partner_id"] = chatbot_script.llm_assistant_id.partner_id.id if chatbot_script.llm_assistant_id.partner_id else False
+                else:
+                    _logger.warning(
+                        f"Requested Assistant {chatbot_script.llm_assistant_id.name} (ID: {chatbot_script.llm_assistant_id.id}) is not website visible, "
+                        f"not setting it on thread {channel_info.get('id')}"
+                    )
             except Exception as e:
                 _logger.exception(f"Error setting LLM assistant on thread: {e}")
                 # We don't return an error to the frontend as the channel was created successfully
@@ -91,49 +92,91 @@ class LlmLivechatController(LivechatController):
 
         return channel_info
 
-    def _stream_generator(self, thread_id):
+    def _llm_livechat_generate(self, dbname, env=None, thread_id=None, user_message_body=None, message_id=None, **kwargs):
         """Generate SSE stream for LLM responses using the standard llm_thread generate method
 
-        This simplified version only handles the streaming response generation.
-        The message posting is now handled separately through the standard message
-        posting mechanism.
+        This simplified version handles both message posting and streaming response generation,
+        similar to the llm_thread controller implementation.
+
+        Args:
+            dbname: Database name
+            env: Environment object (or None to use request.env)
+            thread_id: Thread/Channel ID
+            user_message_body: Message content to post (legacy mode)
+            message_id: ID of an existing message to respond to (new mode with ThreadService)
         """
-        try:
-            if not thread_id:
-                yield f"data: {json.dumps({'type': 'error', 'error': 'Thread ID is required'})}\n\n".encode()
-                return
+        uid = env.uid if env and hasattr(env, "uid") else http.request.uid
+        context = env.context if env and hasattr(env, "context") else {}
 
-            # Get the LLM thread (which is the same as the livechat channel)
-            thread = request.env["discuss.channel"].sudo().browse(int(thread_id))
-            if not thread.exists():
-                yield f"data: {json.dumps({'type': 'error', 'error': 'Thread not found'})}\n\n".encode()
-                return
+        with registry(dbname).cursor() as cr:
+            env = api.Environment(cr, uid, context)
+            client_connected = True
 
-            # Verify this is an LLM-enabled thread
-            if not thread.assistant_id:
-                yield f"data: {json.dumps({'type': 'error', 'error': 'This is not an LLM-enabled thread'})}\n\n".encode()
-                return
-
-            # Use the standard llm_thread generate method with streaming
             try:
-                for response in thread.sudo().with_context(website_livechat=True).generate(None):
-                    # The generate method already returns properly formatted responses
-                    yield f"data: {json.dumps(response, default=str)}\n\n".encode()
+                if not thread_id:
+                    yield f"data: {json.dumps({'type': 'error', 'error': 'Thread ID is required'})}\n\n".encode()
+                    return
+
+                # Get the LLM thread (which is the same as the livechat channel)
+                llmThread = env["discuss.channel"].browse(int(thread_id))
+                if not llmThread.exists():
+                    yield f"data: {json.dumps({'type': 'error', 'error': 'Thread not found'})}\n\n".encode()
+                    return
+
+                # Verify this is an LLM-enabled thread
+                if not llmThread.assistant_id:
+                    yield f"data: {json.dumps({'type': 'error', 'error': 'This is not an LLM-enabled thread'})}\n\n".encode()
+                    return
+
+                # Generate the LLM response with streaming
+                # The generate method will handle the appropriate action based on parameters
+                try:
+                    # Call the generate method with the appropriate parameters
+                    # If message_id is provided, use that for continuation
+                    # Otherwise fall back to the legacy user_message_body parameter
+                    if message_id:
+                        for response in llmThread.sudo().with_context(website_livechat=True).generate(None):
+                            # Check if client is still connected
+                            try:
+                                yield f"data: {json.dumps(response, default=str)}\n\n".encode()
+                            except GeneratorExit:
+                                _logger.info(f"Client disconnected during LLM generation for thread {thread_id}")
+                                client_connected = False
+                                break
+                    else:
+                        # Legacy mode: generate from a new user message
+                        for response in llmThread.sudo().with_context(website_livechat=True).generate(user_message_body):
+                            # Check if client is still connected
+                            try:
+                                yield f"data: {json.dumps(response, default=str)}\n\n".encode()
+                            except GeneratorExit:
+                                _logger.info(f"Client disconnected during LLM generation for thread {thread_id}")
+                                client_connected = False
+                                break
+
+                except Exception as e:
+                    _logger.exception(f"Error generating LLM response: {e}")
+                    yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n".encode()
+
+                # Send done event if client is still connected
+                if client_connected:
+                    yield f"data: {json.dumps({'type': 'done'})}\n\n".encode()
 
             except Exception as e:
-                _logger.exception(f"Error generating LLM response: {e}")
+                _logger.exception(f"Error in SSE stream generator: {e}")
                 yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n".encode()
 
-            # Send done event
-            yield f"data: {json.dumps({'type': 'done'})}\n\n".encode()
+            finally:
+                # Clear caches when the transaction is done
+                env.clear()
 
-        except Exception as e:
-            _logger.exception(f"Error in SSE stream generator: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n".encode()
-
-    @http.route("/im_livechat/llm/stream", type="http", auth="public", website=True)
-    def stream_llm_response(self, thread_id, **kwargs):
+    @http.route("/im_livechat/llm/generate", type="http", auth="public", website=True)
+    def llm_livechat_generate(self, thread_id, message=None, message_id=None, **kwargs):
         """Stream LLM responses via SSE
+
+        This endpoint supports two modes:
+        1. With message: Send a user message and get LLM response (legacy mode)
+        2. With message_id: Use an existing message and just generate LLM response (new mode)
 
         Note: In livechat context, thread_id and channel_id are the same.
         """
@@ -146,4 +189,12 @@ class LlmLivechatController(LivechatController):
             "X-Accel-Buffering": "no",
         }
 
-        return Response(self._stream_generator(thread_id), direct_passthrough=True, headers=headers)
+        user_message_body = message
+        dbname = request.session.db
+
+        # Pass message_id to the generator function for the new workflow
+        return Response(
+            self._llm_livechat_generate(dbname, request.env if request.env else None, thread_id, user_message_body, message_id=message_id),
+            direct_passthrough=True,
+            headers=headers,
+        )

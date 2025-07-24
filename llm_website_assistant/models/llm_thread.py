@@ -35,10 +35,11 @@ class LLMThread(models.Model):
         result = super().get_livechat_info(*args, **kwargs)
 
         # Add LLM info if this is a livechat channel
-        if self.channel_type == "livechat" and hasattr(self, 'assistant_id'):
-            result.update({
-                "llm_enabled": self.llm_enabled,
-                "assistant_id": self.assistant_id.id if self.assistant_id else False,
-            })
+        if self.channel_type == "livechat" and hasattr(self, "assistant_id"):
+            result.update(
+                {
+                    "assistant_id": self.assistant_id.id if self.assistant_id else False,
+                }
+            )
 
         return result
