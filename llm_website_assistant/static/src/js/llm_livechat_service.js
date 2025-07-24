@@ -24,123 +24,48 @@ patch(LivechatService.prototype, {
         // LLM thread management - only keep EventSource instances
         this.llmStreamSources = new Map(); // threadId -> EventSource
         
-        // We'll rely on the Odoo native typing service for typing indicators
+        this.threadService = services["mail.thread"];
         this.typingService = services["discuss.typing"];
         
+        // Register for bus notifications to get real-time updates
+        this.busService.addEventListener("notification", this._onNotification.bind(this));
     },
-
     
     /**
-     * Check for inconsistencies between Thread.isStreaming and llmStreamSources
-     * and fix them if needed
-     * 
-     * @param {number} threadId - The thread ID to check
+     * Handle bus notifications for real-time updates
+     * @param {Object|Array} notification - A notification object or array of notification objects
      */
-    checkStreamingConsistency(threadId) {
-        const eventSource = this.llmStreamSources.get(threadId);
+    _onNotification(notification) {
+        // Handle both array format and single notification format
+        const notifications = Array.isArray(notification) ? notification : [notification];
         
-        if (!this.thread) {
-            // Thread not found, clean up any hanging EventSource
-            if (eventSource) {
-                this.stopLLMStreaming(threadId);
-            }
-            return;
-        }
-        
-        // Case 1: Thread says streaming but no EventSource
-        if (this.thread.isStreaming && !eventSource) {
-            console.warn("[LLM] Inconsistent state: thread marked as streaming but no EventSource");
-            this.thread.isStreaming = false;
-            // We don't restart streaming here as it should be triggered by user action
-        }
-        
-        // Case 2: EventSource exists but thread not marked as streaming
-        if (!this.thread.isStreaming && eventSource) {
-            console.warn("[LLM] Inconsistent state: EventSource exists but thread not marked as streaming");
-            this.thread.isStreaming = true;
-        }
-    },
-
-    /**
-     * Start streaming responses for a thread
-     * 
-     * @param {number} threadId - The thread ID
-     * @returns {Promise<Object>} Stream information
-     */
-    async startLLMStreaming(threadId) {
-        try {
-            // Find thread in store
-            if (!this.thread) {
-                throw new Error("Thread not found");
-            }
-            
-            // Stop any existing stream
-            this.stopLLMStreaming(threadId);
-
-            // Create SSE connection - no need to post message first, we'll use the
-            // standard message posting mechanism
-            const eventSource = new EventSource(
-                `/im_livechat/llm/stream?thread_id=${threadId}`
-            );
-            
-            // Set up message handlers
-            eventSource.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    
-                    switch (data.type) {
-                        case "message_create":
-                        case "message_update":
-                            // Refresh thread to update UI
-                            this.refreshThread(threadId);
-                            break;
-                            
-                        case "done":
-                            // Final refresh and cleanup
-                            this.refreshThread(threadId);
-                            this.stopLLMStreaming(threadId);
-                            break;
-                            
-                        case "error":
-                            console.error("[LLM] Stream error:", data.error);
-                            this.stopLLMStreaming(threadId);
-                            break;
-                    }
-                } catch (error) {
-                    console.error("[LLM] Stream parsing error:", error);
+        for (const { type, payload } of notifications) {
+            // Handle message-related notifications
+            if (type === 'mail.message/insert' && 
+                this.thread && 
+                payload.thread_id === this.thread.id) {
+                // The thread model will update automatically via the store
+                
+                // If this is an LLM message that's complete, update streaming state
+                if (payload.llm_message_complete) {
+                    this.stopLLMStreaming(payload.thread_id);
                 }
-            };
+            }
             
-            // Error handler
-            eventSource.onerror = (error) => {
-                console.error("[LLM] EventSource error:", error);
-                this.stopLLMStreaming(threadId);
-            };
-            
-            // Store the EventSource for later cleanup
-            this.llmStreamSources.set(threadId, eventSource);
-            
-            // Update thread streaming status
-            this.thread.isStreaming = true;
-            
-            return {
-                success: true,
-                eventSource,
-                threadId
-            };
-
-        } catch (error) {
-            console.error("[LLM] Error starting stream:", error);
-            this.notificationService?.add?.(
-                error.message || _t("Failed to send message"),
-                { type: "danger" }
-            );
-            return { success: false, error: error.message };
+            // Handle thread updates
+            if (type === 'mail.thread/insert' && 
+                this.thread && 
+                payload.id === this.thread.id) {
+                // The thread will update automatically through the store
+                // No need for manual refreshThread calls
+            }
         }
     },
+
 
     /**
      * Stop streaming for a thread
+     * Updated to use store for reactivity
      * 
      * @param {number} threadId - The thread ID
      */
@@ -150,49 +75,139 @@ patch(LivechatService.prototype, {
             eventSource.close();
             this.llmStreamSources.delete(threadId);
             
+            // Get current thread
+            const thread = this.thread;
+            
             // Update thread streaming status
-            if (this.thread) {
-                this.thread.isStreaming = false;
+            if (thread && thread.id === threadId) {
+                if (thread.update) {
+                    thread.update({ isStreaming: false });
+                } else {
+                    thread.isStreaming = false;
+                }
             }
+            
+            // Remove typing indicator
+            this._setTypingStatus(threadId, false);
         }
+    },
+    
+    /**
+     * Set typing status for the LLM assistant
+     * 
+     * @param {number} threadId - The thread ID
+     * @param {boolean} isTyping - Whether the LLM is typing
+     * @private
+     */
+    _setTypingStatus(threadId, isTyping) {
+        // Use the thread getter from parent LivechatService
+        const thread = this.thread;
+        if (!thread || thread.id !== threadId) return;
+        
+        // Get the assistant partner ID
+        const partnerId = thread.assistantPartnerId;
+        if (!partnerId) return;
+        
+        // Use the typing service to show/hide the typing indicator
+        this.typingService.registerIsTyping({
+            partnerId: partnerId,
+            threadId: threadId,
+            isTyping: isTyping,
+        });
     },
 
     /**
-     * Send a message to the thread and trigger LLM response generation
+     * Trigger LLM response generation for a message that was already posted
+     * This method should be called after a message has been posted through the standard Composer flow
+     * 
      * @param {number} threadId - The thread ID
-     * @param {string} messageContent - The message content to send
-     * @return {Promise<Object>} Result with success status and message info
+     * @param {number} messageId - The ID of the message to generate a response for
+     * @return {Promise<Object>} Result with success status
      */
-    async sendMessage(threadId, messageContent) {
+    async triggerLLMResponseForMessage(threadId, messageId) {
         try {
-            // Send message to backend endpoint
-            const result = await this.rpc("/web/dataset/call_kw", {
-                model: "discuss.channel",
-                method: "send_message",
-                args: [threadId, messageContent],
-                kwargs: {},
-            });
-            
-            if (result && result.success) {
-                // Start streaming for responses
-                await this.startLLMStreaming(threadId);
-                
-                return result;
-            } else {
-                throw new Error("Failed to send message to thread");
+            if (!threadId || !messageId) {
+                throw new Error("Thread ID and message ID are required");
             }
+            
+            // Use the thread getter from parent LivechatService
+            const thread = this.thread;
+            
+            if (!thread || thread.id !== threadId) {
+                throw new Error("Thread not found or doesn't match current thread");
+            }
+            
+            // Only handle LLM streaming if the thread has an assistant
+            console.log("[LLM] Thread in triggerLLMResponseForMessage:", thread.id, thread);
+            
+            if (thread.assistantId) {
+                // Stop any existing stream first
+                this.stopLLMStreaming(threadId);
+                
+                // Create SSE connection to the generate endpoint for LLM response streaming
+                // We still need SSE for streaming the response tokens
+                const eventSource = new EventSource(
+                    `/im_livechat/llm/generate?thread_id=${threadId}&message_id=${messageId}`
+                );
+                
+                // Set up message handlers - simplified as the thread updates come through the bus
+                eventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.type === "error") {
+                            console.error("[LLM] Stream error:", data.error);
+                            this.stopLLMStreaming(threadId);
+                        } else if (data.type === "done") {
+                            this.stopLLMStreaming(threadId);
+                        }
+                        // No need to refresh thread - bus notifications will handle updates
+                    } catch (error) {
+                        console.error("[LLM] Stream parsing error:", error);
+                    }
+                };
+                
+                // Error handler
+                eventSource.onerror = (error) => {
+                    console.error("[LLM] EventSource error:", error);
+                    this.stopLLMStreaming(threadId);
+                };
+                
+                // Store the EventSource for later cleanup
+                this.llmStreamSources.set(threadId, eventSource);
+                
+                // Update thread streaming status - using the store for reactivity
+                if (thread.update) {
+                    thread.update({ isStreaming: true });
+                } else {
+                    // Fallback if thread doesn't have update method
+                    thread.isStreaming = true;
+                }
+            }
+            else {
+                // we should have an assistant at this point. throw an error if not
+                console.error("[LLM] No assistantId found in thread:", {
+                    threadId: thread.id,
+                    threadData: thread,
+                    assistantId: thread.assistantId
+                });
+                throw new Error("No assistant available for this thread");
+            }
+            
+            return {
+                success: true,
+                threadId,
+            };
+            
         } catch (error) {
-            console.error("[LLM] Error sending message to thread:", error);
-            this.notificationService?.add?.(
-                error.message || _t("Failed to send message"),
-                { type: "danger" }
-            );
-            throw error;
+            console.error("[LLM] Error triggering LLM response:", error);
+            return { success: false, error: error.message };
         }
     },
 
     /**
      * Enhanced cleanup for LLM resources (including streaming)
+     * Updated to use store for reactivity
      * 
      * @param {number} channelId - The channel ID
      */
@@ -200,52 +215,29 @@ patch(LivechatService.prototype, {
         // Stop any active streams for this thread
         this.stopLLMStreaming(channelId);
 
+        // Use the thread getter from parent LivechatService
+        const thread = this.thread;
+        
         // Reset thread streaming status
-        if (this.thread) {
-            this.thread.isStreaming = false;
+        if (thread && thread.id === channelId) {
+            if (thread.update) {
+                thread.update({ 
+                    isStreaming: false,
+                });
+            } else {
+                thread.isStreaming = false;
+            }
         }
+        
+        // Remove typing indicator
+        this._setTypingStatus(channelId, false);
     },
     
-    /**
-     * Refresh thread data from server to update UI
-     * @param {number} threadId - Thread ID to refresh
-     * @param {Array<string>} additionalFields - Optional additional fields to fetch
-     * @returns {Promise<Object>} Updated thread data
-     */
-    async refreshThread(threadId, additionalFields = []) {
-        try {
-            // Use the standard channel_info method to get updated thread data
-            const result = await this.rpc("/mail/channel/info", {
-                channel_id: threadId,
-                fields: [...(additionalFields || [])],
-            });
-            
-            if (result && result.length > 0) {
-                // Update the thread in the service
-                const channelInfo = result[0];
-                
-                // If we have this channel as our main thread, update it
-                if (this.thread && this.thread.id === threadId) {
-                    Object.assign(this.thread, channelInfo);
-                    
-                    // If there are any handlers for thread updates, call them
-                    if (this.onThreadUpdate) {
-                        this.onThreadUpdate(this.thread);
-                    }
-                }
-                
-                return channelInfo;
-            }
-            
-            return null;
-        } catch (error) {
-            console.error("[LLM] Error refreshing thread:", error);
-            return null;
-        }
-    },
+    // updateThread method removed - using LivechatService's thread getter instead
 
     /**
      * Enhanced destroy method with streaming cleanup
+     * Updated to use store for proper cleanup
      */
     destroy() {
         // Close all active streams
@@ -253,12 +245,27 @@ patch(LivechatService.prototype, {
             for (const [threadId, eventSource] of this.llmStreamSources.entries()) {
                 eventSource.close();
                 
-                // Reset thread streaming status if possible
-                if (this.thread) {
-                    this.thread.isStreaming = false;
+                // Get current thread
+                const thread = this.thread;
+                
+                // Reset thread streaming status if it matches
+                if (thread && thread.id === threadId) {
+                    if (thread.update) {
+                        thread.update({ isStreaming: false });
+                    } else {
+                        thread.isStreaming = false;
+                    }
                 }
+                
+                // Remove typing indicator
+                this._setTypingStatus(threadId, false);
             }
             this.llmStreamSources.clear();
+        }
+        
+        // Remove bus event listener
+        if (this.busService) {
+            this.busService.removeEventListener("notification", this._onNotification);
         }
         
         super.destroy?.();

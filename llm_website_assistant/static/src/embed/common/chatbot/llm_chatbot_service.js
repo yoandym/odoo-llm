@@ -51,9 +51,10 @@ patch(ChatBotService.prototype, {
             this.isTyping = true;
             this.currentStep.hasAnswer = true;
 
-            // call LiveChatService.sendMessage to handle LLM processing
-            // This will trigger the LLM response generation/streaming
-            const result = await this.livechatService.sendMessage(this.livechatService.thread.id, message.body);
+            // We don't need to post the message as it's already posted by the composer
+            // Just trigger the LLM response generation based on the message ID
+            const messageId = message.id;
+            await this.livechatService.triggerLLMResponseForMessage(this.livechatService.thread.id, messageId);
 
             // TODO: if we are result succed and we are streaming, just return the same step
             // TODO: else let the normal flow be -> `_triggerNextStep()` -> `_getNextStep()` -> ...
