@@ -21,11 +21,11 @@ patch(LivechatService.prototype, {
     setup(env, services) {
         super.setup(env, services);
         
+        // Store env for later use
+        this.env = env;
+        
         // LLM thread management - only keep EventSource instances
         this.llmStreamSources = new Map(); // threadId -> EventSource
-        
-        this.threadService = services["mail.thread"];
-        this.typingService = services["discuss.typing"];
         
         // Register for bus notifications to get real-time updates
         this.busService.addEventListener("notification", this._onNotification.bind(this));
@@ -93,27 +93,39 @@ patch(LivechatService.prototype, {
     },
     
     /**
-     * Set typing status for the LLM assistant
+     * Set typing status for the LLM assistant using Odoo's bus notification
+     * This directly triggers the same notification that the typing service listens for
      * 
      * @param {number} threadId - The thread ID
      * @param {boolean} isTyping - Whether the LLM is typing
      * @private
      */
     _setTypingStatus(threadId, isTyping) {
-        // Use the thread getter from parent LivechatService
-        const thread = this.thread;
-        if (!thread || thread.id !== threadId) return;
-        
-        // Get the assistant partner ID
-        const partnerId = thread.assistantPartnerId;
-        if (!partnerId) return;
-        
-        // Use the typing service to show/hide the typing indicator
-        this.typingService.registerIsTyping({
-            partnerId: partnerId,
-            threadId: threadId,
-            isTyping: isTyping,
-        });
+        try {
+            // Use the thread getter from parent LivechatService
+            const thread = this.thread;
+            if (!thread || thread.id !== threadId) return;
+            
+            // Get the assistant partner ID
+            const partnerId = thread.assistantPartnerId;
+            if (!partnerId) {
+                console.log("[LLM] No assistant partner ID in thread");
+                return;
+            }
+            
+            // Create the payload that matches what the typing service expects
+            const payload = {
+                id: partnerId,          // Member ID (partner ID)
+                thread: { id: threadId }, // Thread reference
+                isTyping: isTyping      // Typing status flag
+            };
+            
+            // Trigger the bus notification that the typing service listens for
+            this.busService.trigger("discuss.channel.member/typing_status", payload);
+            console.log(`[LLM] Sent typing notification: partner ${partnerId} in thread ${threadId} is ${isTyping ? "typing" : "not typing"}`);
+        } catch (error) {
+            console.error("[LLM] Error setting typing status:", error);
+        }
     },
 
     /**
@@ -143,6 +155,9 @@ patch(LivechatService.prototype, {
             if (thread.assistantId) {
                 // Stop any existing stream first
                 this.stopLLMStreaming(threadId);
+                
+                // Show typing indicator before starting the stream
+                this._setTypingStatus(threadId, true);
                 
                 // Create SSE connection to the generate endpoint for LLM response streaming
                 // We still need SSE for streaming the response tokens
