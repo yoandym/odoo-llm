@@ -43,3 +43,52 @@ class LLMThread(models.Model):
             )
 
         return result
+
+
+    def _get_message_subtypes(self):
+        """Override to include both LLM and Livechat subtypes.
+
+        Returns:
+            list: List of subtype records
+        """
+        # Get standard LLM subtypes from parent implementation
+        subtypes = super()._get_message_subtypes()
+
+        # Add standard mail comment subtype
+        mail_comment_subtype = self.env.ref("mail.mt_comment", raise_if_not_found=False)
+        if mail_comment_subtype:
+            subtypes.append(mail_comment_subtype)
+
+        return subtypes
+
+    def _get_user_subtype_xmlid(self):
+        """Return the appropriate user subtype XMLID based on channel type.
+
+        For livechat channels, use the standard mail comment subtype.
+        Otherwise, use the standard LLM user subtype.
+
+        Returns:
+            str: XMLID of the user message subtype
+        """
+        # Check if this is a livechat channel
+        if self.channel_type == "livechat":
+            return "mail.mt_comment"
+
+        # For all other cases, use the standard implementation
+        return super()._get_user_subtype_xmlid()
+
+    def _get_assistant_subtype_xmlid(self):
+        """Return the appropriate assistant subtype XMLID based on channel type.
+
+        For livechat channels, use the standard mail comment subtype.
+        Otherwise, use the standard LLM assistant subtype.
+
+        Returns:
+            str: XMLID of the assistant message subtype
+        """
+        # Check if this is a livechat channel
+        if self.channel_type == "livechat":
+            return "mail.mt_comment"
+
+        # For all other cases, use the standard implementation
+        return super()._get_assistant_subtype_xmlid()

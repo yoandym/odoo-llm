@@ -70,18 +70,8 @@ class LLMThread(models.Model):
         string="Available Tools",
         help="Tools that can be used by the LLM in this thread",
     )
-    source = fields.Selection(
-        [
-            ("website_livechat", "Website Livechat"),
-            ("backend", "Backend"),
-            ("api", "API"),
-            # Add more sources as needed
-        ],
-        string="Source",
-        default="backend",
-        index=True,
-        help="Origin of the thread (e.g., website livechat, backend, API, etc.)",
-    )
+    # NOTE: We're removing the redundant 'source' field in favor of using
+    # the existing 'channel_type' field from the discuss.channel model
 
     # LLM enabled field - base computation depends on model_id
     llm_enabled = fields.Boolean(
@@ -161,6 +151,19 @@ class LLMThread(models.Model):
             message.write(extra_vals)
         return message
 
+    def _get_message_subtypes(self):
+        """Return the message subtypes used by this thread type.
+        This method is meant to be overridden by modules that use different subtypes.
+
+        Returns:
+            list: List of mail.message.subtype records
+        """
+        return [
+            self.env.ref(LLM_USER_SUBTYPE_XMLID, raise_if_not_found=False),
+            self.env.ref(LLM_ASSISTANT_SUBTYPE_XMLID, raise_if_not_found=False),
+            self.env.ref(LLM_TOOL_RESULT_SUBTYPE_XMLID, raise_if_not_found=False),
+        ]
+
     def _get_message_history_recordset(self, order="ASC", limit=None):
         """Get messages from the thread
 
@@ -171,11 +174,7 @@ class LLMThread(models.Model):
             mail.message recordset containing the messages
         """
         self.ensure_one()
-        subtypes_to_fetch = [
-            self.env.ref(LLM_USER_SUBTYPE_XMLID, raise_if_not_found=False),
-            self.env.ref(LLM_ASSISTANT_SUBTYPE_XMLID, raise_if_not_found=False),
-            self.env.ref(LLM_TOOL_RESULT_SUBTYPE_XMLID, raise_if_not_found=False),
-        ]
+        subtypes_to_fetch = self._get_message_subtypes()
         subtype_ids = [st.id for st in subtypes_to_fetch if st]
         order_clause = f"create_date {order}, id {order}"
         domain = [
@@ -198,11 +197,38 @@ class LLMThread(models.Model):
             raise UserError("No message found to process.")
         return last_message
 
+    def _get_user_subtype_xmlid(self):
+        """Return the user message subtype XMLID for this thread.
+        This method is meant to be overridden by modules that use different subtypes.
+
+        Returns:
+            str: XMLID of the user message subtype
+        """
+        return LLM_USER_SUBTYPE_XMLID
+
+    def _get_assistant_subtype_xmlid(self):
+        """Return the assistant message subtype XMLID for this thread.
+        This method is meant to be overridden by modules that use different subtypes.
+
+        Returns:
+            str: XMLID of the assistant message subtype
+        """
+        return LLM_ASSISTANT_SUBTYPE_XMLID
+
+    def _get_tool_result_subtype_xmlid(self):
+        """Return the tool result message subtype XMLID for this thread.
+        This method is meant to be overridden by modules that use different subtypes.
+
+        Returns:
+            str: XMLID of the tool result message subtype
+        """
+        return LLM_TOOL_RESULT_SUBTYPE_XMLID
+
     def _init_message(self, user_message_body, **kwargs):
         """Initialize first message: user input or history."""
         if user_message_body:
             return self._post_message(
-                subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
+                subtype_xmlid=self._get_user_subtype_xmlid(),
                 body=user_message_body,
                 author_id=self.env.user.partner_id.id,
                 **kwargs,
@@ -213,17 +239,17 @@ class LLMThread(models.Model):
         """Whether to keep looping on the last_message."""
         if not last_message:
             return False
-        if last_message.is_llm_user_message() or last_message.is_llm_tool_result_message():
+        if last_message.is_user_message() or last_message.is_tool_result_message():
             return True
-        if last_message.is_llm_assistant_message() and last_message.tool_calls:
+        if last_message.is_assistant_message() and last_message.tool_calls:
             return True
         return False
 
     def _next_step(self, last_message):
         """Dispatch to the next generator based on message type."""
-        if last_message.is_llm_user_message() or last_message.is_llm_tool_result_message():
+        if last_message.is_user_message() or last_message.is_tool_result_message():
             return self._get_assistant_response()
-        if last_message.is_llm_assistant_message() and last_message.tool_calls:
+        if last_message.is_assistant_message() and last_message.tool_calls:
             return self._process_tool_calls(last_message)
         return last_message
 
@@ -297,7 +323,7 @@ class LLMThread(models.Model):
         assistant_msg = yield from self.env["mail.message"].create_message_from_stream(
             self,
             stream_response,
-            LLM_ASSISTANT_SUBTYPE_XMLID,
+            self._get_assistant_subtype_xmlid(),
             placeholder_text="Thinking...",
         )
         return assistant_msg
@@ -361,7 +387,7 @@ class LLMThread(models.Model):
 
             # Post the user message
             message = self._post_message(
-                subtype_xmlid=LLM_USER_SUBTYPE_XMLID,
+                subtype_xmlid=self._get_user_subtype_xmlid(),
                 body=message_content,
                 author_id=self.env.user.partner_id.id,
             )

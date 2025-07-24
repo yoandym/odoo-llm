@@ -2,11 +2,7 @@ import logging
 
 from odoo import api, models
 
-from ..const import (
-    LLM_ASSISTANT_SUBTYPE_XMLID,
-    LLM_TOOL_RESULT_SUBTYPE_XMLID,
-    LLM_USER_SUBTYPE_XMLID,
-)
+from ..const import LLM_ASSISTANT_SUBTYPE_XMLID, LLM_TOOL_RESULT_SUBTYPE_XMLID, LLM_USER_SUBTYPE_XMLID
 
 _logger = logging.getLogger(__name__)
 
@@ -33,9 +29,7 @@ class MailMessageLLMSubtypes(models.Model):
             LLM_TOOL_RESULT_SUBTYPE_XMLID,
         ]
         for xmlid in subtype_xml_ids:
-            res_id = self.env["ir.model.data"]._xmlid_to_res_id(
-                xmlid, raise_if_not_found=True
-            )
+            res_id = self.env["ir.model.data"]._xmlid_to_res_id(xmlid, raise_if_not_found=True)
             if isinstance(res_id, int):
                 ids.add(res_id)
                 id_to_xmlid[res_id] = xmlid
@@ -55,18 +49,14 @@ class MailMessageLLMSubtypes(models.Model):
         llm_fields_to_fetch = list(set(self._get_llm_message_format_fields()))
         messages_data = {}
         if llm_fields_to_fetch:
-            messages_data_list = (
-                self.browse(message_ids).sudo().read(llm_fields_to_fetch)
-            )
+            messages_data_list = self.browse(message_ids).sudo().read(llm_fields_to_fetch)
             messages_data = {msg["id"]: msg for msg in messages_data_list}
 
         llm_subtype_ids, llm_id_to_xmlid_map = self._get_llm_subtype_data()
 
         for vals in vals_list:
             msg_data = messages_data.get(vals["id"], {})
-            msg_subtype_id = (
-                vals.get("subtype_id")[0] if vals.get("subtype_id") else None
-            )
+            msg_subtype_id = vals.get("subtype_id")[0] if vals.get("subtype_id") else None
 
             if msg_subtype_id in llm_subtype_ids:
                 # Render using note style for custom llm subtypes
@@ -83,11 +73,39 @@ class MailMessageLLMSubtypes(models.Model):
 
         return vals_list
 
-    def is_llm_user_message(self):
+    def is_user_message(self):
+        """Determine if the message is a user message.
+        This method is meant to be overridden by modules that use different subtypes.
+
+        Returns:
+            bool: True if the message is a user message, False otherwise
+        """
         return self.subtype_id == self.env.ref(LLM_USER_SUBTYPE_XMLID)
 
-    def is_llm_assistant_message(self):
+    def is_assistant_message(self):
+        """Determine if the message is an assistant message.
+        This method is meant to be overridden by modules that use different subtypes.
+
+        Returns:
+            bool: True if the message is an assistant message, False otherwise
+        """
         return self.subtype_id == self.env.ref(LLM_ASSISTANT_SUBTYPE_XMLID)
 
-    def is_llm_tool_result_message(self):
+    def is_tool_result_message(self):
+        """Determine if the message is a tool result message.
+        This method is meant to be overridden by modules that use different subtypes.
+
+        Returns:
+            bool: True if the message is a tool result message, False otherwise
+        """
         return self.subtype_id == self.env.ref(LLM_TOOL_RESULT_SUBTYPE_XMLID)
+
+    # Legacy methods for backwards compatibility
+    def is_llm_user_message(self):
+        return self.is_user_message()
+
+    def is_llm_assistant_message(self):
+        return self.is_assistant_message()
+
+    def is_llm_tool_result_message(self):
+        return self.is_tool_result_message()
