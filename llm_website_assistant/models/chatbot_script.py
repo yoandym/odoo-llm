@@ -133,3 +133,24 @@ class ChatbotScript(models.Model):
             "type": "ir.actions.client",
             "tag": "reload",
         }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+
+        # if is llm_enabled and have assistant_id
+        # force the operator_partner_id to be assistant_id.partner_id
+
+        for i in range(len(vals_list)):
+            if vals_list[i].get("llm_enabled") and vals_list[i].get("assistant_id"):
+                vals_list[i]["operator_partner_id"] = vals_list[i]["assistant_id"].partner_id.id
+
+        return super().create(vals_list)
+
+    def write(self, vals):
+        # if is llm_enabled and have assistant_id
+        # force the operator_partner_id to be assistant_id.partner_id
+
+        if vals.get("llm_enabled") and vals.get("assistant_id"):
+            vals["operator_partner_id"] = vals["assistant_id"].partner_id.id
+
+        return super().write(vals)

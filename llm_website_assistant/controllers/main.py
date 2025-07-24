@@ -91,7 +91,7 @@ class LlmLivechatController(LivechatController):
 
         return channel_info
 
-    def _stream_generator(self, thread_id, channel_id=None):
+    def _stream_generator(self, thread_id):
         """Generate SSE stream for LLM responses using the standard llm_thread generate method
 
         This simplified version only handles the streaming response generation.
@@ -132,7 +132,7 @@ class LlmLivechatController(LivechatController):
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n".encode()
 
     @http.route("/im_livechat/llm/stream", type="http", auth="public", website=True)
-    def stream_llm_response(self, thread_id, channel_id=None, **kwargs):
+    def stream_llm_response(self, thread_id, **kwargs):
         """Stream LLM responses via SSE
 
         Note: In livechat context, thread_id and channel_id are the same.
@@ -146,4 +146,4 @@ class LlmLivechatController(LivechatController):
             "X-Accel-Buffering": "no",
         }
 
-        return Response(self._stream_generator(thread_id, channel_id), direct_passthrough=True, headers=headers)
+        return Response(self._stream_generator(thread_id), direct_passthrough=True, headers=headers)

@@ -103,10 +103,6 @@ patch(LivechatService.prototype, {
                             
                         case "error":
                             console.error("[LLM] Stream error:", data.error);
-                            this.notificationService?.add?.(
-                                data.error || _t("An error occurred"),
-                                { type: "danger" }
-                            );
                             this.stopLLMStreaming(threadId);
                             break;
                     }
@@ -118,10 +114,6 @@ patch(LivechatService.prototype, {
             // Error handler
             eventSource.onerror = (error) => {
                 console.error("[LLM] EventSource error:", error);
-                this.notificationService?.add?.(
-                    _t("Connection lost"),
-                    { type: "danger" }
-                );
                 this.stopLLMStreaming(threadId);
             };
             

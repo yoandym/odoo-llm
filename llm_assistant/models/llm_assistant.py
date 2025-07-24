@@ -123,6 +123,53 @@ class LLMAssistant(models.Model):
         tracking=True,
     )
 
+    # Partner associated with this assistant
+    # Used to set message's author_id, avatar, etc
+    partner_id = fields.Many2one("res.partner", string="Partner", help="Partner associated with this assistant")
+
+    def _prepare_partner_values(self):
+        """Prepare values for partner creation
+
+        Returns:
+            dict: Values for creating a partner record
+        """
+        self.ensure_one()
+        return {
+            "name": self.name,
+            "email": f"{self.name.lower().replace(' ', '.')}@ai",
+            "comment": f"AI Assistant created automatically for {self.name}",
+            "type": "other",
+            "active": False,  # Archived by default like im_livechat does
+            "company_id": False,  # No company, global partner
+        }
+
+    def _create_partner(self):
+        """Create a partner for this assistant if none exists
+
+        Returns:
+            record: Created res.partner record
+        """
+        self.ensure_one()
+        partner_values = self._prepare_partner_values()
+        partner = self.env["res.partner"].create(partner_values)
+        return partner
+
+    def write(self, vals):
+        """Override write to update partner name if assistant name changes"""
+        result = super().write(vals)
+
+        # If name has changed, update linked partner's name to match
+        if "name" in vals and vals.get("name"):
+            for assistant in self.filtered(lambda a: a.partner_id):
+                assistant.partner_id.name = assistant.name
+
+        # create partners for assistant without one
+        for assistant in self.filtered(lambda a: not a.partner_id):
+            partner = assistant._create_partner()
+            assistant.partner_id = partner.id
+
+        return result
+
     @api.depends("prompt_id", "default_values")
     def _compute_system_prompt_preview(self):
         """Compute preview of the formatted system prompt"""
@@ -181,7 +228,14 @@ class LLMAssistant(models.Model):
                     json.loads(vals["default_values"])
                 except json.JSONDecodeError:
                     vals["default_values"] = "{}"
-        return super().create(vals_list)
+        assistants = super().create(vals_list)
+
+        # Create partners for assistants that don't have one
+        for assistant in assistants.filtered(lambda a: not a.partner_id):
+            partner = assistant._create_partner()
+            assistant.partner_id = partner.id
+
+        return assistants
 
     @api.onchange("prompt_id")
     def _onchange_prompt_id(self):
@@ -495,38 +549,6 @@ class LLMAssistant(models.Model):
                 _logger.info(
                     "Assistant '%s' (ID: %s) set as default, unset %s other default assistant(s)", assistant.name, assistant.id, other_defaults
                 )
-
-    def write(self, vals):
-        """Override write to handle is_default changes properly"""
-        result = super().write(vals)
-
-        # Handle edge case: if is_default was set to False and no other default exists
-        if vals.get("is_default") is False:
-            default_exists = self.search_count([("is_default", "=", True), ("active", "=", True)])
-            if default_exists == 0:
-                # Find the most recently used assistant and set it as default
-                most_used = self.search(
-                    [
-                        ("active", "=", True),
-                        ("id", "not in", self.ids),  # Exclude current records
-                    ],
-                    order="thread_count desc",
-                    limit=1,
-                )
-
-                if most_used:
-                    most_used.write({"is_default": True})
-                    _logger.info("No default assistant found after update, set assistant '%s' (ID: %s) as default", most_used.name, most_used.id)
-                elif self.search_count([("active", "=", True)]) > 0:
-                    # If no most used, select any active assistant
-                    any_active = self.search([("active", "=", True)], limit=1)
-                    if any_active:
-                        any_active.write({"is_default": True})
-                        _logger.info(
-                            "No default assistant found after update, set assistant '%s' (ID: %s) as default", any_active.name, any_active.id
-                        )
-
-        return result
 
     def get_default_assistant(self):
         """Find the default assistant or most used one if no default is set
@@ -853,38 +875,6 @@ class LLMAssistant(models.Model):
             markdown_parts.append(f"## {role} Message\n\n{content_text}")
 
         return "\n\n---\n\n".join(markdown_parts)
-
-    def write(self, vals):
-        """Override write to handle is_default changes properly"""
-        result = super().write(vals)
-
-        # Handle edge case: if is_default was set to False and no other default exists
-        if vals.get("is_default") is False:
-            default_exists = self.search_count([("is_default", "=", True), ("active", "=", True)])
-            if default_exists == 0:
-                # Find the most recently used assistant and set it as default
-                most_used = self.search(
-                    [
-                        ("active", "=", True),
-                        ("id", "not in", self.ids),  # Exclude current records
-                    ],
-                    order="thread_count desc",
-                    limit=1,
-                )
-
-                if most_used:
-                    most_used.write({"is_default": True})
-                    _logger.info("No default assistant found after update, set assistant '%s' (ID: %s) as default", most_used.name, most_used.id)
-                elif self.search_count([("active", "=", True)]) > 0:
-                    # If no most used, select any active assistant
-                    any_active = self.search([("active", "=", True)], limit=1)
-                    if any_active:
-                        any_active.write({"is_default": True})
-                        _logger.info(
-                            "No default assistant found after update, set assistant '%s' (ID: %s) as default", any_active.name, any_active.id
-                        )
-
-        return result
 
     def copy(self, default=None):
         """Override copy to set name to 'Original Name (copy)'"""
