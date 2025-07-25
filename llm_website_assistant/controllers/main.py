@@ -98,7 +98,7 @@ class LlmLivechatController(LivechatController):
 
         return channel_info
 
-    def _llm_livechat_generate(self, dbname, env=None, thread_id=None, user_message_body=None, message_id=None, **kwargs):
+    def _llm_livechat_generate(self, dbname, env=None, thread_id=None, **kwargs):
         """Generate SSE stream for LLM responses using the standard llm_thread generate method
 
         This simplified version handles both message posting and streaming response generation,
@@ -108,8 +108,6 @@ class LlmLivechatController(LivechatController):
             dbname: Database name
             env: Environment object (or None to use request.env)
             thread_id: Thread/Channel ID
-            user_message_body: Message content to post (legacy mode)
-            message_id: ID of an existing message to respond to (new mode with ThreadService)
         """
         uid = env.uid if env and hasattr(env, "uid") else http.request.uid
         context = env.context if env and hasattr(env, "context") else {}
@@ -138,27 +136,14 @@ class LlmLivechatController(LivechatController):
                 # The generate method will handle the appropriate action based on parameters
                 try:
                     # Call the generate method with the appropriate parameters
-                    # If message_id is provided, use that for continuation
-                    # Otherwise fall back to the legacy user_message_body parameter
-                    if message_id:
-                        for response in llmThread.sudo().with_context(website_livechat=True).generate(None):
-                            # Check if client is still connected
-                            try:
-                                yield f"data: {json.dumps(response, default=str)}\n\n".encode()
-                            except GeneratorExit:
-                                _logger.info(f"Client disconnected during LLM generation for thread {thread_id}")
-                                client_connected = False
-                                break
-                    else:
-                        # Legacy mode: generate from a new user message
-                        for response in llmThread.sudo().with_context(website_livechat=True).generate(user_message_body):
-                            # Check if client is still connected
-                            try:
-                                yield f"data: {json.dumps(response, default=str)}\n\n".encode()
-                            except GeneratorExit:
-                                _logger.info(f"Client disconnected during LLM generation for thread {thread_id}")
-                                client_connected = False
-                                break
+                    for response in llmThread.sudo().generate(None):
+                        # Check if client is still connected
+                        try:
+                            yield f"data: {json.dumps(response, default=str)}\n\n".encode()
+                        except GeneratorExit:
+                            _logger.info(f"Client disconnected during LLM generation for thread {thread_id}")
+                            client_connected = False
+                            break
 
                 except Exception as e:
                     _logger.exception(f"Error generating LLM response: {e}")
@@ -177,7 +162,7 @@ class LlmLivechatController(LivechatController):
                 env.clear()
 
     @http.route("/im_livechat/llm/generate", type="http", auth="public", website=True)
-    def llm_livechat_generate(self, thread_id, message=None, message_id=None, **kwargs):
+    def llm_livechat_generate(self, thread_id, **kwargs):
         """Stream LLM responses via SSE
 
         This endpoint supports two modes:
@@ -195,12 +180,11 @@ class LlmLivechatController(LivechatController):
             "X-Accel-Buffering": "no",
         }
 
-        user_message_body = message
         dbname = request.session.db
 
         # Pass message_id to the generator function for the new workflow
         return Response(
-            self._llm_livechat_generate(dbname, request.env if request.env else None, thread_id, user_message_body, message_id=message_id),
+            self._llm_livechat_generate(dbname, request.env if request.env else None, thread_id),
             direct_passthrough=True,
             headers=headers,
         )
