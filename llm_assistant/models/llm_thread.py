@@ -29,49 +29,38 @@ class LLMThread(models.Model):
         """Ensure an assistant is always set"""
         for thread in self:
             if not thread.assistant_id:
-                raise ValidationError(_("An assistant is required for all chat threads."))
+                raise ValidationError(
+                    _("An assistant is required for all chat threads.")
+                )
 
     # Default assistant for new threads
     @api.model_create_multi
     def create(self, vals_list):
-        """Ensure all new threads have an assistant"""
+        """Ensure thread's assistant consistency"""
         for vals in vals_list:
-            if not vals.get("assistant_id"):
-                # Get default assistant using the specialized method
-                assistant_service = self.env["llm.assistant"]
-                default_assistant = assistant_service.get_default_assistant()
+            _assistant_id = vals.get("assistant_id")
+            _assistant = self.env["llm.assistant"].browse(_assistant_id)
+            if _assistant_id and _assistant.exists():
 
-                if default_assistant:
-                    vals["assistant_id"] = default_assistant.id
+                # set provider, model and tools for consistency
+                vals["provider_id"] = _assistant.provider_id.id
+                vals["model_id"] = _assistant.model_id.id
+                vals["tool_ids"] = [(6, 0, _assistant.tool_ids.ids)]
+                vals["prompt_id"] = False
 
-                    # Also set provider, model and tools for consistency
-                    if default_assistant.provider_id:
-                        vals["provider_id"] = default_assistant.provider_id.id
-
-                    if default_assistant.model_id:
-                        vals["model_id"] = default_assistant.model_id.id
-
-                    if default_assistant.tool_ids:
-                        vals["tool_ids"] = [(6, 0, default_assistant.tool_ids.ids)]
-
-                    # Set default name if not provided
-                    if not vals.get("name"):
-                        vals["name"] = f"Chat with {default_assistant.name}"
-
-                else:
-                    # No assistant found, show clear error
-                    raise ValidationError(_("Cannot create chat thread: No assistants available. " "Please create at least one assistant first."))
+                # Set default name if not provided
+                if not vals.get("name"):
+                    vals["name"] = f"Chat with {_assistant.name}"
 
         # Call super to create the records
         return super().create(vals_list)
 
-    @api.onchange("assistant_id")
-    def _onchange_assistant_id(self):
-        """Update provider, model and tools when assistant changes"""
-        if self.assistant_id:
-            self.provider_id = self.assistant_id.provider_id
-            self.model_id = self.assistant_id.model_id
-            self.tool_ids = self.assistant_id.tool_ids
+    def write(self, vals):
+        """Override write to reset thread parameters when assistant changes"""
+        res = super().write(vals)
+        if "assistant_id" in vals:
+            self.reset_to_defaults()
+        return res
 
     def set_assistant(self, assistant_id):
         """Set the assistant for this thread and update related fields
@@ -102,17 +91,18 @@ class LLMThread(models.Model):
     def reset_to_defaults(self):
         """Set thread parameters based on the assistant"""
 
-        for thread in self:
-            # call super
-            if not thread.assistant_id:
-                # If no assistant, just call the base method
-                return super(LLMThread, thread).reset_to_defaults()
+        self.ensure_one()
 
-            # Update llm related params (tools, prompt) based on the assistant
-            thread.provider_id = thread.assistant_id.provider_id
-            thread.model_id = thread.assistant_id.model_id
-            thread.tool_ids = thread.assistant_id.tool_ids
-            thread.prompt_id = False
+        # call super
+        if not self.assistant_id:
+            # If no assistant, just call the base method
+            return super(LLMThread, self).reset_to_defaults()
+
+        # Update llm related params (tools, prompt) based on the assistant
+        self.provider_id = self.assistant_id.provider_id
+        self.model_id = self.assistant_id.model_id
+        self.tool_ids = self.assistant_id.tool_ids
+        self.prompt_id = False
 
     def action_open_thread(self):
         """Open the thread in the chat client interface
@@ -156,11 +146,15 @@ class LLMThread(models.Model):
             if assistant_messages:
                 # Use the helper method from llm_prompt to merge the messages
                 messages = self.merge_message_lists(assistant_messages, messages)
-                _logger.info("Added %d messages from assistant", len(assistant_messages))
+                _logger.info(
+                    "Added %d messages from assistant", len(assistant_messages)
+                )
             else:
                 # Fallback to the old method if get_messages returns empty
                 # This ensures backward compatibility
-                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(thread=self)
+                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(
+                    thread=self
+                )
                 if assistant_system_prompt:
                     # Create a system message with the assistant's prompt
                     assistant_message = {
@@ -175,7 +169,9 @@ class LLMThread(models.Model):
                         for msg in messages:
                             if msg.get("role") == "system":
                                 # Append to existing system message
-                                msg["content"] = f"{assistant_system_prompt}\n\n{msg['content']}"
+                                msg["content"] = (
+                                    f"{assistant_system_prompt}\n\n{msg['content']}"
+                                )
                                 has_system_message = True
                                 break
 
@@ -257,7 +253,7 @@ class LLMThread(models.Model):
         return result
 
     def _post_message(self, **kwargs):
-        """ Overriden to set autor_id to the assistant partner_id"""
+        """Overriden to set autor_id to the assistant partner_id"""
         self.ensure_one()
 
         subtype_xmlid = kwargs.get("subtype_xmlid")
@@ -265,7 +261,12 @@ class LLMThread(models.Model):
 
         extra_vals = {}
         # For assistant messages, use the assistant's partner if available
-        if not author_id and subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID and self.assistant_id and self.assistant_id.partner_id:
+        if (
+            not author_id
+            and subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID
+            and self.assistant_id
+            and self.assistant_id.partner_id
+        ):
             extra_vals = {"author_id": self.assistant_id.partner_id.id}
 
         assistant_kwargs = kwargs.copy()

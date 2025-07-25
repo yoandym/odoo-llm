@@ -70,8 +70,6 @@ class LLMThread(models.Model):
         string="Available Tools",
         help="Tools that can be used by the LLM in this thread",
     )
-    # NOTE: We're removing the redundant 'source' field in favor of using
-    # the existing 'channel_type' field from the discuss.channel model
 
     # LLM enabled field - base computation depends on model_id
     llm_enabled = fields.Boolean(
