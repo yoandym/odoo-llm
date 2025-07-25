@@ -98,7 +98,7 @@ class LlmLivechatController(LivechatController):
 
         return channel_info
 
-    def _llm_livechat_generate(self, dbname, env=None, thread_id=None, **kwargs):
+    def _llm_livechat_generate(self, dbname, env, thread_id=None, **kwargs):
         """Generate SSE stream for LLM responses using the standard llm_thread generate method
 
         This simplified version handles both message posting and streaming response generation,
@@ -106,10 +106,11 @@ class LlmLivechatController(LivechatController):
 
         Args:
             dbname: Database name
-            env: Environment object (or None to use request.env)
+            env: Environment object
             thread_id: Thread/Channel ID
         """
-        uid = env.uid if env and hasattr(env, "uid") else http.request.uid
+        # Use request.env and uid directly
+        uid = env.uid if env else None
         context = env.context if env and hasattr(env, "context") else {}
 
         with registry(dbname).cursor() as cr:
@@ -122,7 +123,7 @@ class LlmLivechatController(LivechatController):
                     return
 
                 # Get the LLM thread (which is the same as the livechat channel)
-                llmThread = env["discuss.channel"].browse(int(thread_id))
+                llmThread = env["discuss.channel"].sudo().browse(int(thread_id))
                 if not llmThread.exists():
                     yield f"data: {json.dumps({'type': 'error', 'error': 'Thread not found'})}\n\n".encode()
                     return
@@ -137,11 +138,10 @@ class LlmLivechatController(LivechatController):
                 try:
                     # Call the generate method with the appropriate parameters
                     for response in llmThread.sudo().generate(None):
-                        # Check if client is still connected
+                        # TODO: remove debug log
                         try:
                             yield f"data: {json.dumps(response, default=str)}\n\n".encode()
                         except GeneratorExit:
-                            _logger.info(f"Client disconnected during LLM generation for thread {thread_id}")
                             client_connected = False
                             break
 
@@ -165,10 +165,8 @@ class LlmLivechatController(LivechatController):
     def llm_livechat_generate(self, thread_id, **kwargs):
         """Stream LLM responses via SSE
 
-        This endpoint supports two modes:
-        1. With message: Send a user message and get LLM response (legacy mode)
-        2. With message_id: Use an existing message and just generate LLM response (new mode)
-
+        This endpoint generates an LLM response for the given thread_id.
+        
         Note: In livechat context, thread_id and channel_id are the same.
         """
         if not thread_id:
@@ -181,10 +179,12 @@ class LlmLivechatController(LivechatController):
         }
 
         dbname = request.session.db
+        _env = request.env if hasattr(request, 'env') else None
+        _logger.info(f"Received request to /im_livechat/llm/generate for thread_id={thread_id}")
 
-        # Pass message_id to the generator function for the new workflow
+        # Pass all parameters to the generator function
         return Response(
-            self._llm_livechat_generate(dbname, request.env if request.env else None, thread_id),
+            self._llm_livechat_generate(dbname, _env, thread_id),
             direct_passthrough=True,
             headers=headers,
         )
