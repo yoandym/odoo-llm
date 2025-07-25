@@ -65,7 +65,7 @@ class LlmLivechatController(LivechatController):
             return channel_info
 
         # If chatbot_script_id is provided and channel was created successfully
-        if chatbot_script_id:
+        if chatbot_script_id and persisted:
             try:
                 # Get the script to check if it has an LLM assistant
                 chatbot_script = request.env["chatbot.script"].sudo().browse(int(chatbot_script_id))
@@ -76,10 +76,16 @@ class LlmLivechatController(LivechatController):
                     and chatbot_script.llm_assistant_id
                     and chatbot_script.llm_assistant_id.is_website_visible
                 ):
+                    # link the LLM assistant to the channel
+                    channel = request.env["discuss.channel"].sudo().browse(int(channel_info.get("id")))
+                    channel.assistant_id = chatbot_script.llm_assistant_id
+
                     # Ensure the assistant_id is also passed back in the channel_info
                     channel_info["assistant_id"] = chatbot_script.llm_assistant_id.id
                     channel_info["assistant_name"] = chatbot_script.llm_assistant_id.name
-                    channel_info["assistant_partner_id"] = chatbot_script.llm_assistant_id.partner_id.id if chatbot_script.llm_assistant_id.partner_id else False
+                    channel_info["assistant_partner_id"] = (
+                        chatbot_script.llm_assistant_id.partner_id.id if chatbot_script.llm_assistant_id.partner_id else False
+                    )
                 else:
                     _logger.warning(
                         f"Requested Assistant {chatbot_script.llm_assistant_id.name} (ID: {chatbot_script.llm_assistant_id.id}) is not website visible, "
