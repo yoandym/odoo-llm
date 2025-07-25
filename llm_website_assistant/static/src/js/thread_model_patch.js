@@ -22,7 +22,6 @@ patch(Thread, {
         if (data.assistant_id !== undefined) {
             thread.assistantId = data.assistant_id;
             thread.hasLLMCapabilities = Boolean(data.assistant_id);
-            console.log("[LLM] Thread insert received assistant_id:", data.assistant_id, "for thread:", thread.id);
         }
         
         if (data.assistant_partner_id !== undefined) {
@@ -79,7 +78,6 @@ patch(Thread.prototype, {
         if ('assistant_id' in data) {
             this.assistantId = data.assistant_id;
             // Debug log when assistant_id is received from server
-            console.log("[LLM] Thread received assistant_id:", data.assistant_id, "for thread:", this.id);
         }
         
         if ('assistant_partner_id' in data) {
