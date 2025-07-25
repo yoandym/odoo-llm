@@ -117,7 +117,8 @@ patch(LivechatService.prototype, {
             console.log(`[LLM] Stopping stream for thread ${threadId}`);
             eventSource.close();
             this.llmStreamSources.delete(threadId);
-            
+            // Fire streaming_stop event
+            this.busService.trigger('streaming_stop', { threadId });
             // Get current thread
             const thread = this.thread;
             
@@ -184,7 +185,8 @@ patch(LivechatService.prototype, {
             if (thread.assistantId) {
                 // Stop any existing stream first
                 this.stopLLMStreaming(threadId);
-                                
+                // Fire streaming_start event
+                this.busService.trigger('streaming_start', { threadId });
                 // Create SSE connection to the generate endpoint for LLM response streaming
                 // We still need SSE for streaming the response tokens
                 const eventSource = new EventSource(

@@ -48,7 +48,6 @@ patch(ChatBotService.prototype, {
         
         
         try {
-            this.isTyping = true;
             this.currentStep.hasAnswer = true;
 
             // We don't need to post the message as it's already posted by the composer
@@ -64,9 +63,7 @@ patch(ChatBotService.prototype, {
         } catch (error) {
             console.error("[LLM Chatbot] Error processing answer:", error);
             this._handleLLMError();
-        } finally {
-            this.isTyping = false;
-        }
+        } 
     },
 
     /**
@@ -132,6 +129,39 @@ patch(ChatBotService.prototype, {
                 isLast: true
             };
         }
+    },
+
+    setup(env, services) {
+        super.setup?.(env, services);
+        this._onStreamingStart = this._onStreamingStart?.bind(this) || ((ev) => this._handleStreamingStart(ev));
+        this._onStreamingStop = this._onStreamingStop?.bind(this) || ((ev) => this._handleStreamingStop(ev));
+        this.livechatService.busService.addEventListener('streaming_start', this._onStreamingStart);
+        this.livechatService.busService.addEventListener('streaming_stop', this._onStreamingStop);
+    },
+
+    _handleStreamingStart(ev) {
+        if (ev?.detail?.threadId === this.livechatService.thread?.id) {
+            this.isTyping = true;
+        }
+    },
+
+    _handleStreamingStop(ev) {
+        if (ev?.detail?.threadId === this.livechatService.thread?.id) {
+            this.isTyping = false;
+        }
+    },
+
+    destroy() {
+        this.livechatService.busService.removeEventListener('streaming_start', this._onStreamingStart);
+        this.livechatService.busService.removeEventListener('streaming_stop', this._onStreamingStop);
+        super.destroy?.();
+    },
+
+    get inputDisabledText() {
+        if (this.currentStep?.isLlmStep && this.isTyping) {
+            return _t("AI is generating response...");
+        }
+        return "";
     },
 
 });
