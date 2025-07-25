@@ -68,9 +68,6 @@ class Message(models.Model):
                     if hasattr(channel, "chatbot_current_step_id") and channel.chatbot_current_step_id:
                         chatbot_script = channel.chatbot_current_step_id.chatbot_script_id
 
-                    # If this is the operator or a chatbot message, it's an assistant message
-                    if self.author_id == channel.livechat_operator_id:
-                        return True
                     if chatbot_script and self.author_id == chatbot_script.sudo().operator_partner_id:
                         return True
 
