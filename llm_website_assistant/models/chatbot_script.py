@@ -64,21 +64,12 @@ class ChatbotScript(models.Model):
         # So, if present, use the channel's default_message as a welcome step
         # Otherwise, the user have to break the ice.
         channel = self.env["im_livechat.channel"].search([("rule_ids.chatbot_script_id", "=", self.id)], limit=1)
-        if channel.default_message:
-            # Create the welcome step
-            self.env["chatbot.script.step"].create(
-                {
-                    "chatbot_script_id": self.id,
-                    "message": channel.default_message,
-                    "step_type": "text",
-                }
-            )
 
         # Create the llm input processed step
         self.env["chatbot.script.step"].create(
             {
                 "chatbot_script_id": self.id,
-                "message": None,
+                "message": channel.default_message or _("How can I assist you today?"),
                 "step_type": "llm_processed_input",
             }
         )

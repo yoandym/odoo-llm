@@ -14,10 +14,12 @@
                 <attribute name="required">step_type not in ['forward_operator', 'llm_processed_input']</attribute>
             </xpath>
             
-            <xpath expr="//field[@name='message']" position="after">
-                <div class="alert alert-info"  role="alert" invisible="step_type != 'llm_processed_input'">
+            <xpath expr="//field[@name='is_forward_operator_child']" position="after">
+                <div class="alert alert-info text-center mb-0" role="alert" invisible="step_type != 'llm_processed_input'">
+                    <span>
                     <strong>LLM Processed Input: </strong>This step will use an AI assistant to respond to the visitor's messages.
-                    Make sure to configure an AI assistant on the livechat channel settings.
+                    Make sure to configure one on the script (chatbot) settings.
+                    </span>
                 </div>
             </xpath>
         </field>
