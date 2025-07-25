@@ -3,13 +3,6 @@ import logging
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
-from odoo.addons.llm_mail_message_subtypes.const import (  # pyright:ignore
-    LLM_ASSISTANT_SUBTYPE_XMLID,
-    LLM_TOOL_RESULT_SUBTYPE_XMLID,
-    LLM_USER_SUBTYPE_XMLID,
-)
-
-
 _logger = logging.getLogger(__name__)
 
 
@@ -256,14 +249,12 @@ class LLMThread(models.Model):
         """Overriden to set autor_id to the assistant partner_id"""
         self.ensure_one()
 
-        subtype_xmlid = kwargs.get("subtype_xmlid")
         author_id = kwargs.get("author_id")
 
         extra_vals = {}
         # For assistant messages, use the assistant's partner if available
         if (
             not author_id
-            and subtype_xmlid == LLM_ASSISTANT_SUBTYPE_XMLID
             and self.assistant_id
             and self.assistant_id.partner_id
         ):
