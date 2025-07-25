@@ -37,8 +37,8 @@ class LLMToolRecordRetriever(models.Model):
         )
         model_obj = self.env[model]
 
-        if not isinstance(domain, list):
-            # cast the domain to a list
+        # sometimes the llm makes mistakes and sends a string instead of a list
+        if isinstance(domain, str):
             domain = ast.literal_eval(domain)
 
         # Using search_read for efficiency
