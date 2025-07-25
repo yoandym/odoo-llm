@@ -37,5 +37,5 @@ class LLMAssistant(models.Model):
         for assistant in self:
             # Count threads with website_chat relation
             assistant.website_session_count = self.env["discuss.channel"].search_count(
-                [("assistant_id", "=", assistant.id), ("source", "=", "website_livechat")]
+                [("assistant_id", "=", assistant.id)]
             )
