@@ -23,10 +23,21 @@ class Message(models.Model):
         if self.model == "discuss.channel":
             channel = self.env["discuss.channel"].browse(self.res_id)
             if channel.channel_type == "livechat" and self.message_type == "comment":
-                # In livechat, visitor messages have author_guest_id set or no author_id
-                # and use the standard 'mail.mt_comment' subtype
-                if (self.author_guest_id or not self.author_id) and self.subtype_id == self.env.ref("mail.mt_comment", False):
-                    return True
+                # Using standard mail.mt_comment subtype
+                if self.subtype_id == self.env.ref("mail.mt_comment", False):
+                    # In livechat, we need to determine if the message is from a user
+                    # We consider a message as user message if:
+                    # 1. It's not from the livechat operator
+                    # 2. It's not from a chatbot (checking chatbot_script.operator_partner_id)
+
+                    # First, check if we have a chatbot script for this channel
+                    chatbot_script = None
+                    if hasattr(channel, "chatbot_current_step_id") and channel.chatbot_current_step_id:
+                        chatbot_script = channel.chatbot_current_step_id.chatbot_script_id
+
+                    # If the author is not the operator and not the chatbot, it's a user
+                    if self.author_id not in [channel.livechat_operator_id, chatbot_script.sudo().operator_partner_id]:
+                        return True  # It's a user message
 
         return is_user_msg
 
@@ -43,9 +54,24 @@ class Message(models.Model):
         if self.model == "discuss.channel":
             channel = self.env["discuss.channel"].browse(self.res_id)
             if channel.channel_type == "livechat" and self.message_type == "comment":
-                # In livechat, operator messages have author_id set (no guest)
-                # and use the standard 'mail.mt_comment' subtype
-                if self.author_id and not self.author_guest_id and self.subtype_id == self.env.ref("mail.mt_comment", False):
-                    return True
+                # Using standard mail.mt_comment subtype
+                if self.subtype_id == self.env.ref("mail.mt_comment", False):
+                    # For livechat, we need to determine if this is an assistant/operator message
+                    # Check if this is from an AI assistant in a livechat context
+                    # We consider it as assistant message if:
+                    # 1. It's from the livechat operator
+                    # OR
+                    # 2. It's from a chatbot (which should be treated as assistant message for LLM context)
+
+                    # First, check if we have a chatbot script for this channel
+                    chatbot_script = None
+                    if hasattr(channel, "chatbot_current_step_id") and channel.chatbot_current_step_id:
+                        chatbot_script = channel.chatbot_current_step_id.chatbot_script_id
+
+                    # If this is the operator or a chatbot message, it's an assistant message
+                    if self.author_id == channel.livechat_operator_id:
+                        return True
+                    if chatbot_script and self.author_id == chatbot_script.sudo().operator_partner_id:
+                        return True
 
         return is_standard_assistant
