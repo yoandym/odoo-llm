@@ -238,16 +238,22 @@ class LLMThread(models.Model):
         if not last_message:
             return False
         if last_message.is_user_message() or last_message.is_tool_result_message():
+            _logger.debug("last message is user or tool result message, _should_continue: yes")
             return True
         if last_message.is_assistant_message() and last_message.tool_calls:
+            _logger.debug("last message is assistant message with tool calls, _should_continue: yes")
             return True
+
+        _logger.debug("last message dont comply, _should_continue: no")
         return False
 
     def _next_step(self, last_message):
         """Dispatch to the next generator based on message type."""
         if last_message.is_user_message() or last_message.is_tool_result_message():
+            _logger.debug("last message is user or tool result message, next_step: _get_assistant_response")
             return self._get_assistant_response()
         if last_message.is_assistant_message() and last_message.tool_calls:
+            _logger.debug("last message is assistant message with tool calls, next_step: _process_tool_calls")
             return self._process_tool_calls(last_message)
         return last_message
 
