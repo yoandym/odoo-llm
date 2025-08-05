@@ -51,10 +51,7 @@ export class LLMChatComposer extends Composer {
     }
 
     super.setup();
-
-    // Create ref for textarea
-    this.textareaRef = useRef("textarea");
-
+    
     // LLM-specific services
     this.llmComposerService = useService("llm_composer");
     this.llmChatService = useService("llm_chat");
@@ -142,7 +139,7 @@ export class LLMChatComposer extends Composer {
 
         // Focus after streaming stops, but only if component is mounted
         setTimeout(() => {
-          if (this.textareaRef.el || this.root?.el) {
+          if (this.ref.el || this.root?.el) {
             this.focusTextInput();
           }
         }, 100);
@@ -292,8 +289,8 @@ export class LLMChatComposer extends Composer {
    */
   getTextareaElement() {
     // Use the ref first (preferred approach)
-    if (this.textareaRef.el) {
-      return this.textareaRef.el;
+    if (this.ref.el) {
+      return this.ref.el;
     }
 
     // Fallback to querySelector if ref is not available
