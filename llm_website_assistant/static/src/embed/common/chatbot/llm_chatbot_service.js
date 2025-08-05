@@ -44,8 +44,10 @@ patch(ChatBotService.prototype, {
      * @param {Object} message - The user message
      */
     async _llmProcessUserAnswer(message) {
-        // TODO: if we are already streming, just return the same step
-        
+        // If we're already streaming, just stay on the current step
+        if (this.isTyping) {
+            return;
+        }
         
         try {
             this.currentStep.hasAnswer = true;
@@ -55,10 +57,6 @@ patch(ChatBotService.prototype, {
             const messageId = message.id;
             await this.livechatService.triggerLLMResponseForMessage(this.livechatService.thread.id, messageId);
 
-            // TODO: if we are result succed and we are streaming, just return the same step
-            // TODO: else let the normal flow be -> `_triggerNextStep()` -> `_getNextStep()` -> ...
-
-            this.save();
             
         } catch (error) {
             console.error("[LLM Chatbot] Error processing answer:", error);
@@ -132,7 +130,8 @@ patch(ChatBotService.prototype, {
     },
 
     setup(env, services) {
-        super.setup?.(env, services);
+        super.setup(env, services);
+        
         this._onStreamingStart = this._onStreamingStart?.bind(this) || ((ev) => this._handleStreamingStart(ev));
         this._onStreamingStop = this._onStreamingStop?.bind(this) || ((ev) => this._handleStreamingStop(ev));
         this.livechatService.busService.addEventListener('streaming_start', this._onStreamingStart);
@@ -145,9 +144,21 @@ patch(ChatBotService.prototype, {
         }
     },
 
-    _handleStreamingStop(ev) {
+    /**
+     * Handle when streaming stops - complete the LLM response processing
+     * 
+     * @private
+     * @param {CustomEvent} ev - The streaming stop event
+     */
+    async _handleStreamingStop(ev) {
         if (ev?.detail?.threadId === this.livechatService.thread?.id) {
-            this.isTyping = false;
+            // Set a small timeout to ensure message state is stable before continuing flow
+            setTimeout(() => {
+                this.isTyping = false;
+                                
+                // Continue flow
+                this._triggerNextStep();
+            }, this.stepDelay);
         }
     },
 
@@ -161,7 +172,14 @@ patch(ChatBotService.prototype, {
         if (this.currentStep?.isLlmStep && this.isTyping) {
             return _t("AI is generating response...");
         }
-        return "";
+
+        return super.inputDisabledText;
     },
+
+    _triggerNextStep() {
+        console.log("[_triggerNextStep] store.Message before calling super:", this.store.Message.records);
+        super._triggerNextStep();
+        console.log("[_triggerNextStep] store.Message after calling super:", this.store.Message.records);
+    }
 
 });

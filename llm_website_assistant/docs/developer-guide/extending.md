@@ -291,28 +291,7 @@ class ChatbotScriptStep(models.Model):
         return next_step, {'api_result': result}
 ```
 
-### Adding Analytics
 
-```python
-class LLMThread(models.Model):
-    _inherit = "llm.thread"
-    
-    @api.model
-    def create(self, vals):
-        thread = super().create(vals)
-        
-        # Track thread creation
-        if thread.source == 'website_livechat':
-            self.env['your.analytics.model'].track_event(
-                'llm_chat_started',
-                {
-                    'assistant_id': thread.assistant_id.id,
-                    'timestamp': fields.Datetime.now(),
-                }
-            )
-        
-        return thread
-```
 
 ### Custom Validation
 

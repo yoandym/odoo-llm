@@ -3,7 +3,7 @@
 import { LivechatService } from "@im_livechat/embed/common/livechat_service";
 import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
-import { useService } from "@web/core/utils/hooks";
+import { markup } from "@odoo/owl";
 
 /**
  * Extended LivechatService with LLM capabilities
@@ -27,139 +27,29 @@ patch(LivechatService.prototype, {
         // LLM thread management - only keep EventSource instances
         this.llmStreamSources = new Map(); // threadId -> EventSource
         
-        // Register for bus notifications to get real-time updates
-        this.busService.addEventListener("notification", this._onNotification.bind(this));
-    },
-    
-    /**
-     * Handle bus notifications for real-time updates
-     * @param {CustomEvent} notification - A CustomEvent object containing notification details
-     */
-    _onNotification(notification) {
-        // Extract notifications from the CustomEvent detail property
-        const notifications = notification.detail || [];
-        console.log("[LLM] Received notifications:", notifications);
-        
-        for (const notif of notifications) {
-            const { type, payload } = notif;
-            
-            // Handle record insertions that might be messages
-            if (type === 'mail.record/insert' && 
-                this.thread &&
-                payload.ChannelMember) {
-                
-                // Check if this is related to our thread
-                const threadData = payload.ChannelMember?.thread;
-                if (threadData && threadData.id === this.thread.id) {
-                    console.log("[LLM] Processing mail.record/insert for thread:", this.thread.id);
-                    
-                    // If this is an LLM message that's complete, update streaming state
-                    // Note: The actual message completion might come in a different notification type
-                    if (payload.llm_message_complete) {
-                        this.stopLLMStreaming(threadData.id);
-                    }
-                }
-            }
-            
-            // Handle message-related notifications (original format)
-            // Keeping this for backward compatibility
-            if (type === 'mail.message/insert' && 
-                this.thread && 
-                payload.thread_id === this.thread.id) {
-
-                console.log("[LLM] Processing mail.message/insert for thread:", this.thread.id);
-                
-                // If this is an LLM message that's complete, update streaming state
-                if (payload.llm_message_complete) {
-                    this.stopLLMStreaming(payload.thread_id);
-                }
-            }
-            
-            // Handle thread updates (original format)
-            if (type === 'mail.thread/insert' && 
-                this.thread && 
-                payload.id === this.thread.id) {
-                // The thread will update automatically through the store
-                // No need for manual refreshThread calls
-                console.log("[LLM] Processing mail.thread/insert for thread:", this.thread.id);
-            }
-            
-            // Handle new message notifications - this is crucial for message chunks
-            if (type === 'discuss.channel/new_message' && 
-                this.thread && 
-                payload.id === this.thread.id) {
-                
-                // Check if this message has content and belongs to our thread
-                if (payload.message && payload.message.id) {
-                    console.log("[LLM] Processing discuss.channel/new_message for message:", payload.message.id);
-                    
-                    // Check if this is a streaming message (from the LLM)
-                    const isLLMMessage = this.llmStreamSources.has(this.thread.id);
-                                        
-                    // Force a refresh to ensure the UI updates
-                    // This is particularly important for message chunks
-                    this._forceThreadRefresh(payload.id, payload.message);
-                }
-            }
-        }
     },
 
-
     /**
-     * Stop streaming for a thread
-     * Updated to use store for reactivity
+     * Stop streaming for a thread and clean up resources
      * 
      * @param {number} threadId - The thread ID
      */
     stopLLMStreaming(threadId) {
         const eventSource = this.llmStreamSources.get(threadId);
         if (eventSource) {
-            console.log(`[LLM] Stopping stream for thread ${threadId}`);
+            console.log(`[stopLLMStreaming] Stopping stream for thread ${threadId}`);
             eventSource.close();
             this.llmStreamSources.delete(threadId);
+            
             // Fire streaming_stop event
             this.busService.trigger('streaming_stop', { threadId });
-            // Get current thread
-            const thread = this.thread;
-            
-            // Update thread streaming status
-            if (thread && thread.id === threadId) {
-                console.log(`[LLM] Updating thread ${threadId} streaming status to false`);
-                if (thread.update) {
-                    thread.update({ isStreaming: false });
-                } else {
-                    thread.isStreaming = false;
-                }
-                
-                // Force a final refresh to ensure the UI shows the complete message
-                // This is important in case we missed any updates
-                if (thread.invalidateCache) {
-                    console.log(`[LLM] Invalidating cache for thread ${threadId}`);
-                    thread.invalidateCache();
-                }
-                
-                // Try to find and update the most recent message
-                const messages = thread.messages || [];
-                if (messages.length > 0) {
-                    // Find the most recent message (likely the streaming one)
-                    const latestMessage = messages[messages.length - 1];
-                    console.log(`[LLM] Found latest message in thread: ${latestMessage.id}`);
-                    
-                    // Force a refresh for this specific message to ensure it's displayed correctly
-                    if (thread.env?.store && thread.model === 'discuss.channel') {
-                        const store = thread.env.store;
-                        if (store.Message && store.Message.insert) {
-                            console.log(`[LLM] Refreshing message in store: ${latestMessage.id}`);
-                            store.Message.insert(latestMessage);
-                        }
-                    }
-                }
-            }
             
         } else {
-            console.log(`[LLM] No active stream found for thread ${threadId}`);
+            console.log(`[stopLLMStreaming] No active stream found for thread ${threadId}`);
         }
     },
+    
+
 
     /**
      * Trigger LLM response generation for a message that was already posted
@@ -197,35 +87,50 @@ patch(LivechatService.prototype, {
                 eventSource.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
-                        console.log("[LLM] Received stream data:", data);
                         
                         if (data.type === "error") {
-                            console.error("[LLM] Stream error:", data.error);
+                            console.error("[triggerLLMResponseForMessage] Stream error:", data.error);
+
                             this.stopLLMStreaming(threadId);
+
                         } else if (data.type === "done") {
-                            console.log("[LLM] Stream completed successfully");
-                            this.stopLLMStreaming(threadId);
-                        } else if (data.type === "token") {
-                            // Log token updates for debugging
-                            console.log("[LLM] Token received:", data.token ? data.token.slice(0, 15) + "..." : "empty token");
-                        } else if (data.type === "message_create" || data.type === "message_chunk") {
-                            // Handle message creation and updates
-                            console.log(`[LLM] ${data.type === "message_create" ? "Creating new" : "Updating"} message:`, data.message?.id);
+                            console.log("[triggerLLMResponseForMessage] Stream completed successfully");
                             
-                            // Update the thread with the new message data
+                            // Wait a brief moment to ensure any pending message updates are processed
+                            setTimeout(() => {
+                                // Stop streaming
+                                this.stopLLMStreaming(threadId);
+                            }, this.messageDelay);
+
+                        } else if (data.type === "message_create" || data.type === "message_chunk") {
+                            console.log("[triggerLLMResponseForMessage] Received:", data.type);
+
                             // We need to force a refresh since bus notifications may not trigger UI updates for message chunks
-                            this._forceThreadRefresh(threadId, data.message);
+                            this._processMsg(threadId, data.message);
+
+                        } else if (data.type === "message_update") {
+                            console.log("[triggerLLMResponseForMessage] Received:", data.type);
+                            console.log("[triggerLLMResponseForMessage] Message data:", data.message);
+
+                            // Get the existing message
+                            let stored_msg = this.store.Message.get(data.message.id);
+                                                        
+                            // Force direct body update and DOM refresh
+                            console.log("[triggerLLMResponseForMessage] Current body:", stored_msg.body);
+                            console.log("[triggerLLMResponseForMessage] New body:", data.message.body);
+                            
+                            
+     
+                            
                         }
                     } catch (error) {
-                        console.error("[LLM] Stream parsing error:", error);
+                        console.error("[triggerLLMResponseForMessage] Stream parsing error:", error);
                     }
                 };
                 
                 // Error handler
-                eventSource.onerror = (error) => {
-                    console.error("[LLM] EventSource error:", error);
-                    console.error("[LLM] EventSource readyState:", eventSource.readyState);
-                    
+                eventSource.onerror = (ex) => {
+                    console.error(ex)
                     // Stop streaming and clean up resources
                     this.stopLLMStreaming(threadId);
                 };
@@ -253,7 +158,7 @@ patch(LivechatService.prototype, {
             };
             
         } catch (error) {
-            console.error("[LLM] Error triggering LLM response:", error);
+            console.error("[triggerLLMResponseForMessage] Error triggering LLM response:", error);
             return { success: false, error: error.message };
         }
     },
@@ -262,7 +167,8 @@ patch(LivechatService.prototype, {
      * Enhanced cleanup for LLM resources (including streaming)
      * Updated to use store for reactivity
      * 
-     * @param {number} channelId - The channel ID
+     
+    * @param {number} channelId - The channel ID
      */
     cleanupLLMResources(channelId) {
         // Stop any active streams for this thread
@@ -284,17 +190,14 @@ patch(LivechatService.prototype, {
         
     },
     
-    // updateThread method removed - using LivechatService's thread getter instead
-
     /**
-     * Force refresh of thread to show message updates
-     * This is necessary for message chunks that may not trigger UI updates through the bus
+     * Update a specific message in the thread or add it if it doesn't exist
      * 
      * @param {number} threadId - The thread ID
      * @param {Object} messageData - The message data to update
      * @private 
      */
-    _forceThreadRefresh(threadId, messageData) {
+    _processMsg(threadId, messageData) {
         // Get current thread and make sure it matches
         const thread = this.thread;
         if (!thread || thread.id !== threadId || !messageData) {
@@ -308,71 +211,86 @@ patch(LivechatService.prototype, {
             
             if (messageIndex >= 0) {
                 // Message exists - update it
-                const message = messages[messageIndex];
-                if (message.update) {
-                    // Use the thread store's update mechanism if available
-                    message.update(messageData);
-                } else {
-                    // Direct property update as fallback
-                    Object.assign(message, messageData);
-                }
-                
-                // Trigger a UI refresh for the thread if needed
-                if (thread.invalidateCache) {
-                    thread.invalidateCache();
-                }
-                
-                // If this is a store-based thread, trigger specific message updates
-                if (thread.env?.store && thread.model === 'discuss.channel') {
-                    const store = thread.env.store;
-                    if (store.Message && store.Message.insert) {
-                        // Use store's insert/update mechanism for the message
-                        store.Message.insert(messageData);
-                    }
-                }
+                this._updateExistingMessage(messages[messageIndex], messageData);
             } else if (messageData.body) {
-                // Message doesn't exist yet - create it if we have content
-                // This might happen if we get a chunk before the message is in the thread
-                console.log("[LLM] Message not found in thread, attempting to add it");
-                
-                // If we have a store, try to insert the message directly
-                if (thread.env?.store && thread.model === 'discuss.channel') {
-                    const store = thread.env.store;
-                    if (store.Message && store.Message.insert) {
-                        console.log("[LLM] Inserting new message into store:", messageData.id);
-                        // Add the message to the store - this should trigger UI updates
-                        store.Message.insert(messageData);
-                        
-                        // Link the message to the thread if needed
-                        if (store.Thread && store.Thread.updateMessages) {
-                            store.Thread.updateMessages([{
-                                id: threadId,
-                                messages: [{ id: messageData.id }],
-                            }]);
-                        }
-                        
-                        // Force a refresh of the thread UI
-                        if (thread.invalidateCache) {
-                            thread.invalidateCache();
-                        }
-                    }
-                } else if (Array.isArray(thread.messages)) {
-                    // Fallback: Add directly to the thread's messages array
-                    console.log("[LLM] Adding message directly to thread messages array");
-                    thread.messages.push(messageData);
-                    
-                    // Force a thread refresh if possible
-                    if (thread.invalidateCache) {
-                        thread.invalidateCache();
-                    } else if (thread.refresh) {
-                        thread.refresh();
-                    }
-                }
+                // Message doesn't exist yet - add it
+                this._addNewMessage(thread, threadId, messageData);
             }
+
+            
         } catch (error) {
-            console.error("[LLM] Error forcing thread refresh:", error);
+            console.error("[_processMsg] Error updating message:", error);
         }
     },
+    
+    /**
+     * Update an existing message with new data
+     * 
+     * @private
+     * @param {Object} message - The message to update
+     * @param {Object} messageData - The new message data
+     */
+    _updateExistingMessage(message, messageData) {
+        console.log("[_updateExistingMessage] Updating existing message:", message.id);
+        console.log("[_updateExistingMessage] Current message body:", message.body);
+        console.log("[_updateExistingMessage] New message body:", messageData.body);
+
+        try {
+
+            // Make sure body is properly marked up
+            const updatedData = {
+                ...messageData,
+                body: messageData.body && typeof messageData.body === 'string' ? 
+                    markup(messageData.body) : messageData.body,
+            };
+
+            message.update(updatedData);
+            
+            // Get the message from the store for direct update
+            const storedMsg = this.store.Message.get(message.id);
+            if (!storedMsg) {
+                console.log("[_updateExistingMessage] Message not in store, inserting");
+                const markedBody = messageData.body && typeof messageData.body === 'string' ? 
+                    markup(messageData.body) : messageData.body;
+                
+                const msgToInsert = { ...messageData, body: markedBody };
+                this.store.Message.insert(msgToInsert, { html: true });
+                return;
+            }
+            
+            
+        } catch (error) {
+            console.error("[_updateExistingMessage] Error updating message:", error);
+        }
+    },
+
+    /**
+     * Add a new message to the thread
+     * 
+     * @private
+     * @param {Object} thread - The thread to add the message to
+     * @param {number} threadId - The thread ID
+     * @param {Object} messageData - The message data
+     */
+    _addNewMessage(thread, threadId, messageData) {
+        console.log("[_addNewMessage] Adding new message:", messageData.id);
+        console.log("[_addNewMessage] Current thread messages:", (thread.messages || []).map(msg => (msg.id, msg.body)));
+        console.log("[_addNewMessage] New message data:", messageData);
+        
+        // Ensure body is marked up properly if needed
+        const message = {
+            ...messageData,
+            body: messageData.body && typeof messageData.body === 'string' ? 
+                    markup(messageData.body) : messageData.body,
+        };
+        
+        // Use the standard Odoo method to add messages
+        thread.messages.add(message);
+
+        // Update store.Message
+        this.store.Message.insert(message)
+    },
+
     
     /**
      * Enhanced destroy method with streaming cleanup

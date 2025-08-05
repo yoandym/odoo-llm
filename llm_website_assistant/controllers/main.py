@@ -138,7 +138,6 @@ class LlmLivechatController(LivechatController):
                 try:
                     # Call the generate method with the appropriate parameters
                     for response in llmThread.sudo().generate(None):
-                        # TODO: remove debug log
                         try:
                             yield f"data: {json.dumps(response, default=str)}\n\n".encode()
                         except GeneratorExit:
@@ -149,8 +148,13 @@ class LlmLivechatController(LivechatController):
                     _logger.exception(f"Error generating LLM response: {e}")
                     yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n".encode()
 
+                # Ensure the final message has been properly persisted to the database
+                # This will commit any remaining database changes
+                env.cr.commit()
+
                 # Send done event if client is still connected
                 if client_connected:
+                    # Include the messageId in the done event so the client can update the message
                     yield f"data: {json.dumps({'type': 'done'})}\n\n".encode()
 
             except Exception as e:
@@ -166,7 +170,7 @@ class LlmLivechatController(LivechatController):
         """Stream LLM responses via SSE
 
         This endpoint generates an LLM response for the given thread_id.
-        
+
         Note: In livechat context, thread_id and channel_id are the same.
         """
         if not thread_id:
@@ -179,7 +183,7 @@ class LlmLivechatController(LivechatController):
         }
 
         dbname = request.session.db
-        _env = request.env if hasattr(request, 'env') else None
+        _env = request.env if hasattr(request, "env") else None
         _logger.info(f"Received request to /im_livechat/llm/generate for thread_id={thread_id}")
 
         # Pass all parameters to the generator function
