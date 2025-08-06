@@ -132,7 +132,6 @@ function patchLLMChatService() {
             } else {
                 mappedData.assistantId = null;
                 mappedData.assistantName = null;
-                mappedData.assistant = null;
             }
         });
 
