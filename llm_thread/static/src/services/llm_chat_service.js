@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
-import { reactive } from "@odoo/owl";
+import { reactive, EventBus } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 
 /**
@@ -33,44 +33,8 @@ export const LLMChatService = {
     dependencies: ["rpc", "user", "action", "notification", "orm"],
 
     start(env, { rpc, user, action, notification, orm }) {
+        
         // Create a reactive store for the LLM chat state
-        /**
-         * LLM Chat Service Store - A reactive store for managing LLM chat threads, models, and tools
-         * 
-         * @namespace llmChat
-         * @description Manages the state and operations for LLM chat functionality including threads, models, and tools.
-         * 
-         * @property {Object|null} llmChatView - Current chat view configuration with action ID
-         * @property {boolean} isInitThreadHandled - Flag to track if initial thread handling is complete
-         * @property {string|number|null} initActiveId - Initial active thread identifier
-         * @property {Object|null} activeThread - Currently selected thread object
-         * @property {Array<Object>} threads - Array of available chat threads
-         * @property {Array<Object>} llmModels - Array of available LLM models with provider information
-         * @property {Array<Object>} tools - Array of available LLM tools
-         * 
-         * @method initializeLLMChat - Initializes the LLM chat system with action data and optional promises
-         * @method close - Closes the current chat view
-         * @method openInitThread - Opens the initial thread based on initActiveId
-         * @method openThread - Opens a specific thread and triggers action if needed
-         * @method threadToActiveId - Converts thread object to active ID string format
-         * @method loadThreads - Loads threads from server with optional additional fields
-         * @method _mapThreadDataFromServer - Maps server thread data to client format
-         * @method refreshThread - Refreshes a specific thread's data from server
-         * @method selectThread - Selects and activates a thread by ID
-         * @method open - Opens the chat view with empty configuration
-         * @method loadLLMModels - Loads available LLM models from server
-         * @method createThread - Creates a new thread with specified parameters
-         * @method ensureThread - Ensures a thread exists, creating one if needed
-         * @method loadTools - Loads available LLM tools from server
-         * @method getMessages - Retrieves messages for a specific thread
-         * @method sendMessage - Sends a message to a thread via RPC call
-         * 
-         * @computed activeId - Returns active thread ID in string format
-         * @computed orderedThreads - Returns threads sorted by update date (newest first)
-         * @computed llmProviders - Returns unique providers from available models
-         * @computed defaultLLMModel - Returns the default LLM model or first available
-         * @computed threadCache - Returns cached thread data for active thread
-         */
         const store = reactive({
             llmChat: {
                 llmChatView: null,
@@ -83,6 +47,8 @@ export const LLMChatService = {
                 
                 llmModels: [],
                 tools: [],  
+
+                threadStates: {}, // Store thread states keyed by thread ID
               
                 // Methods
                 async initializeLLMChat(actionData, initActiveId, postInitializationPromises = []) {
@@ -163,6 +129,146 @@ export const LLMChatService = {
                 threadToActiveId(thread) {
                     return `llm.thread_${thread.id}`;
                 },
+                
+                /**
+                 * Initialize or retrieve a thread state
+                 * @param {string} threadId - The ID of the thread
+                 * @returns {Object} - The reactive thread state object
+                 */
+                getThreadState(threadId) {
+                    if (!this.threadStates[threadId]) {
+                        // Initialize new thread state if it doesn't exist
+                        this.threadStates[threadId] = {
+                            threadId,
+                            textContent: "",
+                            isStreaming: false,
+                            eventSource: null,
+                        };
+                    }
+                    
+                    return this.threadStates[threadId];
+                },
+
+                /**
+                 * Reset thread state to initial values
+                 * @param {string} threadId - The ID of the thread to reset
+                 */
+                resetThreadState(threadId) {
+                    if (this.threadStates[threadId]) {
+                        // Close any active EventSource before resetting
+                        if (this.threadStates[threadId].eventSource) {
+                            this.threadStates[threadId].eventSource.close();
+                        }
+                        
+                        // Reset to initial state
+                        Object.assign(this.threadStates[threadId], {
+                            textContent: "",
+                            isStreaming: false,
+                            eventSource: null,
+                        });
+                    }
+                },
+
+                /**
+                 * Post a user message to the LLM
+                 */
+                async postUserMessage(threadId, messageBody) {
+                    if (!messageBody?.trim()) {
+                        this.notification.add(
+                            _t("Please enter a message."),
+                            { type: "danger" }
+                        );
+                        return;
+                    }
+
+                    try {
+                        // Create EventSource for streaming
+                        const eventSource = new EventSource(
+                            `/llm/thread/generate?thread_id=${threadId}&message=${encodeURIComponent(messageBody.trim())}`
+                        );
+
+                        Object.assign(this.threadStates[threadId], {
+                            textContent: messageBody.trim(),
+                            eventSource: eventSource,
+                            isStreaming: true,
+                        });
+
+                        // Handle incoming messages
+                        eventSource.onmessage = (event) => {
+                            const data = JSON.parse(event.data);
+                            this._handleStreamMessage(threadId, data);
+                        };
+
+                        // Handle errors
+                        eventSource.onerror = (error) => {
+                            console.error("EventSource failed:", error);
+                            this.notification.add(
+                                _t("An error occurred while generating response"),
+                                { type: "danger" }
+                            );
+                            this.stopStreaming(threadId);
+                        };
+
+                    } catch (error) {
+                        console.error("Error sending LLM message:", error);
+                        this.notification.add(
+                            _t("Failed to send message."),
+                            { type: "danger" }
+                        );
+                    }
+                },
+
+                /**
+                 * Stop the streaming response
+                 */
+                stopStreaming(threadId) {
+                    if (!this.threadStates[threadId]) return;
+
+                    if (this.threadStates[threadId].eventSource) {
+                        this.threadStates[threadId].eventSource.close();
+                        this.threadStates[threadId].eventSource = null;
+                    }
+                    Object.assign(this.threadStates[threadId], {
+                        isStreaming: false,
+                        eventSource: null,
+                    });
+
+                    // Emit event for UI updates
+                    env.bus.trigger("streaming-stopped", { threadId: threadId });
+                },
+
+                /**
+                 * Handle incoming stream messages
+                 * @private
+                 */
+                _handleStreamMessage(threadId, data) {
+                    switch (data.type) {
+                        case "message_create":
+                            env.bus.trigger("message-created", {
+                                threadId: threadId,
+                                message: data.message,
+                            });
+                            break;
+
+                        case "message_chunk":
+                        case "message_update":
+                            env.bus.trigger("message-updated", {
+                                threadId: threadId,
+                                message: data.message,
+                            });
+                            break;
+
+                        case "error":
+                            this.stopStreaming(threadId);
+                            this.notification.add(data.error, { type: "danger" });
+                            break;
+
+                        case "done":
+                            this.stopStreaming(threadId);
+
+                            break;
+                    }
+                },
 
                 async loadThreads(additionalFields = [], forceReload = false) {
                     // Skip if threads already loaded and not forcing reload
@@ -197,21 +303,31 @@ export const LLMChatService = {
                 _mapThreadDataFromServer(threadData) {
 
                     const mappedData = {
+                        // basic thread data
                         id: threadData.id,
                         name: threadData.name,
-                        message_needaction_counter: 0,
                         creator: threadData.create_uid
                             ? { id: threadData.create_uid[0], name: threadData.create_uid[1] }
                             : undefined,
                         isServerPinned: true,
+
+                        // messages data
+                        message_needaction_counter: 0,
+                        message_ids: threadData.message_ids || [],
+
+                        // dates
+                        create_date: threadData.create_date,
                         updatedAt: threadData.write_date,
+
+                        // linked document
                         model: threadData.model,
                         res_id: threadData.res_id,
+
+                        // llm tools data
                         tool_ids: threadData.tool_ids || [],
-                        selectedToolIds: threadData.tool_ids || [],
                     };
 
-
+                    // llm data
                     if (threadData.model_id && threadData.provider_id) {
                         mappedData.llmModel = {
                             id: threadData.model_id[0],
@@ -223,7 +339,7 @@ export const LLMChatService = {
                         };
                     }
 
-                    // Handle prompt data if present
+                    // llm prompt data
                     if (threadData.prompt_id) {
                         if (Array.isArray(threadData.prompt_id)) {
                             mappedData.promptId = threadData.prompt_id[0];
@@ -241,7 +357,9 @@ export const LLMChatService = {
                     });
 
                     return mappedData;
-                }, async refreshThread(threadId, additionalFields = []) {
+                }, 
+                
+                async refreshThread(threadId, additionalFields = []) {
                     try {
                         // Allow extensions to add additional fields via event
                         const extendedFields = [...additionalFields];
@@ -333,15 +451,22 @@ export const LLMChatService = {
                     // Handle both array return and single ID return
                     const actualThreadId = Array.isArray(threadId) ? threadId[0] : threadId;
 
+                    // Allow extensions to add additional fields via event
+                    const extendedFields = [];
+                    env.bus.trigger("llm_chat:extend_load_fields", {
+                        fields: extendedFields,
+                        method: 'createThread'
+                    });
+
                     const threadDetails = await orm.read(
                         "discuss.channel",
                         [actualThreadId],
-                        ["name", "model_id", "provider_id", "write_date", "tool_ids", "model", "res_id"]
+                        [...THREAD_SEARCH_FIELDS, ...extendedFields]
                     );
 
                     if (!threadDetails || !threadDetails[0]) {
                         notification.add(
-                            _t("Failed to create thread"),
+                            _t("Failed to fetch thread data"),
                             {
                                 title: _t("Error"),
                                 type: "danger",
@@ -350,18 +475,7 @@ export const LLMChatService = {
                         return null;
                     }
 
-                    const thread = {
-                        id: actualThreadId,
-                        name: threadDetails[0].name,
-                        message_needaction_counter: 0,
-                        isServerPinned: true,
-                        llmModel: threadDetails[0].model_id,
-                        updatedAt: threadDetails[0].write_date,
-                        tool_ids: threadDetails[0].tool_ids || [],
-                        selectedToolIds: threadDetails[0].tool_ids || [],
-                        model: threadDetails[0].model,
-                        res_id: threadDetails[0].res_id,
-                    };
+                    const thread = this._mapThreadDataFromServer(threadDetails)
 
                     // Add to threads list
                     // Replace entire array to ensure reactivity
@@ -372,16 +486,8 @@ export const LLMChatService = {
 
                 async ensureThread({ model, res_id } = {}) {
 
-                    if (this.llmModels.length === 0) {
-                        await this.loadLLMModels();
-                    }
-
                     // Force reload threads to ensure we have fresh data from database
                     await this.loadThreads([], true);
-
-                    if (!this.tools || this.tools.length === 0) {
-                        await this.loadTools();
-                    }
 
                     if (model && res_id) {
 
@@ -405,10 +511,6 @@ export const LLMChatService = {
                         } catch (error) {
                             console.error("Failed to create thread for related model:", error);
                         }
-                    }
-
-                    if (this.threads.length > 0) {
-                        return this.threads[0];
                     }
 
                     try {
@@ -436,55 +538,6 @@ export const LLMChatService = {
                         }));
                     } catch (error) {
                         console.error("Error loading tools:", error);
-                        return [];
-                    }
-                },
-
-                async getMessages(threadId) {
-                    try {
-                        // First get the thread to get message IDs
-                        const threadResult = await orm.searchRead(
-                            "discuss.channel",
-                            [["id", "=", threadId]],
-                            ["message_ids"]
-                        );
-
-                        if (!threadResult || threadResult.length === 0) {
-                            console.warn("Thread not found:", threadId);
-                            return [];
-                        }
-
-                        const messageIds = threadResult[0].message_ids;
-                        if (!messageIds || messageIds.length === 0) {
-                            return [];
-                        }
-
-                        // Get messages from mail.message model
-                        const messages = await orm.searchRead(
-                            "mail.message",
-                            [["id", "in", messageIds]],
-                            ["id", "author_id", "body", "date", "message_type", "subtype_id"],
-                            { order: "date asc" }
-                        );
-
-                        return messages.map(message => ({
-                            id: message.id,
-                            author: message.author_id ? {
-                                id: message.author_id[0],
-                                name: message.author_id[1]
-                            } : { name: "AI Assistant" },
-                            content: message.body || "",
-                            body: message.body || "",
-                            date: message.date,
-                            timestamp: message.date,
-                            messageType: message.message_type,
-                            subtype_id: message.subtype_id,
-                            isFromUser: message.author_id && message.author_id[0] === user.userId,
-                            role: message.author_id && message.author_id[0] === user.userId ? 'user' : 'assistant',
-                        }));
-
-                    } catch (error) {
-                        console.error("Error loading messages for thread:", threadId, error);
                         return [];
                     }
                 },
@@ -588,7 +641,6 @@ export const LLMChatService = {
 
                     return [...new Map(providers.map(p => [p.id, p])).values()];
                 },
-
 
                 get defaultLLMModel() {
                     if (!this.llmModels || !Array.isArray(this.llmModels) || (!this.llmModels.length > 0)) {
