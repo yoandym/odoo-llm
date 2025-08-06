@@ -52,7 +52,7 @@ export class LLMChatThreadHeader extends Component {
             selectedModelId: this.props.thread?.llmModel?.id || null,
 
             // Tool selection
-            selectedToolIds: [...(this.props.thread?.selectedToolIds || [])],
+            selectedToolIds: [...(this.props.thread?.tool_ids || [])],
 
             modelSearchQuery: "",
             isModelDropdownOpen: false,
