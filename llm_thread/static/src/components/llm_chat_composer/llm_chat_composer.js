@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { useState, onWillStart, onWillUnmount, onMounted, useRef } from "@odoo/owl";
+import { onWillUnmount, useEnv } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { Composer } from "@mail/core/common/composer";
@@ -15,10 +15,7 @@ export class LLMChatComposer extends Composer {
   static template = "llm_thread.LLMChatComposer";
   static props = [
     ...Composer.props,
-    "thread",
     "className?",
-    "placeholder?",
-    "exposeAPI?",
     "onCustomSendMessage?", // Custom send handler for chatter integration
   ];
 
@@ -51,30 +48,12 @@ export class LLMChatComposer extends Composer {
     }
 
     super.setup();
+
+    // Use environment
+    this.env = useEnv();
     
     // LLM-specific services
-    this.llmComposerService = useService("llm_composer");
     this.llmChatService = useService("llm_chat");
-
-    // LLM-specific state
-    this.llmState = useState({
-      isStreaming: false,
-      isDisabled: false,
-    });
-
-    // Create composer state in LLM service
-    onWillStart(() => {
-      this.composerState = this.llmComposerService.createComposerState(
-        this.props.thread.id
-      );
-
-      // Expose API to parent
-      if (this.props.exposeAPI) {
-        this.props.exposeAPI({
-          focus: () => this.focusTextInput(),
-        });
-      }
-    });
 
     // Subscribe to LLM events
     this.setupLLMEventListeners();
@@ -83,30 +62,19 @@ export class LLMChatComposer extends Composer {
     onWillUnmount(() => {
       this.cleanupLLMEventListeners();
       if (this.llmState.isStreaming) {
-        this.llmComposerService.stopStreaming(this.composerState);
+        this.llmChatService.stopStreaming(this.thread.id);
       }
     });
 
-    onMounted(() => {
-      // Focus on mount if needed
-      if (this.props.autofocus) {
-        // Use setTimeout to ensure DOM is ready
-        setTimeout(() => this.focusTextInput(), 0);
-      }
-    });
-  }
-
-  // Override thread getter
-  get thread() {
-    return this.props.thread;
   }
 
   // Check if send button should be disabled
   get isSendButtonDisabled() {
-    return super.isSendButtonDisabled ||
-      this.llmState.isDisabled ||
-      this.llmState.isStreaming ||
-      !this.props.composer.textInputContent.trim();
+    return super.isSendButtonDisabled || this.llmState.isStreaming ;
+  }
+
+  get llmState() {
+    return this.llmChatService.getThreadState(this.thread.id);
   }
 
   // Get container classes
@@ -115,6 +83,7 @@ export class LLMChatComposer extends Composer {
     if (this.props.className) {
       classes.push(this.props.className);
     }
+
     if (this.llmState.isStreaming) {
       classes.push("o-streaming");
     }
@@ -125,12 +94,9 @@ export class LLMChatComposer extends Composer {
    * Setup LLM-specific event listeners
    */
   setupLLMEventListeners() {
-    const eventBus = this.llmComposerService.eventBus;
 
     this.streamingStoppedHandler = (ev) => {
-      if (ev.detail.threadId === this.props.thread.id) {
-        this.llmState.isStreaming = false;
-        this.llmState.isDisabled = false;
+      if (ev.detail.threadId === this.thread.id) {
 
         // Focus after streaming stops, but only if component is mounted
         setTimeout(() => {
@@ -141,15 +107,14 @@ export class LLMChatComposer extends Composer {
       }
     };
 
-    eventBus.addEventListener("streaming-stopped", this.streamingStoppedHandler);
+    this.env.bus.addEventListener("streaming-stopped", this.streamingStoppedHandler);
   }
 
   /**
    * Cleanup LLM event listeners
    */
   cleanupLLMEventListeners() {
-    const eventBus = this.llmComposerService.eventBus;
-    eventBus.removeEventListener("streaming-stopped", this.streamingStoppedHandler);
+    this.env.bus.removeEventListener("streaming-stopped", this.streamingStoppedHandler);
   }
 
   /**
@@ -164,9 +129,6 @@ export class LLMChatComposer extends Composer {
     // Check if we have a custom send handler (e.g., from chatter)
     if (this.props.onCustomSendMessage) {
       try {
-        // Update UI state
-        this.llmState.isDisabled = true;
-        this.llmState.isStreaming = true;
 
         // Clear input immediately for better UX
         this.clearTextInput();
@@ -178,21 +140,10 @@ export class LLMChatComposer extends Composer {
         // Restore content on error
         this.props.composer.textInputContent = messageBody;
         this.updateTextInputValue(messageBody);
-        this.llmState.isDisabled = false;
-        this.llmState.isStreaming = false;
         throw error;
-      } finally {
-        // Reset states after custom handler completes
-        this.llmState.isDisabled = false;
-        this.llmState.isStreaming = false;
-      }
+      } 
       return;
     }
-
-    // Default LLM service behavior
-    // Update UI state
-    this.llmState.isDisabled = true;
-    this.llmState.isStreaming = true;
 
     // Store previous content for error recovery
     const previousContent = this.props.composer.textInputContent;
@@ -201,16 +152,14 @@ export class LLMChatComposer extends Composer {
     this.clearTextInput();
 
     try {
-      await this.llmComposerService.postUserMessage(
-        this.composerState,
+      await this.llmChatService.postUserMessage(
+        this.thread.id,
         messageBody
       );
     } catch (error) {
       // Restore content on error
       this.props.composer.textInputContent = previousContent;
       this.updateTextInputValue(previousContent);
-      this.llmState.isDisabled = false;
-      this.llmState.isStreaming = false;
 
       // Let parent class handle error display if needed
       throw error;
@@ -266,7 +215,7 @@ export class LLMChatComposer extends Composer {
    * Handle stop button click for streaming
    */
   onClickStop() {
-    this.llmComposerService.stopStreaming(this.composerState);
+    this.llmChatService.stopStreaming(this.thread.id);
   }
 
   /**
@@ -274,7 +223,7 @@ export class LLMChatComposer extends Composer {
    */
   focusTextInput() {
     const textarea = this.getTextareaElement();
-    if (textarea && !this.llmState.isDisabled) {
+    if (textarea && !this.llmState.isStreaming) {
       textarea.focus();
     }
   }
