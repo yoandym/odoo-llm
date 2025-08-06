@@ -139,6 +139,5 @@ function patchLLMChatService() {
     };
 }
 
-patchLLMChatService();
-
 // No registry call needed, patch is applied automatically
+patchLLMChatService();
