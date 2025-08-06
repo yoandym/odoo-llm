@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, useRef, onWillStart, onMounted, onWillUnmount, onWillUpdateProps } from "@odoo/owl";
+import { Component, useState, useRef, useEnv, onWillStart, onMounted, onWillUnmount, onWillUpdateProps } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { Message } from "@mail/core/common/message";
@@ -31,9 +31,11 @@ export class LLMChatThread extends Component {
         this.store = useService("mail.store");
         this.messagingService = useService("mail.messaging");
         this.llmChatService = useService("llm_chat");
-        this.llmComposerService = useService("llm_composer");
         this.rpc = useService("rpc");
         this.notification = useService("notification");
+
+        // Environment
+        this.env = useEnv();
 
         // Refs
         this.contentRef = useRef("content");
@@ -391,7 +393,6 @@ export class LLMChatThread extends Component {
      * Setup event listeners
      */
     setupEventListeners() {
-        const eventBus = this.llmComposerService.eventBus;
 
         this.messageCreatedHandler = (ev) => {
             if (ev.detail.threadId === this.currentThreadId) {
@@ -411,21 +412,18 @@ export class LLMChatThread extends Component {
             }
         };
 
-        eventBus.addEventListener("message-created", this.messageCreatedHandler);
-        eventBus.addEventListener("message-updated", this.messageUpdatedHandler);
-        eventBus.addEventListener("streaming-stopped", this.streamingStoppedHandler);
+        this.env.bus.addEventListener("message-created", this.messageCreatedHandler);
+        this.env.bus.addEventListener("message-updated", this.messageUpdatedHandler);
+        this.env.bus.addEventListener("streaming-stopped", this.streamingStoppedHandler);
     }
 
     /**
      * Cleanup event listeners
      */
     cleanupEventListeners() {
-        const eventBus = this.llmComposerService.eventBus;
-        if (eventBus) {
-            eventBus.removeEventListener("message-created", this.messageCreatedHandler);
-            eventBus.removeEventListener("message-updated", this.messageUpdatedHandler);
-            eventBus.removeEventListener("streaming-stopped", this.streamingStoppedHandler);
-        }
+        this.env.bus.removeEventListener("message-created", this.messageCreatedHandler);
+        this.env.bus.removeEventListener("message-updated", this.messageUpdatedHandler);
+        this.env.bus.removeEventListener("streaming-stopped", this.streamingStoppedHandler);
     }
 
     /**

@@ -69,7 +69,6 @@
             <div class="o_LLMChatThread_composer border-top">
                 <LLMChatComposer 
                     composer="composerState" 
-                    thread="props.thread" 
                     placeholder="'Type your message... (Shift+Enter for new line)'"
                     autofocus="1" 
                 />
