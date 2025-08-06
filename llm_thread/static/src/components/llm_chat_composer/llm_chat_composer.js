@@ -96,11 +96,6 @@ export class LLMChatComposer extends Composer {
     });
   }
 
-  // Override placeholder
-  get placeholder() {
-    return this.props.placeholder || _t("Ask anything... (Shift+Enter for new line)");
-  }
-
   // Override thread getter
   get thread() {
     return this.props.thread;
