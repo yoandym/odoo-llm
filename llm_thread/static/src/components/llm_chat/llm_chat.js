@@ -8,7 +8,6 @@ import { LLMChatThread } from "../llm_chat_thread/llm_chat_thread";
 
 /**
  * LLM Chat Component for Odoo v17
- * Uses the new / migrated llm_chat service
  */
 export class LLMChat extends Component {
   static template = "llm_thread.LLMChat";
@@ -18,10 +17,10 @@ export class LLMChat extends Component {
   };
 
   setup() {
-    // Use the LLM chat service
-    this.llmChatService = useService("llm_chat");
     // Use useState to make the service reactive in this component
-    this.llmChat = useState(this.llmChatService);
+    this.llmChat = useState(useService("llm_chat"));
+
+    this.actionService = useService("action");
 
     // Use other necessary services
     this.uiService = useService("ui");
@@ -149,6 +148,10 @@ export class LLMChat extends Component {
   }
 
   async onOpenThread(thread) {
-    await this.llmChat.openThread(thread);
+    await this.actionService.doAction("llm_thread.action_llm_chat", {
+      name: _t("Chat"),
+      active_id: this.llmChat.threadToActiveId(thread), 
+      clearBreadcrumbs: false,
+    });
   }
 }

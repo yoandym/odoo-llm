@@ -100,9 +100,7 @@ export class LLMChatContainer extends Component {
    * Check if the chat is ready to display
    */
   get isChatReady() {
-    return this.state.isInitialized &&
-      !this.state.error &&
-      this.llmChat.llmChatView;
+    return this.state.isInitialized && !this.state.error;
   }
 
   /**
@@ -129,7 +127,6 @@ export class LLMChatContainer extends Component {
    */
   cleanup() {
     if (LLMChatContainer.currentInstance === this) {
-      this.llmChat.close();
       LLMChatContainer.currentInstance = null;
     }
   }

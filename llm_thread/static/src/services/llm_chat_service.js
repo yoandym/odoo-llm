@@ -37,7 +37,6 @@ export const LLMChatService = {
         // Create a reactive store for the LLM chat state
         const store = reactive({
             llmChat: {
-                llmChatView: null,
 
                 isInitThreadHandled: false,
                 initActiveId: null,
@@ -52,9 +51,6 @@ export const LLMChatService = {
               
                 // Methods
                 async initializeLLMChat(actionData, initActiveId, postInitializationPromises = []) {
-                    this.llmChatView = {
-                        actionId: actionData.id,
-                    };
                     this.initActiveId = initActiveId;
 
                     // Emit initialization start event for extensions
@@ -89,10 +85,6 @@ export const LLMChatService = {
                     });
                 },
 
-                close() {
-                    this.llmChatView = null;
-                },
-
                 openInitThread() {
                     if (!this.initActiveId) {
                         if (this.threads.length > 0) {
@@ -111,18 +103,6 @@ export const LLMChatService = {
                         this.selectThread(this.threads[0].id);
                     } else if (thread) {
                         this.selectThread(thread.id);
-                    }
-                },
-
-                async openThread(thread) {
-                    this.activeThread = thread;
-
-                    if (!this.llmChatView) {
-                        await action.doAction("llm_thread.action_llm_chat", {
-                            name: _t("Chat"),
-                            active_id: this.threadToActiveId(thread),
-                            clearBreadcrumbs: false,
-                        });
                     }
                 },
 
@@ -411,10 +391,6 @@ export const LLMChatService = {
                     } else {
                         console.error("Thread not found in threads list");
                     }
-                },
-
-                open() {
-                    this.llmChatView = {};
                 },
 
                 async loadLLMModels() {
