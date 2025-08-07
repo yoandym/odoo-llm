@@ -439,6 +439,7 @@ export const LLMChatService = {
                     // set minimal thread data, let the backend handle defaults
                     const threadData = {
                         name,
+                        llm_enabled: true,
                     };
 
                     if (model && res_id) {
