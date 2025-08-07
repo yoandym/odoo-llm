@@ -60,7 +60,6 @@ patch(Chatter.prototype, {
      */
     async toggleLLMChat() {
 
-        // Get thread information from various sources
         const recordInfo = this.getThreadInfo();
 
         if (!recordInfo.model || !recordInfo.id) {
@@ -83,7 +82,7 @@ patch(Chatter.prototype, {
     },
 
     /**
-     * Get thread information from various sources
+     * Get Mail thread information from various sources
      */
     getThreadInfo() {
         // Try multiple ways to get record information from Chatter
@@ -149,18 +148,15 @@ patch(Chatter.prototype, {
         try {
             const llmChat = this.llmChatService;
 
-            // Ensure thread for the current record
             const llmThread = await llmChat.ensureThread({
                 model: recordInfo.model,
                 res_id: recordInfo.id,
             });
 
             if (!llmThread) {
-                throw new Error("Failed to create AI chat thread");
+                throw new Error("Failed to create LLMThread");
             }
 
-
-            // Select the thread
             await llmChat.selectThread(llmThread.id);
 
             // Update state - this will trigger template re-render
@@ -202,7 +198,7 @@ patch(Chatter.prototype, {
     async sendLLMMessage(message) {
 
         if (!this.state.llmThread) {
-            console.error("[LLM] No LLM thread available");
+            console.error("[LLM] No LLMthread available");
             this.notificationService.add(
                 _t("No AI chat session available"),
                 {
