@@ -22,15 +22,19 @@ class LLMThread(models.Model):
         """Ensure an assistant is always set"""
         for thread in self:
             if not thread.assistant_id:
-                raise ValidationError(
-                    _("An assistant is required for all chat threads.")
-                )
+                raise ValidationError(_("An assistant is required for all chat threads."))
 
     # Default assistant for new threads
     @api.model_create_multi
     def create(self, vals_list):
         """Ensure thread's assistant consistency"""
         for vals in vals_list:
+
+            _llm_enabled = vals.get("llm_enabled", False)
+            if not _llm_enabled:
+                # If LLM is not enabled, skip setting assistant
+                continue
+
             _assistant_id = vals.get("assistant_id")
             _assistant = self.env["llm.assistant"].browse(_assistant_id)
             if _assistant_id and _assistant.exists():
@@ -44,6 +48,15 @@ class LLMThread(models.Model):
                 # Set default name if not provided
                 if not vals.get("name"):
                     vals["name"] = f"Chat with {_assistant.name}"
+            else:
+                # get / set a default assistant
+                default_assistant = self.env["llm.assistant"].get_default_assistant()
+                if default_assistant:
+                    vals["assistant_id"] = default_assistant.id
+                    vals["provider_id"] = default_assistant.provider_id.id
+                    vals["model_id"] = default_assistant.model_id.id
+                    vals["tool_ids"] = [(6, 0, default_assistant.tool_ids.ids)]
+                    vals["prompt_id"] = False
 
         # Call super to create the records
         return super().create(vals_list)
@@ -139,15 +152,11 @@ class LLMThread(models.Model):
             if assistant_messages:
                 # Use the helper method from llm_prompt to merge the messages
                 messages = self.merge_message_lists(assistant_messages, messages)
-                _logger.info(
-                    "Added %d messages from assistant", len(assistant_messages)
-                )
+                _logger.info("Added %d messages from assistant", len(assistant_messages))
             else:
                 # Fallback to the old method if get_messages returns empty
                 # This ensures backward compatibility
-                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(
-                    thread=self
-                )
+                assistant_system_prompt = self.assistant_id.get_formatted_system_prompt(thread=self)
                 if assistant_system_prompt:
                     # Create a system message with the assistant's prompt
                     assistant_message = {
@@ -162,9 +171,7 @@ class LLMThread(models.Model):
                         for msg in messages:
                             if msg.get("role") == "system":
                                 # Append to existing system message
-                                msg["content"] = (
-                                    f"{assistant_system_prompt}\n\n{msg['content']}"
-                                )
+                                msg["content"] = f"{assistant_system_prompt}\n\n{msg['content']}"
                                 has_system_message = True
                                 break
 
@@ -253,11 +260,7 @@ class LLMThread(models.Model):
 
         extra_vals = {}
         # For assistant messages, use the assistant's partner if available
-        if (
-            not author_id
-            and self.assistant_id
-            and self.assistant_id.partner_id
-        ):
+        if not author_id and self.assistant_id and self.assistant_id.partner_id:
             extra_vals = {"author_id": self.assistant_id.partner_id.id}
 
         assistant_kwargs = kwargs.copy()
@@ -265,3 +268,12 @@ class LLMThread(models.Model):
 
         message = super()._post_message(**assistant_kwargs)
         return message
+
+    def _channel_basic_info(self):
+        """Get basic information about the channel."""
+        self.ensure_one()
+        _basic_info = super()._channel_basic_info()
+        _basic_info.update({
+            "assistant_id": self.assistant_id.id if self.assistant_id else False,
+        })
+        return _basic_info

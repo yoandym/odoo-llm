@@ -82,14 +82,29 @@ class LLMThread(models.Model):
     @api.depends("model_id")
     def _compute_llm_enabled(self):
         for record in self:
-            record.llm_enabled = bool(record.model_id)
+            _enabled = record.llm_enabled or record.model_id
+            record.llm_enabled = _enabled
 
     @api.model_create_multi
     def create(self, vals_list):
         """Set default title, provider, model, and tools if not provided"""
         for vals in vals_list:
 
+            _llm_enabled = vals.get("llm_enabled", False)
+            _llm_enabled = _llm_enabled or vals.get("model_id")
+
+            if not _llm_enabled:
+                continue
+
             # Set default provider if not explicitly provided
+            # Case 1: Got no provider_id but got a model_id
+            if "provider_id" not in vals and "model_id" in vals:
+                model_id = vals.get("model_id")
+                if model_id:
+                    model = self.env["llm.model"].browse(model_id)
+                    if model.exists():
+                        vals["provider_id"] = model.provider_id.id
+            # Case 2: Got no provider_id
             if "provider_id" not in vals:
                 default_provider = self.env["llm.provider"].search([("active", "=", True)], limit=1)
                 if default_provider:
@@ -542,3 +557,14 @@ class LLMThread(models.Model):
             update_vals["model_id"] = default_model.id
 
         return self.write(update_vals)
+
+    def _channel_basic_info(self):
+        """Get basic information about the channel."""
+        self.ensure_one()
+        _basic_info = super()._channel_basic_info()
+        _basic_info.update({
+            "llm_enabled": self.llm_enabled,
+            "model_id": self.model_id.id if self.model_id else False,
+            "tool_ids": [tool.id for tool in self.tool_ids],
+        })
+        return _basic_info
