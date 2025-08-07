@@ -47,8 +47,8 @@ patch(Chatter.prototype, {
         // Only refresh if this chatter is for the same record
         if (currentRecord.model === model && currentRecord.id === res_id) {
             // Trigger a refresh of the chatter messages
-            if (this.thread) {
-                this.thread.fetchData();
+            if (this.state.llmThread) {
+                this.state.llmThread.fetchData();
             }
         }
     },
@@ -87,7 +87,7 @@ patch(Chatter.prototype, {
      */
     getThreadInfo() {
         // Try multiple ways to get record information from Chatter
-        const thread = this.thread || this.props.thread || this.state?.thread;
+        const thread = this.state.thread;
 
         // Initialize with undefined
         let recordModel = undefined;
@@ -272,52 +272,3 @@ patch(Chatter, {
     },
 });
 
-/**
- * Alternative: Standalone Chatter Button Component
- * 
- * This can be used to add an AI chat button to any view
- */
-export class ChatterLLMButton extends Component {
-    static template = "llm_thread.ChatterLLMButton";
-    static props = {
-        record: { type: Object },
-        className: { type: String, optional: true },
-    };
-
-    setup() {
-        this.llmChatService = useService("llm_chat");
-        this.actionService = useService("action");
-
-        this.state = useState({
-            isOpening: false,
-        });
-    }
-
-    /**
-     * Open LLM chat for the current record
-     */
-    async openLLMChat() {
-        if (this.state.isOpening) return;
-
-        this.state.isOpening = true;
-
-        try {
-            const llmChat = this.llmChatService;
-
-            // Ensure thread exists
-            const thread = await llmChat.ensureThread({
-                model: this.props.record.resModel,
-                res_id: this.props.record.resId,
-            });
-
-            if (thread) {
-                // Open the chat in a dialog or as an action
-                await llmChat.openThread(thread);
-            }
-        } catch (error) {
-            console.error("Failed to open LLM chat:", error);
-        } finally {
-            this.state.isOpening = false;
-        }
-    }
-}

@@ -38,18 +38,6 @@
         </xpath>
     </t>
 
-    <!-- Simple template for standalone chatter button -->
-    <t t-name="llm_thread.ChatterLLMButton" owl="1">
-        <button t-att-class="props.className or 'btn btn-secondary text-nowrap'" t-att-disabled="state.isOpening" t-on-click="openLLMChat" title="Open AI Chat">
-            <t t-if="state.isOpening">
-                <i class="fa fa-spinner fa-spin me-1" />
-                <span>Loading...</span>
-            </t>
-            <t t-else="">
-                <i class="fa fa-robot me-1" />
-                <span>AI Chat</span>
-            </t>
-        </button>
-    </t>
+
 
 </templates>
