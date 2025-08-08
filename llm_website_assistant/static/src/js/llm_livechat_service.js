@@ -37,7 +37,6 @@ patch(LivechatService.prototype, {
     stopLLMStreaming(threadId) {
         const eventSource = this.llmStreamSources.get(threadId);
         if (eventSource) {
-            console.log(`[stopLLMStreaming] Stopping stream for thread ${threadId}`);
             eventSource.close();
             this.llmStreamSources.delete(threadId);
             
@@ -45,7 +44,7 @@ patch(LivechatService.prototype, {
             this.busService.trigger('streaming_stop', { threadId });
             
         } else {
-            console.log(`[stopLLMStreaming] No active stream found for thread ${threadId}`);
+            console.debug(`[stopLLMStreaming] No active stream found for thread ${threadId}`);
         }
     },
     
@@ -75,6 +74,7 @@ patch(LivechatService.prototype, {
             if (thread.assistantId) {
                 // Stop any existing stream first
                 this.stopLLMStreaming(threadId);
+
                 // Fire streaming_start event
                 this.busService.trigger('streaming_start', { threadId });
                 // Create SSE connection to the generate endpoint for LLM response streaming
@@ -94,35 +94,20 @@ patch(LivechatService.prototype, {
                             this.stopLLMStreaming(threadId);
 
                         } else if (data.type === "done") {
-                            console.log("[triggerLLMResponseForMessage] Stream completed successfully");
                             
                             // Wait a brief moment to ensure any pending message updates are processed
                             setTimeout(() => {
                                 // Stop streaming
                                 this.stopLLMStreaming(threadId);
+                                this.env.services["mail.thread"].fetchMessages(this.thread);
                             }, this.messageDelay);
 
-                        } else if (data.type === "message_create" || data.type === "message_chunk") {
-                            console.log("[triggerLLMResponseForMessage] Received:", data.type);
+                        } else if (data.type === "message_create" || data.type === "message_chunk" || data.type === "message_update") {
 
-                            // We need to force a refresh since bus notifications may not trigger UI updates for message chunks
                             this._processMsg(threadId, data.message);
 
-                        } else if (data.type === "message_update") {
-                            console.log("[triggerLLMResponseForMessage] Received:", data.type);
-                            console.log("[triggerLLMResponseForMessage] Message data:", data.message);
-
-                            // Get the existing message
-                            let stored_msg = this.store.Message.get(data.message.id);
-                                                        
-                            // Force direct body update and DOM refresh
-                            console.log("[triggerLLMResponseForMessage] Current body:", stored_msg.body);
-                            console.log("[triggerLLMResponseForMessage] New body:", data.message.body);
-                            
-                            
-     
-                            
                         }
+
                     } catch (error) {
                         console.error("[triggerLLMResponseForMessage] Stream parsing error:", error);
                     }
@@ -147,8 +132,6 @@ patch(LivechatService.prototype, {
                 }
             }
             else {
-                // we should have an assistant at this point. throw an error if not
-
                 throw new Error("No assistant available for this thread");
             }
             
@@ -201,96 +184,47 @@ patch(LivechatService.prototype, {
         // Get current thread and make sure it matches
         const thread = this.thread;
         if (!thread || thread.id !== threadId || !messageData) {
+            console.error("[_processMsg] Invalid thread or message data");
             return;
         }
         
         try {
-            // Find the message in the thread's messages
-            const messages = thread.messages || [];
-            const messageIndex = messages.findIndex(msg => msg.id === messageData.id);
-            
-            if (messageIndex >= 0) {
-                // Message exists - update it
-                this._updateExistingMessage(messages[messageIndex], messageData);
-            } else if (messageData.body) {
-                // Message doesn't exist yet - add it
-                this._addNewMessage(thread, threadId, messageData);
-            }
-
-            
-        } catch (error) {
-            console.error("[_processMsg] Error updating message:", error);
-        }
-    },
-    
-    /**
-     * Update an existing message with new data
-     * 
-     * @private
-     * @param {Object} message - The message to update
-     * @param {Object} messageData - The new message data
-     */
-    _updateExistingMessage(message, messageData) {
-        console.log("[_updateExistingMessage] Updating existing message:", message.id);
-        console.log("[_updateExistingMessage] Current message body:", message.body);
-        console.log("[_updateExistingMessage] New message body:", messageData.body);
-
-        try {
-
             // Make sure body is properly marked up
-            const updatedData = {
+            const safeData = {
                 ...messageData,
                 body: messageData.body && typeof messageData.body === 'string' ? 
                     markup(messageData.body) : messageData.body,
             };
 
-            message.update(updatedData);
+            // Find the message in the thread's messages
+            // weird things here
+            // messages are at thread.messages and at store.Message
+            // updating those ... works ... sometimes
             
-            // Get the message from the store for direct update
-            const storedMsg = this.store.Message.get(message.id);
-            if (!storedMsg) {
-                console.log("[_updateExistingMessage] Message not in store, inserting");
-                const markedBody = messageData.body && typeof messageData.body === 'string' ? 
-                    markup(messageData.body) : messageData.body;
-                
-                const msgToInsert = { ...messageData, body: markedBody };
-                this.store.Message.insert(msgToInsert, { html: true });
-                return;
+            let messages = thread.messages || [];
+            const threadMessageIdx = messages.findIndex(msg => msg.id === messageData.id);
+            if (threadMessageIdx >= 0) {
+                // Message exists - update it
+                messages[threadMessageIdx].update(safeData)
+            } else if (messageData.body) {
+                // Message doesn't exist yet - add it
+                messages.add(safeData);
             }
-            
-            
+
+            let storeMessage = this.store.Message.get(safeData.id);
+            if (storeMessage) {
+                storeMessage.update(safeData);
+            }
+            else {
+                // If the message doesn't exist in the store, add it
+                this.store.Message.add(safeData);
+            }
+
         } catch (error) {
-            console.error("[_updateExistingMessage] Error updating message:", error);
+            console.error("[_processMsg] Error updating message:", error);
         }
     },
-
-    /**
-     * Add a new message to the thread
-     * 
-     * @private
-     * @param {Object} thread - The thread to add the message to
-     * @param {number} threadId - The thread ID
-     * @param {Object} messageData - The message data
-     */
-    _addNewMessage(thread, threadId, messageData) {
-        console.log("[_addNewMessage] Adding new message:", messageData.id);
-        console.log("[_addNewMessage] Current thread messages:", (thread.messages || []).map(msg => (msg.id, msg.body)));
-        console.log("[_addNewMessage] New message data:", messageData);
-        
-        // Ensure body is marked up properly if needed
-        const message = {
-            ...messageData,
-            body: messageData.body && typeof messageData.body === 'string' ? 
-                    markup(messageData.body) : messageData.body,
-        };
-        
-        // Use the standard Odoo method to add messages
-        thread.messages.add(message);
-
-        // Update store.Message
-        this.store.Message.insert(message)
-    },
-
+    
     
     /**
      * Enhanced destroy method with streaming cleanup
