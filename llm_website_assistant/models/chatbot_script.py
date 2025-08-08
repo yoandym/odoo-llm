@@ -30,7 +30,7 @@ class ChatbotScript(models.Model):
         if self.is_llm_enabled:
             result.update(
                 {
-                    "hasLLMCapabilities": True,
+                    "llm_enabled": True,
                     "llmAssistantId": self.llm_assistant_id.id,
                     "llmAssistantName": self.llm_assistant_id.name,
                 }

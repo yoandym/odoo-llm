@@ -19,7 +19,7 @@ patch(Chatbot, {
         chatbot.assistantId = data.assistant_id || false;
         chatbot.assistantName = data.assistant_name || '';
         // Infer LLM capabilities from the presence of an assistant
-        chatbot.hasLLMCapabilities = Boolean(chatbot.assistantId);
+        chatbot.llm_enabled = Boolean(chatbot.assistantId);
         return chatbot;
     },
 });

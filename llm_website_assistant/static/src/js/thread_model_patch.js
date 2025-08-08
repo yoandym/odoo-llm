@@ -21,7 +21,7 @@ patch(Thread, {
         // Process LLM specific fields from raw data
         if (data.assistant_id !== undefined) {
             thread.assistantId = data.assistant_id;
-            thread.hasLLMCapabilities = Boolean(data.assistant_id);
+            thread.llm_enabled = Boolean(data.assistant_id);
         }
         
         if (data.assistant_partner_id !== undefined) {
@@ -61,7 +61,7 @@ patch(Thread.prototype, {
          * Whether this thread has LLM capabilities
          * @type {boolean}
          */
-        this.hasLLMCapabilities = false;
+        this.llm_enabled = false;
     },
     
     /**
@@ -85,6 +85,6 @@ patch(Thread.prototype, {
         }
         
         // Single property definition - always infer from assistantId
-        this.hasLLMCapabilities = Boolean(this.assistantId);
+        this.llm_enabled = Boolean(this.assistantId);
     }
 });
