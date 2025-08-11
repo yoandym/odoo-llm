@@ -45,6 +45,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/core/llm_message_patch.xml",
             "llm_thread/static/src/core/llm_message_patch.scss",
             "llm_thread/static/src/core/llm_message_type_service.js",
+            "llm_thread/static/src/core/llm_thread_model_patch.js",
             # Services
             "llm_thread/static/src/services/llm_thread_service.js",
             "llm_thread/static/src/services/llm_chat_service.js",
