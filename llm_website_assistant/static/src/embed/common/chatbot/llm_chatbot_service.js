@@ -5,7 +5,6 @@ import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
 
 /**
- * Refactored LLM Chatbot Service
  * 
  * This service focuses ONLY on chatbot script flow:
  * - Detecting and marking LLM steps

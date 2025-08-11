@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
-import { reactive, EventBus } from "@odoo/owl";
+import { reactive } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 
 /**
@@ -10,13 +10,14 @@ import { _t } from "@web/core/l10n/translation";
  * By default, does NOT include assistant_id. Assistant modules should extend this array.
  */
 export const THREAD_SEARCH_FIELDS = [
+    "id",
     "name",
     "message_ids",
     "create_uid",
     "create_date",
     "write_date",
     "model_id",
-    "provider_id",
+    "provider_id", 
     "model",
     "res_id",
     "tool_ids",
@@ -30,9 +31,9 @@ export const THREAD_SEARCH_FIELDS = [
  * and provides a centralized service for LLM chat functionality.
  */
 export const LLMChatService = {
-    dependencies: ["rpc", "user", "action", "notification", "orm"],
+    dependencies: ["rpc", "user", "notification", "orm", "mail.store"],
 
-    start(env, { rpc, user, action, notification, orm }) {
+    start(env, { rpc, user, notification, orm, "mail.store": mailStore }) {
         
         // Create a reactive store for the LLM chat state
         const store = reactive({
@@ -281,10 +282,12 @@ export const LLMChatService = {
                 },
 
                 _mapThreadDataFromServer(threadData) {
-
+                    // First, create the standard data structure
                     const mappedData = {
                         // basic thread data
                         id: threadData.id,
+                        model: "discuss.channel", // required by OWL Thread model.
+
                         name: threadData.name,
                         creator: threadData.create_uid
                             ? { id: threadData.create_uid[0], name: threadData.create_uid[1] }
@@ -300,7 +303,7 @@ export const LLMChatService = {
                         updatedAt: threadData.write_date,
 
                         // linked document
-                        model: threadData.model,
+                        model: threadData.model,  // Changes from model to res_model after inserted
                         res_id: threadData.res_id,
 
                         // llm tools data
@@ -335,8 +338,8 @@ export const LLMChatService = {
                         mappedData,
                         service: this
                     });
-
-                    return mappedData;
+                    
+                    return mailStore.Thread.insert(mappedData);
                 }, 
                 
                 async refreshThread(threadId, additionalFields = []) {
