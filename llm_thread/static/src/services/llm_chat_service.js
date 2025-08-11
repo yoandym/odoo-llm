@@ -42,8 +42,8 @@ export const LLMChatService = {
                 isInitThreadHandled: false,
                 initActiveId: null,
                 activeThread: null,
-
-                threads: [],
+                
+                llmThreads: [],
                 
                 llmModels: [],
                 tools: [],  
@@ -88,8 +88,8 @@ export const LLMChatService = {
 
                 openInitThread() {
                     if (!this.initActiveId) {
-                        if (this.threads.length > 0) {
-                            this.selectThread(this.threads[0].id);
+                        if (this.llmThreads.length > 0) {
+                            this.selectThread(this.llmThreads[0].id);
                         }
                         return;
                     }
@@ -98,12 +98,11 @@ export const LLMChatService = {
                         ? ["discuss.channel", this.initActiveId]
                         : this.initActiveId.split("_");
 
-                    const thread = this.threads.find(t => t.id === Number(id));
+                    const thread = this.llmThreads.find(t => t.id === Number(id));
 
-                    if (!thread && this.threads.length > 0) {
-                        this.selectThread(this.threads[0].id);
-                    } else if (thread) {
+                    if (thread) {
                         this.selectThread(thread.id);
+                        return;
                     }
                 },
 
@@ -252,8 +251,8 @@ export const LLMChatService = {
                 },
 
                 async loadThreads(additionalFields = [], forceReload = false) {
-                    // Skip if threads already loaded and not forcing reload
-                    if (this.threads.length > 0 && !forceReload) {
+                    // Skip if store.Thread already loaded and not forcing reload
+                    if (this.llmThreads.length > 0 && !forceReload) {
                         console.warn("🔍 Threads already loaded, skipping reload");
                         return;
                     }
@@ -272,11 +271,11 @@ export const LLMChatService = {
                         { order: "write_date desc" }
                     );
 
-                    this.threads = result.map(thread => this._mapThreadDataFromServer(thread));
+                    this.llmThreads = result.map(thread => this._mapThreadDataFromServer(thread));
 
-                    // Emit threads loaded event
+                    // Emit threads_loaded event
                     env.bus.trigger("llm_chat:threads_loaded", {
-                        threads: this.threads,
+                        threads: this.llmThreads,
                         service: this
                     });
                 },
@@ -362,23 +361,22 @@ export const LLMChatService = {
                             return;
                         }
 
-                        const mappedThreadData = this._mapThreadDataFromServer(result[0]);
-                        const threadIndex = this.threads.findIndex(thread => thread.id === threadId);
-
-                        if (threadIndex !== -1) {
-                            // Update the thread in place to maintain reactivity
-                            Object.assign(this.threads[threadIndex], mappedThreadData);
+                        const thread = this._mapThreadDataFromServer(result[0]);
+                        const threadIndex = this.llmThreads.findIndex(thread => thread.id === threadId);
+                        if (threadIndex) {
+                            
+                            Object.assign(this.llmThreads[threadIndex], thread);
 
                             // If this is the active thread, update it too
                             if (this.activeThread && this.activeThread.id === threadId) {
-                                Object.assign(this.activeThread, mappedThreadData);
+                                Object.assign(this.activeThread, thread);
                             }
 
                             // Emit thread refreshed event for extensions
                             env.bus.trigger("llm_chat:thread_refreshed", {
                                 threadId,
-                                thread: this.threads[threadIndex],
-                                updatedFields: mappedThreadData,
+                                thread,
+                                updatedFields: result[0],
                                 service: this
                             });
                         }
@@ -388,11 +386,11 @@ export const LLMChatService = {
                 },
 
                 async selectThread(threadId) {
-                    const thread = this.threads.find(t => t.id === threadId);
+                    const thread = this.llmThreads.find(t => t.id === threadId);
                     if (thread) {
                         this.activeThread = thread;
                     } else {
-                        console.error("Thread not found in threads list");
+                        console.error("Thread not found in llmThreads list");
                     }
                 },
 
@@ -455,23 +453,19 @@ export const LLMChatService = {
                         return null;
                     }
 
-                    const thread = this._mapThreadDataFromServer(threadDetails)
-
-                    // Add to threads list
-                    // Replace entire array to ensure reactivity
-                    this.threads = [thread, ...this.threads];
-
+                    const thread = this._mapThreadDataFromServer(threadDetails);
+                    this.llmThreads = [thread, ...this.llmThreads];
                     return thread;
                 },
 
                 async ensureThread({ model, res_id } = {}) {
 
-                    // Force reload threads to ensure we have fresh data from database
+                    // Force reload to ensure we have fresh data from database
                     await this.loadThreads([], true);
 
                     if (model && res_id) {
 
-                        const existingThread = this.threads.find(
+                        const existingThread = this.llmThreads.find(
                             thread =>
                                 thread.model === model &&
                                 thread.res_id === res_id
@@ -563,20 +557,16 @@ export const LLMChatService = {
                         // Delete the thread from database
                         await orm.unlink("discuss.channel", [numericThreadId]);
 
-                        // Remove from local threads array
-                        const threadIndex = this.threads.findIndex(t => t.id === numericThreadId);
-                        if (threadIndex !== -1) {
-                            // Create new array without the deleted thread to ensure reactivity
-                            this.threads = this.threads.filter(t => t.id !== numericThreadId);
-                        }
+                        // Remove from local store
+                        this.llmThreads = this.llmThreads.filter(thread => thread.id !== numericThreadId);
 
                         // If this was the active thread, clear it and select another
                         if (this.activeThread && this.activeThread.id === numericThreadId) {
                             this.activeThread = null;
 
                             // Select first available thread if any exist
-                            if (this.threads.length > 0) {
-                                await this.selectThread(this.threads[0].id);
+                            if (this.llmThreads.length > 0) {
+                                await this.selectThread(this.llmThreads[0].id);
                             }
                         }
 
@@ -595,9 +585,9 @@ export const LLMChatService = {
                 },
 
                 get orderedThreads() {
-                    if (!this.threads) return [];
+                    if (!this.llmThreads) return [];
 
-                    const ordered = [...this.threads].sort((a, b) => {
+                    return this.llmThreads.sort((a, b) => {
                         const dateA = a.updatedAt
                             ? new Date(a.updatedAt.replace(" ", "T"))
                             : new Date(0);
@@ -606,8 +596,6 @@ export const LLMChatService = {
                             : new Date(0);
                         return dateB - dateA;
                     });
-
-                    return ordered;
                 },
 
                 get llmProviders() {
