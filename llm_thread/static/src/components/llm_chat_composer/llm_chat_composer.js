@@ -20,6 +20,30 @@ export class LLMChatComposer extends Composer {
   ];
 
   setup() {
+    this._legacy_conf(); // Ensure legacy properties are set up correctly
+
+    super.setup();
+
+    // Use environment
+    this.env = useEnv();
+    
+    // LLM-specific services
+    this.llmChatService = useService("llm_chat");
+
+    // Subscribe to LLM events
+    this.setupLLMEventListeners();
+
+    // Cleanup
+    onWillUnmount(() => {
+      this.cleanupLLMEventListeners();
+      if (this.llmState.isStreaming) {
+        this.llmChatService.stopStreaming(this.thread.id);
+      }
+    });
+
+  }
+
+  _legacy_conf() {
     // Ensure composer prop has all required properties before calling super.setup()
     if (!this.props.composer) {
       throw new Error("LLMChatComposer requires a composer prop");
@@ -43,29 +67,10 @@ export class LLMChatComposer extends Composer {
     if (!this.props.composer.mentionedChannels) {
       this.props.composer.mentionedChannels = [];
     }
+
     if (!this.props.composer.mentionedPartners) {
       this.props.composer.mentionedPartners = [];
     }
-
-    super.setup();
-
-    // Use environment
-    this.env = useEnv();
-    
-    // LLM-specific services
-    this.llmChatService = useService("llm_chat");
-
-    // Subscribe to LLM events
-    this.setupLLMEventListeners();
-
-    // Cleanup
-    onWillUnmount(() => {
-      this.cleanupLLMEventListeners();
-      if (this.llmState.isStreaming) {
-        this.llmChatService.stopStreaming(this.thread.id);
-      }
-    });
-
   }
 
   // Check if send button should be disabled
