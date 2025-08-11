@@ -31,7 +31,7 @@ export class LLMChatThreadList extends Component {
      * This ensures automatic reactivity when threads change
      */
     get threads() {
-        const threads = this.llmChat.orderedThreads || [];
+        const threads = this.llmChat.orderedThreads;
         return threads;
     }
 

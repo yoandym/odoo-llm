@@ -154,7 +154,7 @@ export const LLMChatService = {
                  */
                 async postUserMessage(threadId, messageBody) {
                     if (!messageBody?.trim()) {
-                        this.notification.add(
+                        notification.add(
                             _t("Please enter a message."),
                             { type: "danger" }
                         );
@@ -182,7 +182,7 @@ export const LLMChatService = {
                         // Handle errors
                         eventSource.onerror = (error) => {
                             console.error("EventSource failed:", error);
-                            this.notification.add(
+                            notification.add(
                                 _t("An error occurred while generating response"),
                                 { type: "danger" }
                             );
@@ -191,7 +191,7 @@ export const LLMChatService = {
 
                     } catch (error) {
                         console.error("Error sending LLM message:", error);
-                        this.notification.add(
+                        notification.add(
                             _t("Failed to send message."),
                             { type: "danger" }
                         );
@@ -240,11 +240,12 @@ export const LLMChatService = {
 
                         case "error":
                             this.stopStreaming(threadId);
-                            this.notification.add(data.error, { type: "danger" });
+                            notification.add(data.error, { type: "danger" });
                             break;
 
                         case "done":
                             this.stopStreaming(threadId);
+                            this.refreshThread(threadId);
 
                             break;
                     }
@@ -442,7 +443,11 @@ export const LLMChatService = {
                         [...THREAD_SEARCH_FIELDS, ...extendedFields]
                     );
 
-                    if (!threadDetails || !threadDetails[0]) {
+                    // Handle both array return and single return
+                    const actualThreadDetails = Array.isArray(threadDetails) ? threadDetails[0] : threadDetails;
+
+
+                    if (!actualThreadDetails) {
                         notification.add(
                             _t("Failed to fetch thread data"),
                             {
@@ -453,7 +458,7 @@ export const LLMChatService = {
                         return null;
                     }
 
-                    const thread = this._mapThreadDataFromServer(threadDetails);
+                    const thread = this._mapThreadDataFromServer(actualThreadDetails);
                     this.llmThreads = [thread, ...this.llmThreads];
                     return thread;
                 },
