@@ -14,19 +14,13 @@
             <!-- Add website tab with knowledge collection restrictions -->
             <xpath expr="//notebook" position="inside">
                 <page string="Website Settings" name="website_settings">
-                    <group>
-                        <group string="Knowledge Access">
-                            <field name="allowed_knowledge_collection_ids" widget="many2many_tags"/>
-                            <div class="alert alert-info" role="alert">
-                                <p>
-                                    <i class="fa fa-info-circle"/>
- If no collections are selected, the assistant will not have access to any knowledge.</p>
-                            </div>
-                        </group>
-                        <group string="Stats">
-                            <field name="website_session_count"/>
-                        </group>
+                    <group string="Knowledge Access">
+                        <field name="allowed_knowledge_collection_ids" widget="many2many_tags"/>
+                        
                     </group>
+                    <div class="alert alert-info" role="alert">
+                            <p> If no collections are selected, the assistant will not have access to any knowledge.</p>
+                    </div>
                 </page>
             </xpath>
         </field>
