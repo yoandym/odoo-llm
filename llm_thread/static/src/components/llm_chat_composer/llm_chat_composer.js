@@ -36,7 +36,7 @@ export class LLMChatComposer extends Composer {
     // Cleanup
     onWillUnmount(() => {
       this.cleanupLLMEventListeners();
-      if (this.llmState.isStreaming) {
+      if (this.thread?.isStreaming) {
         this.llmChatService.stopStreaming(this.thread.id);
       }
     });
@@ -75,11 +75,7 @@ export class LLMChatComposer extends Composer {
 
   // Check if send button should be disabled
   get isSendButtonDisabled() {
-    return super.isSendButtonDisabled || this.llmState.isStreaming ;
-  }
-
-  get llmState() {
-    return this.llmChatService.getThreadState(this.thread.id);
+    return super.isSendButtonDisabled || this.thread?.isStreaming ;
   }
 
   // Get container classes
@@ -89,7 +85,7 @@ export class LLMChatComposer extends Composer {
       classes.push(this.props.className);
     }
 
-    if (this.llmState.isStreaming) {
+    if (this.thread?.isStreaming) {
       classes.push("o-streaming");
     }
     return classes.join(" ");
@@ -127,7 +123,7 @@ export class LLMChatComposer extends Composer {
    */
   async sendMessage() {
     const messageBody = this.props.composer.textInputContent.trim();
-    if (!messageBody || this.llmState.isStreaming) {
+    if (!messageBody || this.thread?.isStreaming) {
       return;
     }
 
@@ -228,7 +224,7 @@ export class LLMChatComposer extends Composer {
    */
   focusTextInput() {
     const textarea = this.getTextareaElement();
-    if (textarea && !this.llmState.isStreaming) {
+    if (textarea && !this.thread?.isStreaming) {
       textarea.focus();
     }
   }

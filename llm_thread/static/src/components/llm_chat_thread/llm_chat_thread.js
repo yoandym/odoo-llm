@@ -161,49 +161,9 @@ export class LLMChatThread extends Component {
         // Extract thread ID properly
         let threadId = threadData.id;
 
-        // Handle Symbol or special objects
-        if (threadId && typeof threadId === 'object' && threadId.toString) {
-            // Try to get string representation
-            const idStr = threadId.toString();
-            // Extract numeric ID from string like "Symbol(123)" or "[123, 'name']"
-            const match = idStr.match(/\d+/);
-            if (match) {
-                threadId = parseInt(match[0], 10);
-            }
-        } else if (Array.isArray(threadId)) {
-            threadId = threadId[0];
-        }
-
-        // Ensure it's a number
-        if (typeof threadId === 'string') {
-            threadId = parseInt(threadId, 10);
-        }
-
-        // Validate
-        if (!threadId || isNaN(threadId)) {
-            console.error("Failed to extract valid thread ID from:", threadData);
-            this.notification.add("Invalid thread ID. Please try again.", {
-                type: "danger",
-            });
-            return;
-        }
-
-        // Store the numeric thread ID
+        // Store the thread
         this.currentThreadId = threadId;
-
-        // Create thread object for Odoo's mail system
-        this.state.thread = this.store.Thread.insert({
-            id: threadId,
-            model: "discuss.channel",
-            name: threadData.name || threadData.display_name || "LLM Chat",
-            displayName: threadData.name || threadData.display_name || "LLM Chat",
-        });
-
-        // Add custom fields for related document linking (needed for message actions)
-        if (threadData.model && threadData.res_id) {
-            this.state.thread.model = threadData.model;
-            this.state.thread.res_id = threadData.res_id;
-        } 
+        this.state.thread = threadData
 
         // Load messages
         await this.loadMessages();

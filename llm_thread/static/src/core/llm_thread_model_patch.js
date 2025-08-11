@@ -28,7 +28,6 @@ patch(Thread, {
 
         // linked document
         thread.res_model = data.model;  // Changed from model to res_model
-        thread.res_id = data.res_id;
 
         return thread;
     },
@@ -54,6 +53,7 @@ patch(Thread.prototype, {
         this.prompt_id = false;
 
         this.isStreaming = false;
+        this.eventSource = false;
 
     },
     
@@ -71,5 +71,20 @@ patch(Thread.prototype, {
 
         // Single property definition - always infer from model_id
         this.llm_enabled = Boolean(this.model_id);
+    },
+
+    setStreaming(eventSource) {
+        // eventSource is required
+        if (!eventSource) {
+            throw new Error("EventSource is required to set streaming state");
+        }
+        this.eventSource = eventSource;
+        this.isStreaming = Boolean(eventSource);
+    },
+
+    stopStreaming() {
+        this.eventSource?.close();
+        this.eventSource = null;
+        this.isStreaming = false;
     }
 });

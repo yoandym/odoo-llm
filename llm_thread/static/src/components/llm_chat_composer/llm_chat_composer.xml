@@ -4,7 +4,7 @@
     <t t-name="llm_thread.LLMChatComposer" owl="1">
         <div t-att-class="containerClass">
             <!-- Streaming indicator - positioned above the composer -->
-            <div t-if="llmState.isStreaming" class="o_LLMChatComposer_streamingIndicator text-center text-muted">
+            <div t-if="thread.isStreaming" class="o_LLMChatComposer_streamingIndicator text-center text-muted">
                 <small>
                     <i class="fa fa-circle-o-notch fa-spin me-1" />
                     <span>AI is generating response...</span>
@@ -20,7 +20,7 @@
 
                         <!-- Text input area -->
                         <div class="position-relative flex-grow-1">
-                            <textarea class="o-mail-Composer-input bg-view shadow-none overflow-auto form-control px-3 py-2 border-0 rounded-3" t-ref="textarea" style="min-height: 64px; max-height: 200px;" t-on-keydown="onKeydown" t-on-focusin="onFocusin" t-on-focusout="() => this.props.composer.isFocused = false" t-on-paste="onPaste" t-model="props.composer.textInputContent" t-att-placeholder="placeholder" t-att-readOnly="llmState.isDisabled" />
+                            <textarea class="o-mail-Composer-input bg-view shadow-none overflow-auto form-control px-3 py-2 border-0 rounded-3" t-ref="textarea" style="min-height: 64px; max-height: 200px;" t-on-keydown="onKeydown" t-on-focusin="onFocusin" t-on-focusout="() => this.props.composer.isFocused = false" t-on-paste="onPaste" t-model="props.composer.textInputContent" t-att-placeholder="placeholder" t-att-readOnly="thread.isDisabled" />
 
                             <!-- Fake textarea for height calculation -->
                             <textarea class="o-mail-Composer-fake overflow-hidden position-absolute form-control px-3 py-2 border-0 rounded-3" t-model="props.composer.textInputContent" t-ref="fakeTextarea" disabled="1" />
@@ -34,7 +34,7 @@
                             </button>
 
                             <!-- Send/Stop button -->
-                            <t t-if="!llmState.isStreaming">
+                            <t t-if="!thread.isStreaming">
                                 <button class="btn btn-primary" t-att-disabled="isSendButtonDisabled" t-att-title="_t('Send message (Enter)')" t-on-click="sendMessage">
                                     <i class="fa fa-paper-plane" />
                                 </button>

@@ -47,8 +47,6 @@ export const LLMChatService = {
                 
                 llmModels: [],
                 tools: [],  
-
-                threadStates: {}, // Store thread states keyed by thread ID
               
                 // Methods
                 async initializeLLMChat(actionData, initActiveId, postInitializationPromises = []) {
@@ -109,45 +107,6 @@ export const LLMChatService = {
                 threadToActiveId(thread) {
                     return `llm.thread_${thread.id}`;
                 },
-                
-                /**
-                 * Initialize or retrieve a thread state
-                 * @param {string} threadId - The ID of the thread
-                 * @returns {Object} - The reactive thread state object
-                 */
-                getThreadState(threadId) {
-                    if (!this.threadStates[threadId]) {
-                        // Initialize new thread state if it doesn't exist
-                        this.threadStates[threadId] = {
-                            threadId,
-                            textContent: "",
-                            isStreaming: false,
-                            eventSource: null,
-                        };
-                    }
-                    
-                    return this.threadStates[threadId];
-                },
-
-                /**
-                 * Reset thread state to initial values
-                 * @param {string} threadId - The ID of the thread to reset
-                 */
-                resetThreadState(threadId) {
-                    if (this.threadStates[threadId]) {
-                        // Close any active EventSource before resetting
-                        if (this.threadStates[threadId].eventSource) {
-                            this.threadStates[threadId].eventSource.close();
-                        }
-                        
-                        // Reset to initial state
-                        Object.assign(this.threadStates[threadId], {
-                            textContent: "",
-                            isStreaming: false,
-                            eventSource: null,
-                        });
-                    }
-                },
 
                 /**
                  * Post a user message to the LLM
@@ -167,12 +126,6 @@ export const LLMChatService = {
                             `/llm/thread/generate?thread_id=${threadId}&message=${encodeURIComponent(messageBody.trim())}`
                         );
 
-                        Object.assign(this.threadStates[threadId], {
-                            textContent: messageBody.trim(),
-                            eventSource: eventSource,
-                            isStreaming: true,
-                        });
-
                         // Handle incoming messages
                         eventSource.onmessage = (event) => {
                             const data = JSON.parse(event.data);
@@ -189,6 +142,13 @@ export const LLMChatService = {
                             this.stopStreaming(threadId);
                         };
 
+                        const thread = this.llmThreads.find(t => t.id === threadId);
+                        if (!thread){
+                            throw new Error("Failed to send message to thread");
+                        }
+                        thread.setStreaming(eventSource);
+
+
                     } catch (error) {
                         console.error("Error sending LLM message:", error);
                         notification.add(
@@ -202,16 +162,12 @@ export const LLMChatService = {
                  * Stop the streaming response
                  */
                 stopStreaming(threadId) {
-                    if (!this.threadStates[threadId]) return;
-
-                    if (this.threadStates[threadId].eventSource) {
-                        this.threadStates[threadId].eventSource.close();
-                        this.threadStates[threadId].eventSource = null;
+                    const thread = this.llmThreads.find(t => t.id === threadId);
+                    if (!thread) {
+                        return;
                     }
-                    Object.assign(this.threadStates[threadId], {
-                        isStreaming: false,
-                        eventSource: null,
-                    });
+
+                    thread.stopStreaming();
 
                     // Emit event for UI updates
                     env.bus.trigger("streaming-stopped", { threadId: threadId });
