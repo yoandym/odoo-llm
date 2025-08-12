@@ -565,6 +565,7 @@ class LLMThread(models.Model):
         _basic_info.update({
             "llm_enabled": self.llm_enabled,
             "model_id": self.model_id.id if self.model_id else False,
+            "provider_id": self.provider_id.id if self.provider_id else False,
             "tool_ids": [tool.id for tool in self.tool_ids],
         })
         return _basic_info

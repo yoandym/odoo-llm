@@ -6,11 +6,6 @@ import { assignDefined } from "@mail/utils/common/misc";
 
 /**
  * Extends Thread model to include LLM-specific properties
- * 
- * This patch adds:
- * - isStreaming: Boolean flag indicating if the thread has an active LLM stream
- * - assistantId: ID of the attached LLM assistant if any (presence indicates LLM capabilities)
- * - assistantPartnerId: ID of the partner representing the assistant
  */
 patch(Thread, {
     /**
@@ -28,8 +23,33 @@ patch(Thread, {
 
         // linked document
         // the previous call to assignDefined sets model
-        // we also set res_model
-        thread.res_model = data.model;  
+        // we also set res_model cauze there are places where its used
+        // TODO: remove / clean
+        thread.res_model = data.model;
+
+        // TODO: remove / clean
+        thread.updatedAt = data.write_date;
+
+        // llm data
+        if ('provider_id' in data && 'model_id' in data) {
+            thread.llmModel = {
+                id: data.model_id[0],
+                name: data.model_id[1],
+                llmProvider: {
+                    id: data.provider_id[0],
+                    name: data.provider_id[1],
+                },
+            };
+        }
+
+        if ('prompt_id' in data) {
+            thread.prompt = {
+                id: data.prompt_id[0],
+                name: data.prompt_id[1],
+            };
+        }
+
+
 
         return thread;
     },
@@ -46,6 +66,7 @@ patch(Thread.prototype, {
 
         this.create_date = false;
         this.write_date = false;
+        this.updatedAt = false;
 
         this.model = false
         this.res_model = false;
@@ -54,6 +75,7 @@ patch(Thread.prototype, {
         this.llm_enabled = false;
         this.tool_ids = false;
         this.prompt_id = false;
+        this.llmModel = {};
 
         this.isStreaming = false;
         this.eventSource = false;
@@ -72,8 +94,28 @@ patch(Thread.prototype, {
             this.creator =  { id: data.create_uid[0], name: data.create_uid[1] };
         }
 
-        // Single property definition - always infer from model_id
-        this.llm_enabled = Boolean(this.model_id);
+        if ('write_date' in data) {
+            this.updatedAt = data.write_date;
+        }
+
+        // llm data
+        if ('provider_id' in data && 'model_id' in data) {
+            this.llmModel = {
+                id: data.model_id[0],
+                name: data.model_id[1],
+                llmProvider: {
+                    id: data.provider_id[0],
+                    name: data.provider_id[1],
+                },
+            };
+        }
+
+        if ('prompt_id' in data) {
+            this.prompt = {
+                id: data.prompt_id[0],
+                name: data.prompt_id[1],
+            };
+        }
     },
 
     setStreaming(eventSource) {

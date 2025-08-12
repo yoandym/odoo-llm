@@ -5,11 +5,7 @@ import { patch } from "@web/core/utils/patch";
 import { assignDefined } from "@mail/utils/common/misc";
 
 /**
- * Extends Thread model to include LLM-specific properties
- * 
- * This patch adds:
- * - assistantId: ID of the attached LLM assistant if any (presence indicates LLM capabilities)
- * - assistantPartnerId: ID of the partner representing the assistant
+ * Extends Thread model to include LLM Assistant specific properties
  */
 patch(Thread, {
     /**
@@ -21,9 +17,7 @@ patch(Thread, {
 
         assignDefined(thread, otherData);
 
-        // llm llm data
-        thread.assistantId = data.assistant_id;
-        thread.assistantPartnerId = data.assistant_partner_id;
+        thread._parse_assistant(data);
 
         return thread;
     },
@@ -36,8 +30,11 @@ patch(Thread.prototype, {
     setup() {
         super.setup();
         
-        this.assistantId = false;
-        this.assistantPartnerId = false;
+        this.assistant = {
+            id: false,
+            name: false,
+            partner_id: false,
+        };
 
     },
     
@@ -48,16 +45,31 @@ patch(Thread.prototype, {
         super.update(data);
 
         assignDefined(this, data);
-        
-        // Use correct property name from server data
-        if ('assistant_id' in data) {
-            this.assistantId = data.assistant_id;
-            // Debug log when assistant_id is received from server
+                
+        this._parse_assistant(data);
+
+    },
+
+    _parse_assistant(data) {
+        if (Array.isArray(data.assistant_id)) {
+            // assistant_id may be an array [id, name] (at initialization)
+            this.assistant.id = data.assistant_id[0];
+            this.assistant.name = data.assistant_id[1];
+        } else {
+            // assistant_id may be just a number
+            // and assistant_name comes in other property
+            this.assistant.id = data.assistant_id;
         }
-        
+        if ('assistant_name' in data) {
+            this.assistant.name = data.assistant_name;
+        }
         if ('assistant_partner_id' in data) {
-            this.assistantPartnerId = data.assistant_partner_id;
+            this.assistant.partner_id = data.assistant_partner_id;
         }
-        
+
+        // remove unwanted keys
+        delete this.assistant_id;
+        delete this.assistant_name;
+        delete this.assistant_partner_id;
     }
 });
