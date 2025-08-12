@@ -61,31 +61,6 @@ export class LLMChatThread extends Component {
             }
         });
 
-        // Current thread ID - properly extracted
-        this.currentThreadId = null;
-        if (this.props.thread?.id) {
-
-            let threadId = this.props.thread.id;
-
-            // Handle Symbol or special objects
-            if (threadId && typeof threadId === 'object' && threadId.toString) {
-                const idStr = threadId.toString();
-                const match = idStr.match(/\d+/);
-                if (match) {
-                    threadId = parseInt(match[0], 10);
-                }
-            } else if (Array.isArray(threadId)) {
-                threadId = threadId[0];
-            } else if (typeof threadId === 'string') {
-                threadId = parseInt(threadId, 10);
-            }
-
-            if (threadId && !isNaN(threadId)) {
-                this.currentThreadId = threadId;
-            }
-
-        }
-
         // Setup event listeners
         this.setupEventListeners();
 
@@ -111,28 +86,8 @@ export class LLMChatThread extends Component {
                 // Extract and normalize the thread ID
                 let nextThreadId = nextProps.thread.id;
 
-                // Handle Symbol or special objects
-                if (nextThreadId && typeof nextThreadId === 'object' && nextThreadId.toString) {
-                    const idStr = nextThreadId.toString();
-                    const match = idStr.match(/\d+/);
-                    if (match) {
-                        nextThreadId = parseInt(match[0], 10);
-                    }
-                } else if (Array.isArray(nextThreadId)) {
-                    nextThreadId = nextThreadId[0];
-                } else if (typeof nextThreadId === 'string') {
-                    nextThreadId = parseInt(nextThreadId, 10);
-                }
-
-                // Validate
-                if (!nextThreadId || isNaN(nextThreadId)) {
-                    console.error("Failed to extract valid thread ID from nextProps:", nextProps.thread);
-                    return;
-                }
-
                 // Check if it's a different thread
-                if (nextThreadId !== this.currentThreadId) {
-                    this.currentThreadId = nextThreadId;
+                if (nextThreadId !== this.state.thread.id) {
                     this.state.messages = [];
                     this.state.streamingMessageId = null;
                     this.state.hasMoreMessages = true;
@@ -162,7 +117,6 @@ export class LLMChatThread extends Component {
         let threadId = threadData.id;
 
         // Store the thread
-        this.currentThreadId = threadId;
         this.state.thread = threadData
 
         // Load messages
@@ -173,21 +127,14 @@ export class LLMChatThread extends Component {
      * Load messages for the thread
      */
     async loadMessages() {
-        if (!this.currentThreadId || this.state.isLoadingMessages) return;
-
-        // Ensure thread ID is numeric
-        let threadId = this.currentThreadId;
-        if (typeof threadId !== 'number') {
-            console.error("Invalid thread ID:", threadId);
-            return;
-        }
+        if (!this.state.thread || this.state.isLoadingMessages) return;
 
         this.state.isLoadingMessages = true;
 
         try {
             const result = await this.rpc("/mail/thread/messages", {
                 thread_model: "discuss.channel",
-                thread_id: threadId,
+                thread_id: this.state.thread.id,
                 limit: 30,
             });
 
@@ -209,17 +156,10 @@ export class LLMChatThread extends Component {
      * Load more messages (for infinite scroll)
      */
     async loadMoreMessages() {
-        if (this.state.isLoadingMessages || !this.state.hasMoreMessages || !this.currentThreadId) return;
+        if (this.state.isLoadingMessages || !this.state.hasMoreMessages || !this.state.thread) return;
 
         const oldestMessage = this.state.messages[0];
         if (!oldestMessage) return;
-
-        // Ensure thread ID is numeric
-        let threadId = this.currentThreadId;
-        if (typeof threadId !== 'number') {
-            console.error("Invalid thread ID for loadMoreMessages:", threadId);
-            return;
-        }
 
         this.state.isLoadingMessages = true;
         const previousScrollHeight = this.contentRef.el ? this.contentRef.el.scrollHeight : 0;
@@ -227,7 +167,7 @@ export class LLMChatThread extends Component {
         try {
             const result = await this.rpc("/mail/thread/messages", {
                 thread_model: "discuss.channel",
-                thread_id: threadId,
+                thread_id: this.state.thread.id,
                 max_id: oldestMessage.id,
                 limit: 30,
             });
@@ -355,19 +295,19 @@ export class LLMChatThread extends Component {
     setupEventListeners() {
 
         this.messageCreatedHandler = (ev) => {
-            if (ev.detail.threadId === this.currentThreadId) {
+            if (ev.detail.threadId === this.state.thread.id) {
                 this.handleMessageCreated(ev.detail.message);
             }
         };
 
         this.messageUpdatedHandler = (ev) => {
-            if (ev.detail.threadId === this.currentThreadId) {
+            if (ev.detail.threadId === this.state.thread.id) {
                 this.handleMessageUpdated(ev.detail.message);
             }
         };
 
         this.streamingStoppedHandler = (ev) => {
-            if (ev.detail.threadId === this.currentThreadId) {
+            if (ev.detail.threadId === this.state.thread.id) {
                 this.state.streamingMessageId = null;
             }
         };
