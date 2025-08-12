@@ -72,3 +72,52 @@ class Message(models.Model):
                         return True
 
         return is_standard_assistant
+
+    def message_format(self, format_reply=True, msg_vals=None):
+        """Override to filter tool messages in livechat context."""
+        vals_list = super().message_format(format_reply=format_reply, msg_vals=msg_vals)
+
+        # Filter out tool messages for livechat channels
+        filtered_vals = []
+        for vals in vals_list:
+            # Check if this message should be hidden in livechat
+            if self._should_hide_message_in_livechat(vals):
+                self._replace_with_placeholder(vals)
+            filtered_vals.append(vals)
+
+        return filtered_vals
+
+    def _should_hide_message_in_livechat(self, message_vals):
+        """Determine if message should be hidden in livechat context."""
+        # Get the message record to check context
+        message = self.browse(message_vals["id"])
+
+        # Only filter for livechat channels
+        if message.model == "discuss.channel":
+            channel = self.env["discuss.channel"].browse(message.res_id)
+            if channel.channel_type == "livechat" and message.is_tool_result_message():
+                # Hide tool result messages and tool-related content
+                return True
+
+        return False
+
+    def _replace_with_placeholder(self, message_vals):
+        """Replace message content with safe placeholder for livechat users.
+
+        Args:
+            message_vals (dict): Message data to modify in-place
+        """
+        # Keep all the original structure but replace sensitive content
+        message_vals["body"] = "<p><em>Processing...</em></p>"
+        message_vals["preview"] = "Processing..."
+
+        # Keep the message visible but mark it as a system message
+        if "is_note" not in message_vals:
+            message_vals["is_note"] = True
+
+        # Add a CSS class to style placeholder messages differently
+        if "message_type" in message_vals:
+            message_vals["message_type"] = "notification"
+
+        # Optionally add metadata to identify this as a placeholder on frontend
+        message_vals["is_tool_placeholder"] = True

@@ -27,7 +27,9 @@ patch(Thread, {
             : undefined;
 
         // linked document
-        thread.res_model = data.model;  // Changed from model to res_model
+        // the previous call to assignDefined sets model
+        // we also set res_model
+        thread.res_model = data.model;  
 
         return thread;
     },
@@ -45,6 +47,7 @@ patch(Thread.prototype, {
         this.create_date = false;
         this.write_date = false;
 
+        this.model = false
         this.res_model = false;
         this.res_id = false;
 
