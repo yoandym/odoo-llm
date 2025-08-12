@@ -228,7 +228,7 @@ export const LLMChatService = {
                         { order: "write_date desc" }
                     );
 
-                    this.llmThreads = result.map(thread => this._mapThreadDataFromServer(thread));
+                    this.llmThreads = result.map(threadData => mailStore.Thread.insert(threadData));
 
                     // Emit threads_loaded event
                     env.bus.trigger("llm_chat:threads_loaded", {
@@ -237,67 +237,6 @@ export const LLMChatService = {
                     });
                 },
 
-                _mapThreadDataFromServer(threadData) {
-                    // First, create the standard data structure
-                    const mappedData = {
-                        // basic thread data
-                        id: threadData.id,
-                        model: "discuss.channel", // required by OWL Thread model.
-
-                        name: threadData.name,
-                        creator: threadData.create_uid
-                            ? { id: threadData.create_uid[0], name: threadData.create_uid[1] }
-                            : undefined,
-                        isServerPinned: true,
-
-                        // messages data
-                        message_needaction_counter: 0,
-                        message_ids: threadData.message_ids || [],
-
-                        // dates
-                        create_date: threadData.create_date,
-                        updatedAt: threadData.write_date,
-
-                        // linked document
-                        model: threadData.model,  // Changes from model to res_model after inserted
-                        res_id: threadData.res_id,
-
-                        // llm tools data
-                        tool_ids: threadData.tool_ids || [],
-                    };
-
-                    // llm data
-                    if (threadData.model_id && threadData.provider_id) {
-                        mappedData.llmModel = {
-                            id: threadData.model_id[0],
-                            name: threadData.model_id[1],
-                            llmProvider: {
-                                id: threadData.provider_id[0],
-                                name: threadData.provider_id[1],
-                            },
-                        };
-                    }
-
-                    // llm prompt data
-                    if (threadData.prompt_id) {
-                        if (Array.isArray(threadData.prompt_id)) {
-                            mappedData.promptId = threadData.prompt_id[0];
-                            mappedData.promptName = threadData.prompt_id[1];
-                        } else {
-                            mappedData.promptId = threadData.prompt_id;
-                        }
-                    }
-
-                    // Allow extensions to map additional data via event
-                    env.bus.trigger("llm_chat:map_thread_data", {
-                        threadData,
-                        mappedData,
-                        service: this
-                    });
-                    
-                    return mailStore.Thread.insert(mappedData);
-                }, 
-                
                 async refreshThread(threadId, additionalFields = []) {
                     try {
                         // Allow extensions to add additional fields via event
@@ -318,7 +257,7 @@ export const LLMChatService = {
                             return;
                         }
 
-                        const thread = this._mapThreadDataFromServer(result[0]);
+                        const thread = mailStore.Thread.insert(result[0]);
                         const threadIndex = this.llmThreads.findIndex(thread => thread.id === threadId);
                         if (threadIndex) {
                             
@@ -414,7 +353,7 @@ export const LLMChatService = {
                         return null;
                     }
 
-                    const thread = this._mapThreadDataFromServer(actualThreadDetails);
+                    const thread = mailStore.Thread.insert(actualThreadDetails);
                     this.llmThreads = [thread, ...this.llmThreads];
                     return thread;
                 },

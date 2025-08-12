@@ -25,7 +25,7 @@
                         <t t-foreach="llmAssistants" t-as="assistant" t-key="assistant.id">
                             <DropdownItem 
                                 onSelected="() => this.onSelectAssistant(assistant)" 
-                                class="{'active': state.selectedAssistantId === assistant.id || (selectedAssistant and selectedAssistant.id === assistant.id)}"
+                                class="{'active': state.selectedAssistant.id === assistant.id || (selectedAssistant and selectedAssistant.id === assistant.id)}"
                             >
                                 <!-- Assistant name -->
                                 <span class="text-truncate me-2">

@@ -79,15 +79,15 @@ function patchLLMChatService() {
             }
         };
 
-        llmChat.getAssistant = function(assistantId) {
-            return assistantCache.get(assistantId) || null;
+        llmChat.getAssistant = function(assistant_id) {
+            return assistantCache.get(assistant_id) || null;
         };
 
-        llmChat.setThreadAssistant = async function(threadId, assistantId) {
+        llmChat.setThreadAssistant = async function(threadId, assistant_id) {
             try {
                 const result = await deps.rpc("/llm/thread/set_assistant", {
                     thread_id: threadId,
-                    assistant_id: assistantId,
+                    assistant_id: assistant_id,
                 });
 
                 return result;
@@ -116,22 +116,6 @@ function patchLLMChatService() {
                 if (!event.detail.fields.includes("assistant_id")) {
                     event.detail.fields.push("assistant_id");
                 }
-            }
-        });
-
-        env.bus.addEventListener("llm_chat:map_thread_data", (event) => {
-            const { threadData, mappedData } = event.detail;
-            if (threadData.assistant_id) {
-                if (Array.isArray(threadData.assistant_id)) {
-                    mappedData.assistantId = threadData.assistant_id[0];
-                    mappedData.assistantName = threadData.assistant_id[1];
-                } else {
-                    mappedData.assistantId = threadData.assistant_id;
-                }
-                mappedData.assistant = llmChat.getAssistant(mappedData.assistantId);
-            } else {
-                mappedData.assistantId = null;
-                mappedData.assistantName = null;
             }
         });
 

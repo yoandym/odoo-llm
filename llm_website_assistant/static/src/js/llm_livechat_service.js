@@ -71,7 +71,7 @@ patch(LivechatService.prototype, {
                 throw new Error("Thread not found or doesn't match current thread");
             }
                         
-            if (thread.assistantId) {
+            if (thread.assistant_id) {
                 // Stop any existing stream first
                 this.stopLLMStreaming(threadId);
 

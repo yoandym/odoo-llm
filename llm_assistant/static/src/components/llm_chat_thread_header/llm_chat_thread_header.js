@@ -2,7 +2,6 @@
 
 import { LLMChatThreadHeader } from "@llm_thread/components/llm_chat_thread_header/llm_chat_thread_header";
 import { patch } from "@web/core/utils/patch";
-import { useService } from "@web/core/utils/hooks";
 import { onMounted, onWillUpdateProps } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 
@@ -13,9 +12,9 @@ patch(LLMChatThreadHeader.prototype, {
     },
 
     _setupAssistantFeatures() {
-        // Add only the selectedAssistantId to state
-        this.state.selectedAssistantId = null;
-                
+        // Add the selectedAssistant to state
+        this.state.selectedAssistant = this.props.thread?.assistant || null;
+
         onMounted(() => {
             this._setupEventListeners();
             
@@ -38,9 +37,9 @@ patch(LLMChatThreadHeader.prototype, {
      * @param {Object} thread - Thread object
      */
     _updateAssistantFromThread(thread) {
-        if (thread?.assistantId) {
+        if (thread?.assistant?.id) {
             // Update the state with the thread's assistant ID
-            this.state.selectedAssistantId = thread.assistantId;
+            this.state.selectedAssistant = thread.assistant;
         }
     },
 
@@ -62,10 +61,6 @@ patch(LLMChatThreadHeader.prototype, {
             if (thread) {
                 this._updateAssistantFromThread(thread);
             } 
-            // If just the assistantId field was updated
-            else if (updatedFields?.assistantId !== undefined) {
-                this.state.selectedAssistantId = updatedFields.assistantId;
-            }
         }
     },
 
@@ -79,14 +74,7 @@ patch(LLMChatThreadHeader.prototype, {
 
     get selectedAssistant() {
         // Try to get assistant ID from state or thread props
-        const assistantId = this.state.selectedAssistantId || this.props.thread?.assistantId;
-        
-        if (!assistantId) {
-            return null;
-        }
-        
-        // Find the assistant in the list
-        return this.llmChat.assistants.find(a => a.id === assistantId) || null;
+        return this.state.selectedAssistant;
     },
 
     get shouldShowProviderModelTools() {
@@ -99,16 +87,16 @@ patch(LLMChatThreadHeader.prototype, {
 
     async onSelectAssistant(assistant) {
         // Check if the assistant is already selected
-        const currentAssistantId = this.state.selectedAssistantId || this.props.thread?.assistantId;
-        if (assistant.id === currentAssistantId) {
+        const currentAssistant = this.state.selectedAssistant;
+        if (assistant?.id === currentAssistant?.id) {
             return;
         }
         
         // Store previous values in case we need to restore them
-        const previousAssistantId = currentAssistantId;
+        const previousAssistant = currentAssistant;
         
         // Update local state immediately for UI responsiveness
-        this.state.selectedAssistantId = assistant.id;
+        this.state.selectedAssistant = assistant;
         
         try {
             // Update the assistant in the backend
@@ -123,7 +111,7 @@ patch(LLMChatThreadHeader.prototype, {
             }
         } catch (error) {
             // Restore previous state if there was an error
-            this.state.selectedAssistantId = previousAssistantId;
+            this.state.selectedAssistant = previousAssistant;
             
             this.notificationService.add(
                 _t("Failed to select assistant. Please try again."),
