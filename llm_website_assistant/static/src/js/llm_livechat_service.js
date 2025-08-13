@@ -71,7 +71,7 @@ patch(LivechatService.prototype, {
                 throw new Error("Thread not found or doesn't match current thread");
             }
                         
-            if (thread.assistant_id) {
+            if (thread.assistant) {
                 // Stop any existing stream first
                 this.stopLLMStreaming(threadId);
 
@@ -132,7 +132,7 @@ patch(LivechatService.prototype, {
                 }
             }
             else {
-                throw new Error("No assistant available for this thread");
+                throw new Error("No assistant available for thread_id: " + threadId);
             }
             
             return {
