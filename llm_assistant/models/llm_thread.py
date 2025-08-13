@@ -276,6 +276,5 @@ class LLMThread(models.Model):
         _basic_info.update({
             "assistant_id": self.assistant_id.id if self.assistant_id else False,
             "assistant_name": self.assistant_id.name if self.assistant_id else "",
-            "assistant_partner_id": self.assistant_id.partner_id.id if self.assistant_id else False,
         })
         return _basic_info

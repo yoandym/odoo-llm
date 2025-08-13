@@ -63,13 +63,9 @@ patch(Thread.prototype, {
         if ('assistant_name' in data) {
             this.assistant.name = data.assistant_name;
         }
-        if ('assistant_partner_id' in data) {
-            this.assistant.partner_id = data.assistant_partner_id;
-        }
 
         // remove unwanted keys
         delete this.assistant_id;
         delete this.assistant_name;
-        delete this.assistant_partner_id;
     }
 });

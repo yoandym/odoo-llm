@@ -1,4 +1,4 @@
-from odoo import api, models
+from odoo import models
 
 
 class LLMThread(models.Model):
@@ -17,7 +17,6 @@ class LLMThread(models.Model):
             )
 
         return result
-
 
     def _get_message_subtypes(self):
         """Override to include both LLM and Livechat subtypes.

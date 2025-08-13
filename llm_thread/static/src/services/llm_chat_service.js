@@ -7,7 +7,6 @@ import { _t } from "@web/core/l10n/translation";
 /**
  * Global thread search fields for LLM chat service.
  * Can be patched/extended by other modules if needed.
- * By default, does NOT include assistant_id. Assistant modules should extend this array.
  */
 export const THREAD_SEARCH_FIELDS = [
     "id",
