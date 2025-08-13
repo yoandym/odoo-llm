@@ -175,10 +175,4 @@ patch(ChatBotService.prototype, {
         return super.inputDisabledText;
     },
 
-    _triggerNextStep() {
-        console.log("[_triggerNextStep] store.Message before calling super:", this.store.Message.records);
-        super._triggerNextStep();
-        console.log("[_triggerNextStep] store.Message after calling super:", this.store.Message.records);
-    }
-
 });
