@@ -362,16 +362,5 @@ patch(Message.prototype, {
         return threadComponent?.state?.streamingMessageId === this.props.message.id;
     },
 
-    /**
-     * Get avatar data for AI messages
-     */
-    get avatarData() {
-        if (this.isAiMessage) {
-            return {
-                displayName: "AI Assistant",
-                avatarUrl: false,
-            };
-        }
-        return super.avatarData;
-    },
+
 });
