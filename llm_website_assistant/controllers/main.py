@@ -28,13 +28,9 @@ class LlmLivechatController(LivechatController):
             # Add LLM-specific attributes to the result for reactive components
             result["rule"]["chatbot"].update(
                 {
-                    "assistant_id": matching_channel_rule.chatbot_script_id.llm_assistant_id.id,  # Presence of assistant_id implies LLM capabilities
-                    "assistant_name": matching_channel_rule.chatbot_script_id.llm_assistant_id.name,
-                    "assistant_partner_id": (
-                        matching_channel_rule.chatbot_script_id.llm_assistant_id.partner_id.id
-                        if matching_channel_rule.chatbot_script_id.llm_assistant_id.partner_id
-                        else False
-                    ),
+                    "llm_enabled": True,
+                    "assistant_id": matching_channel_rule.chatbot_script_id.llm_assistant_id.id,
+                    "assistant_name": matching_channel_rule.chatbot_script_id.llm_assistant_id.name
                 }
             )
 
@@ -76,19 +72,19 @@ class LlmLivechatController(LivechatController):
                     and chatbot_script.llm_assistant_id
                     and chatbot_script.llm_assistant_id.is_website_visible
                 ):
-                    # link the LLM assistant to the channel
                     channel = request.env["discuss.channel"].sudo().browse(int(channel_info.get("id")))
-                    channel.assistant_id = chatbot_script.llm_assistant_id
+
+                    # link the LLM assistant to the channel
+                    channel.set_assistant(chatbot_script.llm_assistant_id.id)
+                    channel.livechat_operator_id = chatbot_script.llm_assistant_id.partner_id
 
                     # Ensure the assistant_id is also passed back in the channel_info
+                    channel_info["llm_enabled"] = True
                     channel_info["assistant_id"] = chatbot_script.llm_assistant_id.id
                     channel_info["assistant_name"] = chatbot_script.llm_assistant_id.name
-                    channel_info["assistant_partner_id"] = (
-                        chatbot_script.llm_assistant_id.partner_id.id if chatbot_script.llm_assistant_id.partner_id else False
-                    )
                 else:
                     _logger.warning(
-                        f"Requested Assistant {chatbot_script.llm_assistant_id.name} (ID: {chatbot_script.llm_assistant_id.id}) is not website visible, "
+                        f"Assistant {chatbot_script.llm_assistant_id.name} (ID: {chatbot_script.llm_assistant_id.id}) is not website visible, "
                         f"not setting it on thread {channel_info.get('id')}"
                     )
             except Exception as e:
