@@ -11,11 +11,10 @@ patch(Thread, {
     /**
      * @override
      */
-    insert(data) {
-        const {id, model, ...otherData} = data;
-        const thread = super.insert({id, model});
+    _insert(data) {
+        const thread = super._insert(data);
 
-        assignDefined(thread, otherData);
+        assignDefined(thread, data);
 
         thread._parse_assistant(data);
 

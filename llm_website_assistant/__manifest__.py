@@ -41,7 +41,9 @@ Odoo live chat system, enhancing the capabilities of chatbots with AI.
     ],
     "assets": {
         "web.assets_frontend": [
-            "llm_website_assistant/static/src/core/thread_model_patch.js",
+            # model patches
+            "llm_thread/static/src/core/llm_thread_model_patch.js",
+            "llm_assistant/static/src/core/llm_thread_model_patch.js",
             # livechat service
             "llm_website_assistant/static/src/js/llm_livechat_service.js",
             # chatbot
