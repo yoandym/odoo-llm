@@ -71,27 +71,3 @@ class ChatbotScriptStep(models.Model):
             res.update({"isLlmStep": True, "type": "llm_processed_input", "expectAnswer": True})
 
         return res
-
-    def _process_flow_action_forward_to_operator(self, response_data):
-        """Handle the forward_to_operator flow action - transfer to human agent"""
-        _logger.info("Processing forward_to_operator flow action")
-        # Route to operator step
-        forward_operator_step = self.chatbot_script_id.script_step_ids.filtered(lambda step: step.step_type == "forward_operator")
-        if forward_operator_step:
-            return forward_operator_step[0], {}
-        # Fallback if no operator step found
-        return self, {}
-
-    def _process_flow_action_phone_callback(self, response_data):
-        """Handle the phone_callback flow action - schedule phone callback"""
-        _logger.info("Processing phone_callback flow action")
-        # Phone callback doesn't change the flow - user stays in conversation
-        # We could add additional logic here to handle phone callback data if needed
-        return self, {}
-
-    def _process_flow_action_create_ticket(self, response_data):
-        """Handle the create_ticket flow action - create helpdesk ticket"""
-        _logger.info("Processing create_ticket flow action")
-        # Ticket creation doesn't change the flow - user stays in conversation
-        # We could add additional logic here to create helpdesk tickets if needed
-        return self, {}

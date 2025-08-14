@@ -74,48 +74,42 @@ class ChatbotScript(models.Model):
             }
         )
 
-        # Add the operator forwarding step
-        self.env["chatbot.script.step"].create(
-            {
-                "chatbot_script_id": self.id,
-                "message": "I'll connect you with a human agent who can help you further.",
-                "step_type": "forward_operator",
-            }
-        )
+        # Check the assistant has livechat handover tool
+        livechat_handover = self._assistant_has_tool("livechat_handover")
+        if livechat_handover:
+            # Add the operator forwarding step
+            self.env["chatbot.script.step"].create(
+                {
+                    "chatbot_script_id": self.id,
+                    "message": "I'll connect you with a human agent who can help you further.",
+                    "step_type": "forward_operator",
+                }
+            )
 
-        # Add the no operator available step
-        question_step = self.env["chatbot.script.step"].create(
-            {
-                "chatbot_script_id": self.id,
-                "message": "None of our operators are available at the moment. Would you like to create a ticket?",
-                "step_type": "question_selection",
-            }
-        )
+        phone_callback = self._assistant_has_tool("phone_callback")
+        if phone_callback:
+            # Add the phone callback step
+            question_step = self.env["chatbot.script.step"].create(
+                {
+                    "chatbot_script_id": self.id,
+                    "message": "None of our operators are available at the moment. Would you like an operator to call you back?",
+                    "step_type": "question_selection",
+                }
+            )
 
-        # Add the answer options to the question step
-        answer_yes = self.env["chatbot.script.answer"].create({"name": "Yes", "script_step_id": question_step.id})
+            # Add the answer options to the question step
+            answer_yes = self.env["chatbot.script.answer"].create({"name": "Yes", "script_step_id": question_step.id})
+            self.env["chatbot.script.answer"].create({"name": "No", "script_step_id": question_step.id})
 
-        self.env["chatbot.script.answer"].create({"name": "No", "script_step_id": question_step.id})
-
-        # Add email collection step (triggered by "Yes" answer)
-        self.env["chatbot.script.step"].create(
-            {
-                "chatbot_script_id": self.id,
-                "message": "Please provide your email so we can get back to you:",
-                "step_type": "question_email",
-                "triggering_answer_ids": [(6, 0, [answer_yes.id])],
-            }
-        )
-
-        # Add ticket confirmation step
-        self.env["chatbot.script.step"].create(
-            {
-                "chatbot_script_id": self.id,
-                "message": "Thank you! I've created a ticket for your request. We'll get back to you as soon as possible.",
-                "step_type": "text",
-                "triggering_answer_ids": [(6, 0, [answer_yes.id])],
-            }
-        )
+            # Add phone number collection step (triggered by "Yes" answer)
+            self.env["chatbot.script.step"].create(
+                {
+                    "chatbot_script_id": self.id,
+                    "message": "Please provide your phone number so we can get back to you:",
+                    "step_type": "question_phone",
+                    "triggering_answer_ids": [(6, 0, [answer_yes.id])],
+                }
+            )
 
         _logger.info(f"Successfully generated standard steps for LLM chatbot script {self.id}")
 
@@ -145,3 +139,13 @@ class ChatbotScript(models.Model):
             vals["operator_partner_id"] = vals["assistant_id"].partner_id.id
 
         return super().write(vals)
+
+    def _assistant_has_tool(self, tool_str_id):
+        """Check if the assigned assistant has a specific tool/capability"""
+        if not self.llm_assistant_id:
+            return False
+
+        # Option 1: Check by tool name/implementation
+        _tool = self.llm_assistant_id.tool_ids.filtered(lambda tool: tool.implementation == tool_str_id)
+
+        return bool(_tool)

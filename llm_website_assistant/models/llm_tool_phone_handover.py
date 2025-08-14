@@ -17,7 +17,7 @@ class LLMToolPhoneHandover(models.Model):
     @api.model
     def _get_available_implementations(self) -> list[tuple[str, str]]:
         implementations = super()._get_available_implementations()
-        return implementations + [("phone_handover", "Phone Callback Request")]
+        return implementations + [("phone_callback", "Phone Callback Request")]
 
     def phone_handover_execute(
         self,
