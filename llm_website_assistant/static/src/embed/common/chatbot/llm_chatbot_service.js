@@ -175,4 +175,13 @@ patch(ChatBotService.prototype, {
         return super.inputDisabledText;
     },
 
+    /**
+     * @param {import("models").Thread} thread
+     */
+    isChatbotThread(thread) {
+        const operator_is_bot = thread?.operator?.id === this.chatbot?.partnerId;
+        const llm_enabled = thread?.assistant?.llm_enabled;
+        return operator_is_bot || llm_enabled;
+    }
+
 });
