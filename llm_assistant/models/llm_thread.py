@@ -272,7 +272,7 @@ class LLMThread(models.Model):
     def _channel_basic_info(self):
         """Get basic information about the channel."""
         self.ensure_one()
-        _basic_info = super()._channel_basic_info()
+        _basic_info = super(LLMThread, self.sudo())._channel_basic_info()
         _basic_info.update({
             "assistant_id": self.assistant_id.id if self.assistant_id else False,
             "assistant_name": self.assistant_id.name if self.assistant_id else "",

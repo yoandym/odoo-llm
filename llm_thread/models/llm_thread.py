@@ -373,23 +373,23 @@ class LLMThread(models.Model):
         self.ensure_one()
         if self._read_is_locked_decorated():  # pyright:ignore
             raise UserError(_("Lock Error: This thread is already generating a response. Please wait."))
-        self._write_vals_decorated({"is_locked": True})  # pyright:ignore
+        self.sudo()._write_vals_decorated({"is_locked": True})  # pyright:ignore
 
     def _unlock(self):
         """Releases the lock on the thread, ensuring immediate commit."""
         self.ensure_one()
         if self._read_is_locked_decorated():  # pyright:ignore
-            self._write_vals_decorated({"is_locked": False})  # pyright:ignore
+            self.sudo()._write_vals_decorated({"is_locked": False})  # pyright:ignore
 
     @execute_with_new_cursor
     def _read_is_locked_decorated(self, record_in_new_env):
         """Reads the 'is_locked' status using a new cursor."""
-        return record_in_new_env.is_locked
+        return record_in_new_env.sudo().is_locked
 
     @execute_with_new_cursor
     def _write_vals_decorated(self, record_in_new_env, vals):
         """Writes values using a new, immediately committed cursor."""
-        return record_in_new_env.write(vals)
+        return record_in_new_env.sudo().write(vals)
 
     def send_message(self, message_content):
         """Send a user message to the thread and trigger AI response.
