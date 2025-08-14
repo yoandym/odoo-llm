@@ -40,14 +40,14 @@ class LLMTool(models.Model):
     # Input schema
     input_schema = fields.Text(
         string="Input Schema",
-        compute='_compute_input_schema',
+        compute="_compute_input_schema",
         store=True,
         readonly=True,  # No manual override
         help="JSON Schema defining the expected parameters for the tool",
     )
-    
+
     has_input_schema = fields.Boolean(
-        compute='_compute_input_schema',
+        compute="_compute_input_schema",
         store=True,
         readonly=True,
         help="Indicates if the tool has a valid input schema",
@@ -95,7 +95,7 @@ class LLMTool(models.Model):
         help="Set to true if this is a default tool to be included in all LLM requests",
     )
 
-    @api.depends('implementation')
+    @api.depends("implementation")
     def _compute_input_schema(self):
         """Compute input schema from implementation"""
         for tool in self:
@@ -190,10 +190,7 @@ class LLMTool(models.Model):
 
         impl_method_name = f"{self.implementation}_execute"
         if not hasattr(self, impl_method_name):
-            raise NotImplementedError(
-                _("Method execute not implemented for implementation %s")
-                % self.implementation
-            )
+            raise NotImplementedError(_("Method execute not implemented for implementation %s") % self.implementation)
 
         method = getattr(self, impl_method_name)
 
