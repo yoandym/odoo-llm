@@ -45,9 +45,6 @@ class LLMToolLivechatHandover(models.Model):
             if not forward_step:
                 return {"success": False, "error": "Could not get or create a forward operator step"}
 
-            # Set the channel to this step (this will stop LLM processing)
-            channel.chatbot_current_step_id = forward_step.id
-
             # Process the forward_operator step (this triggers the handover)
             posted_message = forward_step._process_step(channel)
 
