@@ -87,20 +87,19 @@ patch(LivechatService.prototype, {
                 eventSource.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
+
+                        // TODO: remove debug data
+                        // print all message data for debugging purposes
+                        console.debug("[triggerLLMResponseForMessage] Received data:", data);
+
                         
                         if (data.type === "error") {
                             console.error("[triggerLLMResponseForMessage] Stream error:", data.error);
-
-                            this.stopLLMStreaming(threadId);
+                            this.cleanupLLMResources(threadId)
 
                         } else if (data.type === "done") {
-                            
-                            // Wait a brief moment to ensure any pending message updates are processed
-                            setTimeout(() => {
-                                // Stop streaming
-                                this.stopLLMStreaming(threadId);
-                                this.env.services["mail.thread"].fetchMessages(this.thread);
-                            }, this.messageDelay);
+
+                            this.cleanupLLMResources(threadId);
 
                         } else if (data.type === "message_create" || data.type === "message_chunk" || data.type === "message_update") {
 
@@ -116,8 +115,8 @@ patch(LivechatService.prototype, {
                 // Error handler
                 eventSource.onerror = (ex) => {
                     console.error(ex)
-                    // Stop streaming and clean up resources
-                    this.stopLLMStreaming(threadId);
+                    // Wait a brief moment to ensure any pending message updates are processed
+                    this.cleanupLLMResources(threadId);
                 };
                 
                 // Store the EventSource for later cleanup
@@ -155,7 +154,12 @@ patch(LivechatService.prototype, {
      */
     cleanupLLMResources(channelId) {
         // Stop any active streams for this thread
-        this.stopLLMStreaming(channelId);
+        // Wait a brief moment to ensure any pending message updates are processed
+        setTimeout(() => {
+            // Stop streaming
+            this.stopLLMStreaming(channelId);
+            this.env.services["mail.thread"].fetchMessages(this.thread);
+        }, this.messageDelay);
 
         // Use the thread getter from parent LivechatService
         const thread = this.thread;
