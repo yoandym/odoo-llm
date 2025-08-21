@@ -16,7 +16,7 @@
             <field name="name">phone_callback</field>
             <field name="implementation">phone_callback</field>
             <field name="description"><![CDATA[Use `phone_callback` tool when:
-- The user explicitly asks to speak with a human agent or representative
+- The user explicitly asks to speak with a human agent or representative over the phone.
 - You encounter complex technical issues that require human expertise
 - The user expresses frustration or dissatisfaction that needs human attention
 - Legal, financial, or sensitive personal matters are discussed
@@ -25,11 +25,15 @@
 Before using this tool, inform the user that you're connecting them to a human agent and briefly summarize their issue for context.
 
 **IMPORTANT**
-To use this tool a phone number is required, get it from context or you must ask the user until it is provided.
+- To use this tool the user name and phone number are required, get it from context or you must ask the user until provided.
+- topic and notes are not required but useful, try to determine them from conversation and pass them to the tool.
+- Dont make up the user name or phone number, always ask the user for it.
+- phone numbers must be in international format, including the country code. Examples: +56 9 6745 9865 (chile), +52 55 1234 5678 (mexico), +1 234 567 8901 (usa)
 
 **Examples**
-- I wanna talk to a human: ask the user for their phone number and use phone_callback with mode='exec' to arrange a callback
-- Can someone call me about my order?: ask the user for their order number and phone number and use phone_callback with mode='exec' to arrange a callback]]></field>
+- I wanna talk to a human: if dont already have them, ask the user for its name and phone number and use phone_callback with mode='exec' to arrange a callback
+- Can someone call me about my order?: if dont already have them, ask the user for its name, order number and phone number
+  and use phone_callback with mode='exec', topic='about my order' to arrange a callback]]></field>
             <field name="user_description">Can arrange for a support representative to call you back at your preferred phone number.</field>
             <field name="active" eval="True"/>
             <field name="read_only_hint" eval="True"/>

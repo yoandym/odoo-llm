@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import random
+import re
 from typing import Any, Dict, Literal, Optional
 
 from odoo import _, api, models
@@ -94,6 +95,17 @@ class LLMToolPhoneCallBack(models.Model):
 
     def _create_phone_callback_activity(self, discuss_channel, customer_name, phone_number, topic, notes):
         """Create a phone callback activity for an operator"""
+
+        # validate parameters
+        if not phone_number:
+            raise Exception(_("Phone number is required"))
+
+        # phone number basic validation
+        # remove spaces, -, international format, numbers
+        clean_phone = re.sub(r"\s+|[-]", " ", phone_number.strip())
+        if not re.match(r"^\+\d{1,3}(?: \d+)+$", clean_phone):
+            raise Exception(_("Invalid phone number format. Please use international format."))
+
         # Get an operator for the channel
         user_id = self._get_operator(discuss_channel)
 
@@ -110,11 +122,11 @@ class LLMToolPhoneCallBack(models.Model):
 <p><strong>Topic:</strong> {topic}</p>
 <p><strong>Notes:</strong> {notes}</p>
 """
-        if discuss_channel:
-            note += (
-                f"<p><strong>Related to livechat:</strong> "
-                f"<a href='#' data-oe-model='discuss.channel' data-oe-id='{discuss_channel.id}'>{discuss_channel.name}</a></p>"
-            )
+        discuss_url = f"/web#action=mail.action_discuss&active_id={discuss_channel.id}"
+        note += (
+            f"<p><strong>Related to livechat:</strong> "
+            f"<a href='{discuss_url}'>{discuss_channel.name}</a></p>"
+        )
 
         # Create mail activity for the operator
         # Find call, todo or default activity type
@@ -122,9 +134,9 @@ class LLMToolPhoneCallBack(models.Model):
             self.env.ref("mail.mail_activity_data_todo", False) or \
             self.env["mail.activity.type"].search([("category", "=", "default")], limit=1)
 
-        # Create activity on the livechat channel record
-        model_id = self.env["ir.model"].search([("model", "=", "im_livechat.channel")], limit=1).id
-        res_id = discuss_channel.livechat_channel_id.id
+        # Create activity on the operator's partner record
+        model_id = self.env["ir.model"].search([("model", "=", "res.partner")], limit=1).id
+        res_id = user_id.partner_id.id
 
         activity = self.env["mail.activity"].create(
             {
