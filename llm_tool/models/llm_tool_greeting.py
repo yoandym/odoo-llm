@@ -1,11 +1,9 @@
 import logging
-
-from typing import Any, Literal
 from enum import Enum
-from pydantic import BaseModel
+from typing import Any, Literal
 
 from odoo import api, models
-
+from pydantic import BaseModel
 
 _logger = logging.getLogger(__name__)
 
@@ -20,15 +18,15 @@ class LLMToolUserGreeting(models.Model):
 
     def user_greeting_execute(
         self,
-        greeting_type: Literal['initial', 'capabilities'] = "initial",
+        greeting_type: Literal["initial", "capabilities"] = "initial",
         thread_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Greet the user and provide information about available tools for the current thread.
 
         Parameters:
-            greeting_type: Type of greeting ('initial', 'capabilities')
-            thread_id: ID of the thread to get tools for (required for thread-specific tools
+            greeting_type: Type of greeting (pass 'initial' if the user is saluting; pass 'capabilities' if they are asking about assistant's features)
+            thread_id: ID of the thread to get tools for (required for thread-specific tools)
         """
         _logger.info(f"Executing User Greeting with: greeting_type={greeting_type}, thread_id={thread_id}")
 
