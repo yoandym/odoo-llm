@@ -120,15 +120,23 @@ class LLMToolLivechatHandover(models.Model):
 
         # Create or find a forward_operator step
         forward_step = self._get_forward_operator_step(channel)
+        if not forward_step:
+            return StandardToolResponse.create_error_response(error_message=_("Livechat Channel not properly configured for handover to operator"))
 
         # check whether there are livechat operators online/available
         human_operator = channel.livechat_channel_id._get_operator(
             lang=channel.livechat_visitor_id.lang_id.code if hasattr(channel, "livechat_visitor_id") else None, country_id=channel.country_id.id
         )
         available = human_operator and human_operator != self.env.user
-        step_msg = _("LiveChat handover to an operator is available") if available else _("LiveChat handover to an operator is not available")
+        if not available:
+            return StandardToolResponse.create_error_response(error_message=_("No available operators for livechat handover"))
 
-        return StandardToolResponse.create_flow_control_response(
+        # do the handover
+        forward_step._process_step(channel)
+
+        step_msg = _("LiveChat handover in progress")
+
+        _res = StandardToolResponse.create_flow_control_response(
             flow_action=FlowAction.FORWARD_TO_OPERATOR,
             message=step_msg,
             flow_params={
@@ -139,3 +147,16 @@ class LLMToolLivechatHandover(models.Model):
                 "step_type": forward_step.step_type,
             },
         )
+
+        # fire bus notification with _res as payload
+        self.env["bus.bus"].sendone(
+            "llm_website_assistant.flow_action",
+            {
+                "thread_id": channel.id,
+                "step_id": forward_step.id,
+                "step_message": step_msg,
+                "step_type": forward_step.step_type,
+            },
+        )
+
+        return _res
