@@ -200,7 +200,6 @@ export const LLMChatService = {
 
                         case "done":
                             this.stopStreaming(threadId);
-                            this.refreshThread(threadId);
 
                             break;
                     }
