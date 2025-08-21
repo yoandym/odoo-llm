@@ -424,9 +424,6 @@ class LLMProvider(models.Model):
 
         params = self._prepare_chat_params(model, messages, stream, tools=tools, system_prompt=system_prompt, prepend_messages=prepend_messages)
 
-        # logging the parameters for debugging
-        _logger.debug(f"ollama_chat parameters: {params}")
-
         response = self.client.chat(**params)
 
         if not stream:
