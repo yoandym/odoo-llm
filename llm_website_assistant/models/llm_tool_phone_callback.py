@@ -21,21 +21,21 @@ class LLMToolPhoneCallBack(models.Model):
 
     def phone_callback_execute(
         self,
-        customer_name: str,
         phone_number: str,
-        topic: str = "",
-        notes: str = "",
-        thread_id: Optional[int] = None,
+        thread_id: int,
+        customer_name: Optional[str] = None,
+        topic: Optional[str] = None,
+        notes: Optional[str] = None,
         mode: Literal["test", "exec"] = "test",
     ) -> Dict[str, Any]:
         """
         Create a phone callback request for a customer
 
         Parameters:
-            customer_name: Name of the customer requesting callback
-            phone_number: Phone number where customer can be reached
-            topic: Topic of the callback request
-            notes: Additional context about the customer's situation
+            phone_number: Required. Phone number where customer can be reached
+            customer_name: Optional. Name of the customer requesting callback
+            topic: Optional. Topic of the callback request
+            notes: Optional. Additional context about the customer's situation
             thread_id: ID of the LLM thread
             mode: How to execute the tool (test: only test if phone handover is available. exec: execute/create the phone callback activity)
         Returns:
@@ -44,7 +44,7 @@ class LLMToolPhoneCallBack(models.Model):
         if not thread_id:
             return {"available": False, "error": "Channel ID is required for handover"}
 
-        _logger.info(f"Executing Livechat Handover with: mode={mode}, thread_id={thread_id}")
+        _logger.debug(f"Executing Phone callback with: mode={mode}, thread_id={thread_id}")
 
         try:
             # some validations
@@ -92,7 +92,7 @@ class LLMToolPhoneCallBack(models.Model):
 
         return _operator
 
-    def _create_phone_callback_activity(self, customer_name, phone_number, topic, notes, discuss_channel):
+    def _create_phone_callback_activity(self, discuss_channel, customer_name, phone_number, topic, notes):
         """Create a phone callback activity for an operator"""
         # Get an operator for the channel
         user_id = self._get_operator(discuss_channel)
@@ -116,11 +116,11 @@ class LLMToolPhoneCallBack(models.Model):
                 f"<a href='#' data-oe-model='discuss.channel' data-oe-id='{discuss_channel.id}'>{discuss_channel.name}</a></p>"
             )
 
-        # Create mail activity as a to-do for the operator
-        # Find todo activity type
-        activity_type = self.env.ref("mail.mail_activity_data_todo", False) or self.env["mail.activity.type"].search(
-            [("category", "=", "default")], limit=1
-        )
+        # Create mail activity for the operator
+        # Find call, todo or default activity type
+        activity_type = self.env.ref("mail.mail_activity_data_call", False) or \
+            self.env.ref("mail.mail_activity_data_todo", False) or \
+            self.env["mail.activity.type"].search([("category", "=", "default")], limit=1)
 
         # Create activity on the livechat channel record
         model_id = self.env["ir.model"].search([("model", "=", "im_livechat.channel")], limit=1).id
@@ -131,7 +131,7 @@ class LLMToolPhoneCallBack(models.Model):
                 "activity_type_id": activity_type.id,
                 "note": note,
                 "summary": summary,
-                "user_id": user_id,
+                "user_id": user_id.id,
                 "res_model_id": model_id,
                 "res_id": res_id,
             }
@@ -149,16 +149,18 @@ class LLMToolPhoneCallBack(models.Model):
 
     def phone_callback_exec_mode(self, channel, **kwargs):
         # Create phone callback activity
+        unknown = _("Unknown")
         phone_callback = self._create_phone_callback_activity(
-            customer_name=kwargs.get("customer_name", "Unknown"),
-            phone_number=kwargs.get("phone_number", "Unknown"),
-            topic=kwargs.get("topic", "Unknown"),
-            notes=kwargs.get("notes", "Unknown"),
-            discuss_channel=kwargs.get("discuss_channel", False)
+            discuss_channel=channel,
+            customer_name=kwargs.get("customer_name", unknown),
+            phone_number=kwargs["phone_number"],
+            topic=kwargs.get("topic", unknown),
+            notes=kwargs.get("notes", unknown),
         )
 
         # Prepare callback information
-        callback_info = {"id": phone_callback.id, "customer_name": kwargs.get("customer_name", "Unknown"), "phone_number": kwargs.get("phone_number", "Unknown"), "topic": kwargs.get("topic", "Unknown")}
+        callback_info = {"id": phone_callback.id, "customer_name": kwargs.get("customer_name", unknown), "phone_number": kwargs["phone_number"],
+                         "topic": kwargs.get("topic", unknown)}
 
         # Prepare success message
         message = _(
