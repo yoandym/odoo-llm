@@ -19,7 +19,7 @@ class LLMToolPhoneCallBack(models.Model):
         implementations = super()._get_available_implementations()
         return implementations + [("phone_callback", "Phone Callback Request")]
 
-    def phone_handover_execute(
+    def phone_callback_execute(
         self,
         customer_name: str,
         phone_number: str,
@@ -60,7 +60,7 @@ class LLMToolPhoneCallBack(models.Model):
                 )
 
             # execute desired mode
-            _method = f"{mode}_mode"
+            _method = f"phone_callback_{mode}_mode"
             _kwargs = {"customer_name": customer_name, "phone_number": phone_number, "topic": topic, "notes": notes}
             if hasattr(self, _method):
                 return getattr(self, _method)(channel, **_kwargs)
@@ -139,7 +139,7 @@ class LLMToolPhoneCallBack(models.Model):
 
         return activity
 
-    def test_mode(self, channel, **kwargs):
+    def phone_callback_test_mode(self, channel, **kwargs):
         return StandardToolResponse.create_info_tool_response(
             message=_("Phone callback is available. An operator can call you back in office working hours."),
             data={
@@ -147,7 +147,7 @@ class LLMToolPhoneCallBack(models.Model):
             }
         )
 
-    def exec_mode(self, channel, **kwargs):
+    def phone_callback_exec_mode(self, channel, **kwargs):
         # Create phone callback activity
         phone_callback = self._create_phone_callback_activity(
             customer_name=kwargs.get("customer_name", "Unknown"),

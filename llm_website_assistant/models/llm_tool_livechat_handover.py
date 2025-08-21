@@ -42,7 +42,7 @@ class LLMToolLivechatHandover(models.Model):
                 return StandardToolResponse.create_error_response(error_message=_("Channel is not a livechat channel"))
 
             # execute desired mode
-            _method = f"{mode}_mode"
+            _method = f"livechat_handover_{mode}_mode"
             if hasattr(self, _method):
                 return getattr(self, _method)(channel)
             else:
@@ -92,7 +92,7 @@ class LLMToolLivechatHandover(models.Model):
 
         return forward_step
 
-    def test_mode(self, channel):
+    def livechat_handover_test_mode(self, channel):
 
         # Create or find a forward_operator step
         forward_step = self._get_forward_operator_step(channel)
@@ -114,7 +114,7 @@ class LLMToolLivechatHandover(models.Model):
             },
         )
 
-    def exec_mode(self, channel):
+    def livechat_handover_exec_mode(self, channel):
         # the actual handover in this case is done at frontend level.
         # because of locking issues
 
