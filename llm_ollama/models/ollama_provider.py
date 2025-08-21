@@ -13,270 +13,275 @@ _logger = logging.getLogger(__name__)
 
 # Optional observability support
 try:
-    from llm_observability.models.mixins.base_observability_mixin import \
-        BaseObservabilityMixin
+    from llm_observability.models.mixins.base_observability_mixin import BaseObservabilityMixin
+
     _has_base_observability = True
 except ImportError:
     # Create a no-op base class if observability is not available
     class BaseObservabilityMixin:
         def _has_observability(self):
             return False
-        
+
         def _get_phoenix_config(self):
             return None
-        
+
         def _init_opentelemetry_tracing(self):
             return None
-        
+
         @staticmethod
         def with_observability(operation_name, extract_model_name=None):
             def decorator(func):
                 return func  # No-op decorator
+
             return decorator
-        
+
         def _extract_metrics(self, result, operation_name, args, kwargs):
             return {}
-        
+
         def _get_trace_attributes(self, operation_name, args, kwargs):
             return {}
-    
+
     _has_base_observability = False
 
 
 class LLMProvider(models.Model):
     _inherit = "llm.provider"
-    
+
     # Add observability methods if available
     if _has_base_observability:
+
         def _has_observability(self):
             return BaseObservabilityMixin._has_observability(self)
-        
+
         def _get_phoenix_config(self):
             return BaseObservabilityMixin._get_phoenix_config(self)
-        
+
         def _init_opentelemetry_tracing(self):
             return BaseObservabilityMixin._init_opentelemetry_tracing(self)
-    
+
     def _extract_metrics(self, result, operation_name, args, kwargs):
         """Extract Ollama-specific metrics for observability"""
         metrics = {}
-        
+
         if not _has_base_observability:
             return metrics
-        
+
         try:
             if operation_name == "chat_completion":
                 # Handle streaming vs non-streaming responses
-                is_streaming = kwargs.get('stream', False)
-                
-                if is_streaming and hasattr(result, '__iter__'):
+                is_streaming = kwargs.get("stream", False)
+
+                if is_streaming and hasattr(result, "__iter__"):
                     # For streaming, we can't get the full response content yet
                     # But we can extract input information
                     _logger.debug("🔍 Ollama: Handling streaming response")
-                    
+
                     # Add input data from args (messages)
                     if len(args) > 0 and isinstance(args[0], list):
                         messages = args[0]
                         input_text = ""
                         user_messages = []
-                        
+
                         for msg in messages:
                             if isinstance(msg, dict):
-                                if 'content' in msg:
-                                    input_text += msg['content']
-                                    if msg.get('role') == 'user':
-                                        user_messages.append(msg['content'])
-                                        user_messages.append(msg['content'])
-                        
+                                if "content" in msg:
+                                    input_text += msg["content"]
+                                    if msg.get("role") == "user":
+                                        user_messages.append(msg["content"])
+                                        user_messages.append(msg["content"])
+
                         if input_text:
-                            metrics['llm.usage.input_tokens'] = len(input_text) // 4
-                        
+                            metrics["llm.usage.input_tokens"] = len(input_text) // 4
+
                         if user_messages:
-                            metrics['llm.request.user_messages'] = str(user_messages[-3:])  # Last 3 user messages
-                        
+                            metrics["llm.request.user_messages"] = str(user_messages[-3:])  # Last 3 user messages
+
                         # Message count and conversation info
-                        metrics['llm.messages.count'] = len(messages)
-                        
+                        metrics["llm.messages.count"] = len(messages)
+
                         # Count by role
                         role_counts = {}
                         for msg in messages:
-                            if isinstance(msg, dict) and 'role' in msg:
-                                role = msg['role']
+                            if isinstance(msg, dict) and "role" in msg:
+                                role = msg["role"]
                                 role_counts[role] = role_counts.get(role, 0) + 1
-                        
+
                         for role, count in role_counts.items():
-                            metrics[f'llm.messages.{role}_count'] = count
-                        
+                            metrics[f"llm.messages.{role}_count"] = count
+
                         # Conversation length
-                        conversation_length = sum(len(str(msg.get('content', ''))) for msg in messages if isinstance(msg, dict))
-                        metrics['llm.conversation.total_length'] = conversation_length
-                    
+                        conversation_length = sum(len(str(msg.get("content", ""))) for msg in messages if isinstance(msg, dict))
+                        metrics["llm.conversation.total_length"] = conversation_length
+
                     # Note: For streaming, we can't capture output content/tokens here
                     # This would need to be done in a separate callback when the stream completes
-                    
-                elif isinstance(result, dict) and 'message' in result:
+
+                elif isinstance(result, dict) and "message" in result:
                     # Non-streaming response
                     _logger.info("🔍 Ollama: Handling non-streaming response")
-                    content = result['message'].get('content', '')
+                    content = result["message"].get("content", "")
                     if content:
-                        metrics['llm.usage.output_tokens'] = len(content) // 4  # Rough estimation
-                        metrics['llm.response.content'] = content[:500]  # First 500 chars
-                    
+                        metrics["llm.usage.output_tokens"] = len(content) // 4  # Rough estimation
+                        metrics["llm.response.content"] = content[:500]  # First 500 chars
+
                     # Check for tool calls
-                    message = result['message']
-                    if message.get('tool_calls'):
+                    message = result["message"]
+                    if message.get("tool_calls"):
                         tool_calls = []
-                        for tool_call in message['tool_calls']:
+                        for tool_call in message["tool_calls"]:
                             if isinstance(tool_call, dict):
-                                tool_calls.append({
-                                    'name': tool_call.get('function', {}).get('name', 'unknown'),
-                                    'args': str(tool_call.get('function', {}).get('arguments', ''))[:200]
-                                })
-                        metrics['llm.response.tool_calls'] = str(tool_calls)
-                    
+                                tool_calls.append(
+                                    {
+                                        "name": tool_call.get("function", {}).get("name", "unknown"),
+                                        "args": str(tool_call.get("function", {}).get("arguments", ""))[:200],
+                                    }
+                                )
+                        metrics["llm.response.tool_calls"] = str(tool_calls)
+
                     # Add input data (same as streaming)
                     if len(args) > 0 and isinstance(args[0], list):
                         messages = args[0]
                         input_text = ""
                         user_messages = []
-                        
+
                         for msg in messages:
                             if isinstance(msg, dict):
-                                if 'content' in msg:
-                                    input_text += msg['content']
-                                    if msg.get('role') == 'user':
-                                        user_messages.append(msg['content'])
-                        
+                                if "content" in msg:
+                                    input_text += msg["content"]
+                                    if msg.get("role") == "user":
+                                        user_messages.append(msg["content"])
+
                         if input_text:
-                            metrics['llm.usage.input_tokens'] = len(input_text) // 4
-                        
+                            metrics["llm.usage.input_tokens"] = len(input_text) // 4
+
                         if user_messages:
-                            metrics['llm.request.user_messages'] = str(user_messages[-3:])
-                    
+                            metrics["llm.request.user_messages"] = str(user_messages[-3:])
+
                     # Calculate total tokens
-                    if 'llm.usage.input_tokens' in metrics and 'llm.usage.output_tokens' in metrics:
-                        metrics['llm.usage.total_tokens'] = metrics['llm.usage.input_tokens'] + metrics['llm.usage.output_tokens']
-                
+                    if "llm.usage.input_tokens" in metrics and "llm.usage.output_tokens" in metrics:
+                        metrics["llm.usage.total_tokens"] = metrics["llm.usage.input_tokens"] + metrics["llm.usage.output_tokens"]
+
                 # Add tool information (works for both streaming and non-streaming)
-                if kwargs.get('tools'):
+                if kwargs.get("tools"):
                     _logger.info(f"🔍 Ollama: Tools found: {type(kwargs['tools'])}, length: {len(kwargs['tools'])}")
                     tools_info = []
-                    for i, tool in enumerate(kwargs['tools']):
+                    for i, tool in enumerate(kwargs["tools"]):
                         _logger.info(f"🔍 Ollama: Tool {i}: {type(tool)}, keys: {list(tool.keys()) if isinstance(tool, dict) else 'not dict'}")
-                        if isinstance(tool, dict) and 'function' in tool:
-                            tool_name = tool['function'].get('name', 'unknown')
+                        if isinstance(tool, dict) and "function" in tool:
+                            tool_name = tool["function"].get("name", "unknown")
                             tools_info.append(tool_name)
-                        elif hasattr(tool, 'name'):
+                        elif hasattr(tool, "name"):
                             # Handle Odoo tool objects
                             tools_info.append(str(tool.name))
                         else:
                             tools_info.append(str(tool))
-                    metrics['llm.tools.available'] = str(tools_info)
+                    metrics["llm.tools.available"] = str(tools_info)
                     _logger.info(f"🔍 Ollama: Extracted tools: {tools_info}")
                 else:
                     _logger.info("🔍 Ollama: No tools found in kwargs")
-                        
+
             elif operation_name == "embedding":
                 if isinstance(result, list):
-                    metrics['llm.embeddings.count'] = len(result)
+                    metrics["llm.embeddings.count"] = len(result)
                     if result and isinstance(result[0], list):
-                        metrics['llm.embeddings.dimension'] = len(result[0])
-                        
+                        metrics["llm.embeddings.dimension"] = len(result[0])
+
                 # Add input text for embedding
                 if len(args) > 0:
                     input_texts = args[0] if isinstance(args[0], list) else [args[0]]
-                    metrics['llm.request.texts'] = str(input_texts[:3])  # First 3 texts
-                        
+                    metrics["llm.request.texts"] = str(input_texts[:3])  # First 3 texts
+
         except Exception as e:
             _logger.warning(f"Error extracting Ollama metrics: {e}")
             import traceback
+
             _logger.warning(f"Traceback: {traceback.format_exc()}")
-        
+
         return metrics
-    
+
     def _get_trace_attributes(self, operation_name, args, kwargs):
         """Get trace attributes for observability"""
         attributes = {}
-        
+
         try:
             # Add Ollama-specific attributes
-            attributes['llm.provider.type'] = 'ollama'
-            attributes['llm.operation'] = operation_name
-            
+            attributes["llm.provider.type"] = "ollama"
+            attributes["llm.operation"] = operation_name
+
             # Extract model information
-            model = kwargs.get('model')
+            model = kwargs.get("model")
             if not model and len(args) > 1:
                 model = args[1]
-                
+
             if model:
-                model_name = str(model.name if hasattr(model, 'name') else model)
-                attributes['ollama.model.full_name'] = model_name
-                attributes['llm.model'] = model_name
-                
+                model_name = str(model.name if hasattr(model, "name") else model)
+                attributes["ollama.model.full_name"] = model_name
+                attributes["llm.model"] = model_name
+
                 # Detect model family
                 model_lower = model_name.lower()
-                if 'llama' in model_lower:
-                    attributes['ollama.model.family'] = 'llama'
-                elif 'mistral' in model_lower:
-                    attributes['ollama.model.family'] = 'mistral'
-                elif 'qwen' in model_lower:
-                    attributes['ollama.model.family'] = 'qwen'
-                elif 'deepseek' in model_lower:
-                    attributes['ollama.model.family'] = 'deepseek'
+                if "llama" in model_lower:
+                    attributes["ollama.model.family"] = "llama"
+                elif "mistral" in model_lower:
+                    attributes["ollama.model.family"] = "mistral"
+                elif "qwen" in model_lower:
+                    attributes["ollama.model.family"] = "qwen"
+                elif "deepseek" in model_lower:
+                    attributes["ollama.model.family"] = "deepseek"
                 else:
-                    attributes['ollama.model.family'] = 'other'
-            
+                    attributes["ollama.model.family"] = "other"
+
             # Add operation-specific attributes
             if operation_name == "chat_completion":
                 # Tools information
-                if kwargs.get('tools'):
-                    attributes['ollama.tools.enabled'] = True
-                    attributes['llm.tools.count'] = len(kwargs['tools'])
-                    
+                if kwargs.get("tools"):
+                    attributes["ollama.tools.enabled"] = True
+                    attributes["llm.tools.count"] = len(kwargs["tools"])
+
                     # Tool names
                     tool_names = []
-                    for tool in kwargs['tools']:
-                        if isinstance(tool, dict) and 'function' in tool:
-                            tool_names.append(tool['function'].get('name', 'unknown'))
-                    attributes['llm.tools.names'] = str(tool_names)
-                
-                attributes['ollama.streaming'] = kwargs.get('stream', False)
-                attributes['llm.streaming'] = kwargs.get('stream', False)
-                
-                if kwargs.get('system_prompt'):
-                    attributes['ollama.system_prompt.length'] = len(kwargs['system_prompt'])
-                    attributes['llm.system_prompt'] = kwargs['system_prompt'][:200]  # First 200 chars
-                
+                    for tool in kwargs["tools"]:
+                        if isinstance(tool, dict) and "function" in tool:
+                            tool_names.append(tool["function"].get("name", "unknown"))
+                    attributes["llm.tools.names"] = str(tool_names)
+
+                attributes["ollama.streaming"] = kwargs.get("stream", False)
+                attributes["llm.streaming"] = kwargs.get("stream", False)
+
+                if kwargs.get("system_prompt"):
+                    attributes["ollama.system_prompt.length"] = len(kwargs["system_prompt"])
+                    attributes["llm.system_prompt"] = kwargs["system_prompt"][:200]  # First 200 chars
+
                 # Message count and conversation length
                 if len(args) > 0 and isinstance(args[0], list):
                     messages = args[0]
-                    attributes['llm.messages.count'] = len(messages)
-                    
+                    attributes["llm.messages.count"] = len(messages)
+
                     # Count by role
                     role_counts = {}
                     for msg in messages:
-                        if isinstance(msg, dict) and 'role' in msg:
-                            role = msg['role']
+                        if isinstance(msg, dict) and "role" in msg:
+                            role = msg["role"]
                             role_counts[role] = role_counts.get(role, 0) + 1
-                    
+
                     for role, count in role_counts.items():
-                        attributes[f'llm.messages.{role}_count'] = count
-                    
+                        attributes[f"llm.messages.{role}_count"] = count
+
                     # Add conversation summary
-                    conversation_length = sum(len(str(msg.get('content', ''))) for msg in messages if isinstance(msg, dict))
-                    attributes['llm.conversation.total_length'] = conversation_length
-                    
+                    conversation_length = sum(len(str(msg.get("content", ""))) for msg in messages if isinstance(msg, dict))
+                    attributes["llm.conversation.total_length"] = conversation_length
+
             elif operation_name == "embedding":
                 # Embedding-specific attributes
                 if len(args) > 0:
                     texts = args[0] if isinstance(args[0], list) else [args[0]]
-                    attributes['llm.embeddings.input_count'] = len(texts)
+                    attributes["llm.embeddings.input_count"] = len(texts)
                     total_chars = sum(len(str(text)) for text in texts)
-                    attributes['llm.embeddings.total_chars'] = total_chars
-                    
+                    attributes["llm.embeddings.total_chars"] = total_chars
+
         except Exception as e:
             _logger.debug(f"Error getting Ollama trace attributes: {e}")
-        
+
         return attributes
 
     @api.model
@@ -285,8 +290,14 @@ class LLMProvider(models.Model):
         return services + [("ollama", "Ollama")]
 
     def ollama_get_client(self):
-        """Get Ollama client instance"""
-        return ollama.Client(host=self.api_base or "http://localhost:11434")
+        """Get Ollama client instance with optional Bearer authentication"""
+        client_kwargs = {"host": self.api_base or "http://localhost:11434"}
+
+        # Add Bearer token authentication if api_key is configured
+        if self.api_key:
+            client_kwargs["headers"] = {"Authorization": f"Bearer {self.api_key}"}
+
+        return ollama.Client(**client_kwargs)
 
     @property
     def client(self):
@@ -298,7 +309,7 @@ class LLMProvider(models.Model):
         """Format tools for Ollama"""
         return [self._ollama_format_tool(tool) for tool in tools]
 
-    @tools.ormcache('tool.id', 'tool.write_date')
+    @tools.ormcache("tool.id", "tool.write_date")
     def _ollama_format_tool(self, tool):
         """Convert a tool to Ollama format
 
@@ -359,12 +370,12 @@ class LLMProvider(models.Model):
         system_prompt=None,
         **kwargs,
     ):
-        
+
         # Apply observability if available
-        if _has_base_observability and hasattr(self, '_init_opentelemetry_tracing'):
+        if _has_base_observability and hasattr(self, "_init_opentelemetry_tracing"):
             try:
                 tracer = self._init_opentelemetry_tracing()
-                
+
                 if tracer:
                     from opentelemetry import context as otel_context
                     from opentelemetry import trace as otel_trace
@@ -373,25 +384,24 @@ class LLMProvider(models.Model):
                     span = tracer.start_span("llm.chat_completion")
                     ctx = otel_trace.set_span_in_context(span)
                     token = otel_context.attach(ctx)
-                    
+
                     try:
                         # Set span attributes
                         span.set_attribute("llm.provider", "ollama")
                         span.set_attribute("llm.operation", "chat_completion")
                         if model:
                             span.set_attribute("llm.model", str(model))
-                        
+
                         # Execute the operation
                         result = self._ollama_chat_impl(messages, model, stream, tools, system_prompt, **kwargs)
-                        
+
                         # Extract metrics
-                        metrics = self._extract_metrics(result, "chat_completion", (messages,),
-                                                        {'model': model, 'stream': stream, 'tools': tools})
+                        metrics = self._extract_metrics(result, "chat_completion", (messages,), {"model": model, "stream": stream, "tools": tools})
                         for key, value in metrics.items():
                             span.set_attribute(key, value)
-                        
+
                         return result
-                        
+
                     except Exception as e:
                         span.record_exception(e)
                         span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
@@ -411,7 +421,7 @@ class LLMProvider(models.Model):
     def _ollama_chat_impl(self, messages, model=None, stream=False, tools=None, system_prompt=None, prepend_messages=None, **kwargs):
         """Internal implementation of ollama_chat"""
         model = self.get_model(model, "chat")
-        
+
         params = self._prepare_chat_params(model, messages, stream, tools=tools, system_prompt=system_prompt, prepend_messages=prepend_messages)
 
         # logging the parameters for debugging
@@ -436,9 +446,7 @@ class LLMProvider(models.Model):
 
             for tool_call in response["message"]["tool_calls"]:
                 tool_name = tool_call["function"]["name"]
-                tool_id = OllamaToolCallIdUtils.create_tool_id(
-                    tool_name, str(uuid.uuid4())
-                )
+                tool_id = OllamaToolCallIdUtils.create_tool_id(tool_name, str(uuid.uuid4()))
 
                 tool_call_data = {
                     "id": tool_id,
@@ -454,13 +462,9 @@ class LLMProvider(models.Model):
                         tool_call_data["function"]["arguments"] = arguments
                     else:
                         try:
-                            tool_call_data["function"]["arguments"] = json.dumps(
-                                arguments
-                            )
+                            tool_call_data["function"]["arguments"] = json.dumps(arguments)
                         except (TypeError, ValueError):
-                            _logger.warning(
-                                f"Could not serialize arguments of type {type(arguments)}"
-                            )
+                            _logger.warning(f"Could not serialize arguments of type {type(arguments)}")
                             tool_call_data["function"]["arguments"] = str(arguments)
 
                 message["tool_calls"].append(tool_call_data)
@@ -503,17 +507,13 @@ class LLMProvider(models.Model):
                 if tool_calls_chunk:
                     stream_has_tools = True
                     for i, tool_call_delta in enumerate(tool_calls_chunk):
-                        assembled_tool_calls = self._ollama_update_tool_call_chunk(
-                            assembled_tool_calls, tool_call_delta, i
-                        )
+                        assembled_tool_calls = self._ollama_update_tool_call_chunk(assembled_tool_calls, tool_call_delta, i)
 
             if stream_has_tools and is_done:
                 for _, call_data in sorted(assembled_tool_calls.items()):
                     if call_data.get("_complete"):
                         tool_name = call_data["function"]["name"]
-                        tool_id = OllamaToolCallIdUtils.create_tool_id(
-                            tool_name, str(uuid.uuid4())
-                        )
+                        tool_id = OllamaToolCallIdUtils.create_tool_id(tool_name, str(uuid.uuid4()))
                         final_tool_calls_list.append(
                             {
                                 "id": tool_id,
@@ -532,9 +532,7 @@ class LLMProvider(models.Model):
             _logger.error(f"Error processing Ollama stream: {e}", exc_info=True)
             yield {"error": f"Internal error processing Ollama stream: {e}"}
 
-    def _ollama_update_tool_call_chunk(
-        self, assembled_tool_calls, tool_call_delta, index
-    ):
+    def _ollama_update_tool_call_chunk(self, assembled_tool_calls, tool_call_delta, index):
         """
         Helper to assemble tool calls from Ollama stream chunks.
         Ensures arguments are stored as a complete JSON string.
@@ -572,25 +570,21 @@ class LLMProvider(models.Model):
                         processed_args[key] = value
                 current_call["function"]["arguments"] = json.dumps(processed_args)
             else:
-                _logger.warning(
-                    f"Unexpected argument type in Ollama stream chunk: {type(new_args_part)}"
-                )
+                _logger.warning(f"Unexpected argument type in Ollama stream chunk: {type(new_args_part)}")
 
         # Use the common helper to determine completeness for Ollama
-        current_call["_complete"] = self._is_tool_call_complete(
-            current_call["function"], expected_endings=("]", "}")
-        )
+        current_call["_complete"] = self._is_tool_call_complete(current_call["function"], expected_endings=("]", "}"))
         return assembled_tool_calls
 
     def ollama_embedding(self, texts, model=None):
         """Generate embeddings using Ollama with optional observability"""
         _logger.info(f"ollama_embedding called with model={model}")
-        
+
         # Apply observability if available
-        if _has_base_observability and hasattr(self, '_init_opentelemetry_tracing'):
+        if _has_base_observability and hasattr(self, "_init_opentelemetry_tracing"):
             try:
                 tracer = self._init_opentelemetry_tracing()
-                
+
                 if tracer:
                     from opentelemetry import context as otel_context
                     from opentelemetry import trace as otel_trace
@@ -599,24 +593,24 @@ class LLMProvider(models.Model):
                     span = tracer.start_span("llm.embedding")
                     ctx = otel_trace.set_span_in_context(span)
                     token = otel_context.attach(ctx)
-                    
+
                     try:
                         # Set span attributes
                         span.set_attribute("llm.provider", "ollama")
                         span.set_attribute("llm.operation", "embedding")
                         if model:
                             span.set_attribute("llm.model", str(model))
-                        
+
                         # Execute the operation
                         result = self._ollama_embedding_impl(texts, model)
-                        
+
                         # Extract metrics
-                        metrics = self._extract_metrics(result, "embedding", (texts,), {'model': model})
+                        metrics = self._extract_metrics(result, "embedding", (texts,), {"model": model})
                         for key, value in metrics.items():
                             span.set_attribute(key, value)
-                        
+
                         return result
-                        
+
                     except Exception as e:
                         span.record_exception(e)
                         span.set_status(otel_trace.Status(otel_trace.StatusCode.ERROR, str(e)))
@@ -636,7 +630,7 @@ class LLMProvider(models.Model):
     def _ollama_embedding_impl(self, texts, model=None):
         """Internal implementation of ollama_embedding"""
         model = self.get_model(model, "embedding")
-        
+
         # Ensure texts is a list
         if isinstance(texts, str):
             texts_list = [texts]
@@ -675,43 +669,38 @@ class LLMProvider(models.Model):
         """
         model_name = model_name or model.model
         _logger.info(f"Ollama model parse for '{model_name}': ")
-        
+
         # Simple list of capabilities for this model
         capabilities = ["chat"]
         if "embedding" in model_name.lower():
             capabilities.append("embedding")
-        
+
         # Create a flat, simple details dictionary with only simple values
         details = {
             "id": model_name,
             "capabilities": capabilities,
             "modified_at": str(getattr(model, "modified_at", None)),
             "size": getattr(model, "size", None),
-            "digest": getattr(model, "digest", None)
+            "digest": getattr(model, "digest", None),
         }
-        
+
         # Create model info with only simple values
-        model_info = {
-            "name": model_name,
-            "provider": "ollama",
-            "model_details": details,
-            "parameters": {}
-        }
-        
+        model_info = {"name": model_name, "provider": "ollama", "model_details": details, "parameters": {}}
+
         # Log the JSON-serialized versions to verify they're properly formatted
         details_json = json.dumps(details)
         model_info_json = json.dumps(model_info)
-        
+
         _logger.info(f"details_json={details_json} ")
         _logger.info(f"model_info_json={model_info_json} ")
-        
+
         # Return a simple structure with all values properly serialized
         return {
             "name": model_name,
             "details": details,
             "model_info": model_info,
         }
-    
+
     def _determine_model_family(self, model_name):
         """Determine the model family based on the name"""
         model_lower = model_name.lower()
@@ -720,7 +709,7 @@ class LLMProvider(models.Model):
         elif "mistral" in model_lower:
             return "mistral"
         elif "qwen" in model_lower:
-            return "qwen" 
+            return "qwen"
         elif "phi" in model_lower:
             return "phi"
         elif "gemma" in model_lower:
@@ -760,7 +749,7 @@ class LLMProvider(models.Model):
                 except Exception as e:
                     _logger.warning(f"Error formatting message via dispatch: {e}, skipping message")
                     formatted_msg = None
-            
+
             if formatted_msg is not None:
                 formatted_messages.append(formatted_msg)
 
