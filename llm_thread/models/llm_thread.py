@@ -14,24 +14,6 @@ from odoo.exceptions import UserError
 _logger = logging.getLogger(__name__)
 
 
-def execute_with_new_cursor(func_to_decorate):
-    """Decorator to execute a method within a new, immediately committed cursor context.
-
-    It injects the browsed record from the new environment as the first argument
-    after 'self'. Assumes the decorated method is called on a singleton recordset.
-    """
-
-    @functools.wraps(func_to_decorate)
-    def wrapper(self, *args, **kwargs):
-        self.ensure_one()
-        with self.pool.cursor() as cr:
-            env = api.Environment(cr, self.env.uid, self.env.context)
-            record_in_new_env = env[self._name].browse(self.ids)
-            return func_to_decorate(self, record_in_new_env, *args, **kwargs)
-
-    return wrapper
-
-
 class LLMThread(models.Model):
     _inherit = "discuss.channel"
     _description = "LLM-Enabled Chat Channel"
@@ -369,27 +351,56 @@ class LLMThread(models.Model):
         return tool.execute(arguments)
 
     def _lock(self):
-        """Acquires a lock on the thread, ensuring immediate commit."""
-        self.ensure_one()
-        if self._read_is_locked_decorated():  # pyright:ignore
-            raise UserError(_("Lock Error: This thread is already generating a response. Please wait."))
-        self.sudo()._write_vals_decorated({"is_locked": True})  # pyright:ignore
+        """Acquire locks on thread records. Works with single records or recordsets."""
+        if not self.ids:
+            return
+
+        # Use SELECT FOR UPDATE NOWAIT to check which records can be locked
+        self.env.cr.execute(
+            """
+            SELECT id FROM discuss_channel 
+            WHERE id = ANY(%s) AND is_locked = false
+            FOR UPDATE NOWAIT
+        """,
+            (self.ids,),
+        )
+
+        lockable_ids = [row[0] for row in self.env.cr.fetchall()]
+        already_locked = [rid for rid in self.ids if rid not in lockable_ids]
+
+        if already_locked:
+            if len(self.ids) == 1:
+                raise UserError(_("Lock Error: This thread is already generating a response. Please wait."))
+            else:
+                raise UserError(_("Lock Error: Some threads are already locked: %s") % already_locked)
+
+        if lockable_ids:
+            # Atomically lock the available records
+            self.env.cr.execute(
+                """
+                UPDATE discuss_channel
+                SET is_locked = true
+                WHERE id = ANY(%s)
+            """,
+                (lockable_ids,),
+            )
+            self.env.cr.commit()
 
     def _unlock(self):
-        """Releases the lock on the thread, ensuring immediate commit."""
-        self.ensure_one()
-        if self._read_is_locked_decorated():  # pyright:ignore
-            self.sudo()._write_vals_decorated({"is_locked": False})  # pyright:ignore
+        """Release locks on thread records. Works with single records or recordsets."""
+        if not self.ids:
+            return
 
-    @execute_with_new_cursor
-    def _read_is_locked_decorated(self, record_in_new_env):
-        """Reads the 'is_locked' status using a new cursor."""
-        return record_in_new_env.sudo().is_locked
-
-    @execute_with_new_cursor
-    def _write_vals_decorated(self, record_in_new_env, vals):
-        """Writes values using a new, immediately committed cursor."""
-        return record_in_new_env.sudo().write(vals)
+        # Direct atomic update - only unlock records that are actually locked
+        self.env.cr.execute(
+            """
+            UPDATE discuss_channel
+            SET is_locked = false
+            WHERE id = ANY(%s) AND is_locked = true
+        """,
+            (self.ids,),
+        )
+        self.env.cr.commit()
 
     def send_message(self, message_content):
         """Send a user message to the thread and trigger AI response.
@@ -562,10 +573,12 @@ class LLMThread(models.Model):
         """Get basic information about the channel."""
         self.ensure_one()
         _basic_info = super()._channel_basic_info()
-        _basic_info.update({
-            "llm_enabled": self.llm_enabled,
-            "model_id": self.model_id.id if self.model_id else False,
-            "provider_id": self.provider_id.id if self.provider_id else False,
-            "tool_ids": [tool.id for tool in self.tool_ids],
-        })
+        _basic_info.update(
+            {
+                "llm_enabled": self.llm_enabled,
+                "model_id": self.model_id.id if self.model_id else False,
+                "provider_id": self.provider_id.id if self.provider_id else False,
+                "tool_ids": [tool.id for tool in self.tool_ids],
+            }
+        )
         return _basic_info
