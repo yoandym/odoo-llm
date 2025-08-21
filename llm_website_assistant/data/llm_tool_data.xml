@@ -15,8 +15,22 @@
         <record id="llm_tool_phone_callback" model="llm.tool">
             <field name="name">phone_callback</field>
             <field name="implementation">phone_callback</field>
-            <field name="description">Create a phone callback request when a user wants to be contacted by phone. This creates a to-do item for an operator to call the user back.</field>
-            <field name="user_description">I can arrange for a support representative to call you back at your preferred phone number.</field>
+            <field name="description"><![CDATA[Use `phone_callback` tool when:
+- The user explicitly asks to speak with a human agent or representative
+- You encounter complex technical issues that require human expertise
+- The user expresses frustration or dissatisfaction that needs human attention
+- Legal, financial, or sensitive personal matters are discussed
+- You cannot resolve the user's issue after multiple attempts
+- The conversation requires decision-making authority beyond your capabilities
+Before using this tool, inform the user that you're connecting them to a human agent and briefly summarize their issue for context.
+
+**IMPORTANT**
+To use this tool a phone number is required, get it from context or you must ask the user until it is provided.
+
+**Examples**
+- I wanna talk to a human: ask the user for their phone number and use phone_callback with mode='exec' to arrange a callback
+- Can someone call me about my order?: ask the user for their order number and phone number and use phone_callback with mode='exec' to arrange a callback]]></field>
+            <field name="user_description">Can arrange for a support representative to call you back at your preferred phone number.</field>
             <field name="active" eval="True"/>
             <field name="read_only_hint" eval="True"/>
         </record>
