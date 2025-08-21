@@ -3,20 +3,21 @@
   <record id="llm_tool_odoo_record_retriever" model="llm.tool">
     <field name="name">odoo_record_retriever</field>
     <field name="implementation">odoo_record_retriever</field>
-    <field name="description">Retrieve records from any Odoo model with filtering capabilities. This tool allows you to fetch data from the database by specifying the model name, domain filters, fields to retrieve, and a limit on the number of records returned.
+    <field name="description">Use `odoo_record_retriever` to retrieve records from any Odoo model. This tool allows you to fetch data from the database by specifying the model name, domain filters, fields to retrieve, and a limit on the number of records returned.
 
 USAGE GUIDELINES:
 - For searching people/contacts by name: Use model='res.partner'
+- For all records always include the field "id", may be useful for later requests.
 - For contacts, always include fields like ["name", "display_name", "phone", "mobile", "email"]
 - Use 'ilike' operator for partial name matching (e.g., "Carlos" will match "Carlos Perez")
 - Use '=' operator only for exact matches
-- For people searches, add [["is_company", "=", false]] to exclude companies
 - Always set appropriate limits (10-20 records max for person searches)
+- The domain parameter is a python array/list. NEVER pass a string.
 
 EXAMPLES:
-- Find person by name: model="res.partner", domain=[["name", "ilike", "John"], ["is_company", "=", false]], fields=["name", "phone", "mobile", "email"]
-- Find active contacts: domain=[["active", "=", true], ["is_company", "=", false]]
-- Find contacts with phone: domain=[["phone", "!=", false]]</field>
+- Find person by name: model="res.partner", domain=[["name", "ilike", "John"]], fields=["name", "phone", "mobile", "email"]
+- Find active contacts: model="res.partner", domain=[["active", "=", true], ["is_company", "=", False]]
+- Find contacts with phone: model="res.partner", domain=[["phone", "!=", False]]</field>
     <field name="user_description">Search and retrieve contacts, companies, and other records from your Odoo database. I can help you find people by name, phone number, email, or other criteria.</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
@@ -47,7 +48,31 @@ Due to its data modification capabilities, this tool requires user consent befor
   <record id="llm_tool_odoo_record_updater" model="llm.tool">
     <field name="name">odoo_record_updater</field>
     <field name="implementation">odoo_record_updater</field>
-    <field name="description">Update existing records in any Odoo model. This tool allows you to modify data in the database by specifying the model name, domain filters to identify records, and a dictionary of field values to update. For safety, it defaults to updating only one record at a time. Due to its data modification capabilities, this tool requires user consent before execution.</field>
+    <field name="description">Use `odoo_record_updater` to update existing records in any Odoo model. This tool allows you to modify data in the database by specifying the model name, domain filters to identify records, and a dictionary of field values to update.
+
+SAFETY FEATURES:
+- Defaults to updating only 1 record at a time (use limit parameter to change)
+- Returns count of updated records and their IDs for verification
+- Requires user consent before execution due to data modification capabilities
+
+USAGE GUIDELINES:
+- Always use specific domain filters to target the correct records
+- Test with limit=1 first when uncertain about the domain scope
+- Use the odoo_record_retriever tool first to verify which records will be affected
+- The domain parameter is a python array/list. NEVER pass a string.
+- Use exact ID matching when updating a specific record: [["id", "=", record_id]]
+
+EXAMPLES:
+- Update contact phone of partner id 123: model="res.partner", domain=[["id", "=", 123]], values={"phone": "+1234567890"}
+- Update all contacts named John: model="res.partner", domain=[["name", "ilike", "John"]], values={"mobile": "+9876543210"}, limit=5
+- Activate all inactive records: domain=[["active", "=", False]], values={"active": True}
+- Update company with id 456, set its website to "https://example.com": domain=[["id", "=", 456], ["is_company", "=", true]], values={"website": "https://example.com"}
+
+PARAMETERS:
+- model: The Odoo model technical name (e.g., "res.partner", "sale.order")
+- domain: List of filters to identify records to update
+- values: Dictionary of field names and their new values
+- limit: Maximum number of records to update (default: 1 for safety)</field>
     <field name="user_description">Update and modify existing contacts, companies, or other records in your Odoo system. I can help you change information in your database.</field>
     <field name="default" eval="True" />
     <field name="active" eval="True" />
@@ -117,32 +142,34 @@ Returns a JSON representation of the method's result or an error message.
     <field name="name">user_greeting</field>
     <field name="implementation">user_greeting</field>
     <field name="description"><![CDATA[
-Greet users and provide information about available tools for the current thread. This tool is designed to:
+Use `user_greeting` tool to greet/salute back users and provide information about available tools for the current thread/assistant. 
 
+This tool is designed to:
 1. **Welcome Users**: Provide personalized greetings based on interaction type (initial, help, capabilities)
 2. **Tool Discovery**: Query the database to find and list all available tools for the current thread
-3. **Thread Context**: Automatically receives thread_id from the framework to show thread-specific tools
-4. **Rich Markdown Formatting**: When using this tool, ALWAYS format your response in well-structured Markdown
 
-**IMPORTANT - Formatting Instructions:**
-When responding to this tool's output, you MUST format your response using proper Markdown:
-- Use # for main headings
-- Use ## for subheadings  
-- Use **bold** for emphasis
-- Use bullet points with - or *
-- Use numbered lists with 1. 2. 3.
-- Use `code` for tool names
-- Use > for callouts or tips
+**IMPORTANT Instructions:**
+- Use the `user_greeting` tool for greetings. Do not use tools for follow-ups or casual messages.
+- When responding to this tool's output, you MUST ALWAYS format your response using proper Markdown:
+  - Use # for main headings
+  - Use ## for subheadings  
+  - Use **bold** for emphasis
+  - Use bullet points with - or *
+  - Use numbered lists with 1. 2. 3.
+  - Use `code` for tool names
+  - Use > for callouts or tips
 
 **Parameters:**
-- greeting_type: 'initial' (default), 'help', or 'capabilities'
+- greeting_type: 'initial' (default), or 'capabilities'
 - thread_id: Automatically injected by the framework (shows thread-specific tools)
 
 **Use Cases:**
-- Starting conversations with users
-- Providing help and orientation
-- Listing available capabilities for the current thread
-- Onboarding new users to the system
+- Answering users initial salutation
+- Listing available capabilities for the current thread/assistant
+
+**Examples**
+- Hola, buen dia, como estas?: greeting_type: 'initial'
+- ¿Que puedes hacer?: greeting_type: 'capabilities'
 
 This tool is completely read-only and safe to use, providing only informational content to enhance user experience.
         ]]>    </field>
