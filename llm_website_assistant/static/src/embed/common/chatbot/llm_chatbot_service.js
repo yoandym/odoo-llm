@@ -1,6 +1,6 @@
 /* @odoo-module */
 
-import { ChatBotService } from "@im_livechat/embed/common/chatbot/chatbot_service";
+import { ChatBotService, STEP_DELAY } from "@im_livechat/embed/common/chatbot/chatbot_service";
 import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
 
@@ -15,7 +15,21 @@ import { _t } from "@web/core/l10n/translation";
  */
 patch(ChatBotService.prototype, {
 
+    setup(env, services) {
+        super.setup(env, services);
 
+        this._onStreamingStart = this._handleStreamingStart.bind(this);
+        this._onStreamingStop = this._handleStreamingStop.bind(this);
+        this._onFlowAction = this._handleFlowAction.bind(this);
+
+        // streaming
+        this.livechatService.busService.addEventListener('streaming_start', this._onStreamingStart);
+        this.livechatService.busService.addEventListener('streaming_stop', this._onStreamingStop);
+        
+        // flow change
+        this.livechatService.busService.addEventListener('flow_action', this._onFlowAction);
+
+    },
     /**
      * Process user answer for LLM steps
      * 
@@ -29,7 +43,7 @@ patch(ChatBotService.prototype, {
             return;
         }
 
-        if (this.currentStep.isLlmStep) {
+        if (this.currentStep.isLlmStep && !this.livechatService.thread.llm_mute) {
             await this._llmProcessUserAnswer(message);
         } else {
             await super._processUserAnswer(message);
@@ -63,47 +77,6 @@ patch(ChatBotService.prototype, {
         } 
     },
 
-    /**
-     * Handle flow actions from LLM responses
-     * 
-     * @private
-     * @param {string} action - The flow action
-     * @param {Object} params - Action parameters
-     */
-    async _handleFlowAction(action, params) {
-        console.log("[LLM Chatbot] Handling flow action:", action);
-        
-        switch (action) {
-            case 'forward_to_operator':
-                const operatorStep = this._findStepByType('forward_operator');
-                if (operatorStep) {
-                    this.currentStep = operatorStep;
-                }
-                break;
-                
-            case 'phone_callback':
-                // Stay on current step, callback handled by backend
-                break;
-                
-            case 'create_ticket':
-                // Stay on current step, ticket handled by backend
-                break;
-                
-            default:
-                console.warn("[LLM Chatbot] Unknown flow action:", action);
-        }
-    },
-
-    /**
-     * Find a step by type in the script
-     * 
-     * @private
-     * @param {string} stepType - The step type to find
-     * @returns {Object|null} The found step
-     */
-    _findStepByType(stepType) {
-        return this.chatbot.scriptSteps?.find(step => step.type === stepType) || null;
-    },
 
     /**
      * Handle LLM processing errors
@@ -112,35 +85,60 @@ patch(ChatBotService.prototype, {
      */
     _handleLLMError() {
         const errorMessage = _t("I'm sorry, I encountered an issue. Let me connect you with a human operator.");
-        
-        // Try to forward to operator
-        const operatorStep = this._findStepByType('forward_operator');
-        if (operatorStep) {
-            operatorStep.message = errorMessage;
-            this.currentStep = operatorStep;
-        } else {
-            // Create a temporary error step
-            this.currentStep = {
-                type: 'text',
-                message: errorMessage,
-                isLast: true
-            };
-        }
+
+        // setting expectAnswer to false will allow _getNextStep to ask the backend what's the next step
+        // lets hope the backend can provide a meaningful response .. like forwarding to an operator
+        this.currentStep.expectAnswer = false;
+
+        // Trigger the forward to operator step
+        setTimeout(() => {
+            this._triggerNextStep();
+        }, STEP_DELAY);
     },
 
-    setup(env, services) {
-        super.setup(env, services);
-        
-        this._onStreamingStart = this._onStreamingStart?.bind(this) || ((ev) => this._handleStreamingStart(ev));
-        this._onStreamingStop = this._onStreamingStop?.bind(this) || ((ev) => this._handleStreamingStop(ev));
-        this.livechatService.busService.addEventListener('streaming_start', this._onStreamingStart);
-        this.livechatService.busService.addEventListener('streaming_stop', this._onStreamingStop);
-    },
+
 
     _handleStreamingStart(ev) {
         if (ev?.detail?.threadId === this.livechatService.thread?.id) {
             this.isTyping = true;
         }
+    },
+
+    /**
+     * Handle flow action events from the backend
+     * 
+     * @private
+     * @param {CustomEvent} ev - The flow action event
+     */
+    _handleFlowAction(ev) {
+        const eventData = ev?.detail;
+        if (!eventData) {
+            console.warn("[LLM Chatbot] Received flow action event without data");
+            return;
+        }
+
+        // Only process events for the current thread
+        if (eventData.thread_id !== this.livechatService.thread?.id) {
+            console.debug("[LLM Chatbot] Ignoring flow action for different thread", {
+                eventThreadId: eventData.thread_id,
+                currentThreadId: this.livechatService.thread?.id
+            });
+            return;
+        }
+
+        console.log("[LLM Chatbot] Received flow action:", eventData);
+
+        const action = eventData.flow_action;
+        switch(action) {
+            case 'forward_to_operator':
+                // setting expectAnswer to false will allow _getNextStep to ask the backed what's the next step
+                // at this point the chatbot current step is a forward_operator step
+                this.currentStep.expectAnswer = false;
+
+                // let the operator handle the conversation.
+                this.livechatService.muteAssistant(eventData.thread_id, true);
+                break;
+        }   
     },
 
     /**
@@ -157,15 +155,11 @@ patch(ChatBotService.prototype, {
                                 
                 // Continue flow
                 this._triggerNextStep();
-            }, this.stepDelay);
+            }, STEP_DELAY);
         }
     },
 
-    destroy() {
-        this.livechatService.busService.removeEventListener('streaming_start', this._onStreamingStart);
-        this.livechatService.busService.removeEventListener('streaming_stop', this._onStreamingStop);
-        super.destroy?.();
-    },
+
 
     get inputDisabledText() {
         if (this.currentStep?.isLlmStep && this.isTyping) {
@@ -182,6 +176,14 @@ patch(ChatBotService.prototype, {
         const operator_is_bot = thread?.operator?.id === this.chatbot?.partnerId;
         const llm_enabled = thread?.assistant?.llm_enabled;
         return operator_is_bot || llm_enabled;
+    },
+
+
+    destroy() {
+        this.livechatService.busService.removeEventListener('streaming_start', this._onStreamingStart);
+        this.livechatService.busService.removeEventListener('streaming_stop', this._onStreamingStop);
+        this.livechatService.busService.removeEventListener('flow_action', this._onFlowAction);
+        super.destroy?.();
     }
 
 });

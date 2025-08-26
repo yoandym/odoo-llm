@@ -61,6 +61,8 @@ class LLMThread(models.Model):
         help="Whether AI assistant is enabled for this channel",
     )
 
+    llm_mute = fields.Boolean(string="Mute the LLM", default=False)
+
     @api.depends("model_id")
     def _compute_llm_enabled(self):
         for record in self:

@@ -1,9 +1,10 @@
 /* @odoo-module */
 
-import { LivechatService } from "@im_livechat/embed/common/livechat_service";
+import { LivechatService, livechatService } from "@im_livechat/embed/common/livechat_service";
 import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
 import { markup } from "@odoo/owl";
+
 
 /**
  * Extended LivechatService with LLM capabilities
@@ -20,12 +21,15 @@ patch(LivechatService.prototype, {
      */
     setup(env, services) {
         super.setup(env, services);
-        
-        // Store env for later use
-        this.env = env;
-        
+
+        this.orm = services.orm;
+
         // LLM thread management - only keep EventSource instances
         this.llmStreamSources = new Map(); // threadId -> EventSource
+
+        // Subscribe to channel member changes for operator detection
+        this.busService.addEventListener("notification", this._onBusNotification.bind(this));
+
         
     },
 
@@ -228,7 +232,80 @@ patch(LivechatService.prototype, {
             console.error("[_processMsg] Error updating message:", error);
         }
     },
-    
+
+    /**
+     * Handle bus notifications for operator presence changes
+     */
+    _onBusNotification(notification) {
+        const notifications = notification.detail;
+        
+        for (const notif of notifications) {
+            const { type, payload } = notif;
+            if (type === 'mail.record/insert' && payload.Thread) {
+                const threadData = payload.Thread;
+                
+                // Check if this is a livechat channel with member changes
+                if (threadData.model === 'discuss.channel' && 
+                    threadData.channelMembers) {
+                    
+                    this._handleLivechatMemberChange(threadData);
+                }
+            }
+        }
+    },
+
+    /**
+     * Handle livechat channel member changes to detect operator presence
+     */
+    _handleLivechatMemberChange(threadData) {
+       
+        // Only process if this is our current thread
+        if (!this.thread || this.thread.id !== threadData.id) {
+            return;
+        }
+
+        // channelMembers[0] --> ['ADD', Array]
+        // Array --> [{create_date, id, persona, thread}, ...]
+        // persona --> {active, channelMembers, country, id, is_bot, is_public, name, type}
+        if (threadData.channelMembers[0][0] === 'ADD') {
+            const newMembers = threadData.channelMembers[0][1];
+            for (const member of newMembers) {
+                // if its a human operator (type != guest) mute de the llm for this thread
+                if (!member.persona.is_bot && member.persona.type !== 'guest') {
+                    this.muteAssistant(threadData.id, true);
+                }
+            }
+        }
+    },
+
+    muteAssistant(thread_id, mute) {
+        if (this.thread.id !== thread_id) {
+            console.warn("[muteAssistant] Thread mismatch");
+            return;
+        }
+        if (this.thread.llm_enabled) {
+
+            this.rpc(`/llm/thread/mute_llm`, {
+                uuid: this.thread.uuid, // Use uuid for thread identification to improve security
+                mute: mute,
+            })
+            .then(result => {
+                if (result.success) {
+                    console.log("[muteAssistant] Result:", result);
+                    // frontend mute - only update if backend was successful
+                    this.thread.update({ llm_mute: mute });
+                } else {
+                    console.error("[muteAssistant] Error:", result.error);
+                }
+            })
+            .catch(error => {
+                console.error("[muteAssistant] RPC error:", error);
+            });
+
+
+        }
+    },
+            
     
     /**
      * Enhanced destroy method with streaming cleanup
@@ -257,10 +334,16 @@ patch(LivechatService.prototype, {
         
         // Remove bus event listener
         if (this.busService) {
-            this.busService.removeEventListener("notification", this._onNotification);
+            this.busService.removeEventListener("notification", this._onBusNotification);
         }
         
         super.destroy?.();
     },
     
+});
+
+
+// Patch the service definition to include the orm dependency
+patch(livechatService, {
+    dependencies: [...livechatService.dependencies, "orm"],
 });

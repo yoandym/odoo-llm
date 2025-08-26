@@ -48,7 +48,8 @@ patch(Thread, {
             };
         }
 
-
+        // used to mute the llm when an operator joins the channel
+        thread.llm_mute = data.llm_mute || false;
 
         return thread;
     },
@@ -78,6 +79,8 @@ patch(Thread.prototype, {
 
         this.isStreaming = false;
         this.eventSource = false;
+
+        this.llm_mute = false;
 
     },
     

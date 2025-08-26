@@ -123,40 +123,31 @@ class LLMToolLivechatHandover(models.Model):
         if not forward_step:
             return StandardToolResponse.create_error_response(error_message=_("Livechat Channel not properly configured for handover to operator"))
 
-        # check whether there are livechat operators online/available
-        human_operator = channel.livechat_channel_id._get_operator(
-            lang=channel.livechat_visitor_id.lang_id.code if hasattr(channel, "livechat_visitor_id") else None, country_id=channel.country_id.id
-        )
-        available = human_operator and human_operator != self.env.user
-        if not available:
-            return StandardToolResponse.create_error_response(error_message=_("No available operators for livechat handover"))
-
         # do the handover
-        forward_step._process_step(channel)
+        step_msg = forward_step._process_step(channel)
+        if step_msg:
+            _res = StandardToolResponse.create_flow_control_response(
+                flow_action=FlowAction.FORWARD_TO_OPERATOR,
+                message=step_msg.body,
+                flow_params={
+                    "available": True,
+                    "operatorFound": True,
+                    "thread_id": channel.id,
+                    "step_id": forward_step.id,
+                    "step_message": forward_step.message,
+                    "step_type": forward_step.step_type,
+                },
+            )
 
-        step_msg = _("LiveChat handover in progress")
+            # fire bus notification with _res as payload
+            # target is model-name_record_id
+            target = f"discuss_channel_{channel.id}"
+            self.env["bus.bus"]._sendone(
+                target,
+                "flow_action",
+                _res,
+            )
 
-        _res = StandardToolResponse.create_flow_control_response(
-            flow_action=FlowAction.FORWARD_TO_OPERATOR,
-            message=step_msg,
-            flow_params={
-                "available": available,
-                "thread_id": channel.id,
-                "step_id": forward_step.id,
-                "step_message": step_msg,
-                "step_type": forward_step.step_type,
-            },
-        )
-
-        # fire bus notification with _res as payload
-        self.env["bus.bus"].sendone(
-            "llm_website_assistant.flow_action",
-            {
-                "thread_id": channel.id,
-                "step_id": forward_step.id,
-                "step_message": step_msg,
-                "step_type": forward_step.step_type,
-            },
-        )
-
-        return _res
+            return _res
+        else:
+            return StandardToolResponse.create_error_response(error_message=_("Livechat handover failed"))

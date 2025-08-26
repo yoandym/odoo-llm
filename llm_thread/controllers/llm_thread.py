@@ -26,6 +26,60 @@ class LLMThreadController(http.Controller):
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
+    @http.route("/llm/thread/mute_llm", type="json", auth="public")
+    def mute_assistant(self, uuid, mute, **kwargs):
+        """Mute or unmute the assistant for a specific thread identified by UUID
+
+        UUID-based authentication ensures only users with access to the
+        specific thread can modify its settings.
+
+        Args:
+            uuid: The UUID of the thread (not the numeric ID)
+            mute: Boolean indicating whether to mute (True) or unmute (False)
+
+        Returns:
+            dict: Result with success status
+        """
+        if not uuid:
+            return {"success": False, "error": "Missing UUID"}
+
+        # Find the thread by UUID - this is more secure than using ID
+        thread = request.env["discuss.channel"].sudo().search([("uuid", "=", uuid)], limit=1)
+        if not thread:
+            return {"success": False, "error": "Thread not found"}
+
+        # Security check: Verify the requester has access to this thread
+        livechat_uuid = False
+        if thread.channel_type == "livechat":
+            livechat_uuid = request.httprequest.cookies.get("im_livechat_uuid")
+            if livechat_uuid != uuid:
+                return {"success": False, "error": "Access denied"}
+
+        # For authenticated users, check if they are members of this channel
+        is_authenticated = request.session.uid is not None
+        is_member = False
+        if is_authenticated:
+            channel_member = (
+                request.env["discuss.channel.member"]
+                .sudo()
+                .search([("partner_id", "=", request.env.user.partner_id.id), ("channel_id", "=", thread.id)], limit=1)
+            )
+            is_member = bool(channel_member)
+
+            # Validation: either UUID matches or the user is a member
+            if not is_member:
+                return {"success": False, "error": "Access denied"}
+        elif thread.channel_type != "livechat":
+            # right now, only livechat can be unauthenticated
+            return {"success": False, "error": "Access denied"}
+
+        try:
+            thread.sudo().write({"llm_mute": bool(mute)})
+            return {"success": True}
+        except Exception as e:
+            _logger.exception(e)
+            return {"success": False, "error": str(e)}
+
     def _safe_yield(self, data_to_yield):
         """Helper generator to yield data safely, handling BrokenPipeError(Disconnected user)."""
         try:
