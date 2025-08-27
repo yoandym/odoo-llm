@@ -16,40 +16,7 @@ patch(Thread, {
 
         assignDefined(thread, data);
 
-        thread.creator = data.create_uid
-            ? { id: data.create_uid[0], name: data.create_uid[1] }
-            : undefined;
-
-        // linked document
-        // the previous call to assignDefined sets model
-        // we also set res_model cauze there are places where its used
-        // TODO: remove / clean
-        thread.res_model = data.model;
-
-        // TODO: remove / clean
-        thread.updatedAt = data.write_date;
-
-        // llm data
-        if ('provider_id' in data && 'model_id' in data) {
-            thread.llmModel = {
-                id: data.model_id[0],
-                name: data.model_id[1],
-                llmProvider: {
-                    id: data.provider_id[0],
-                    name: data.provider_id[1],
-                },
-            };
-        }
-
-        if ('prompt_id' in data) {
-            thread.prompt = {
-                id: data.prompt_id[0],
-                name: data.prompt_id[1],
-            };
-        }
-
-        // used to mute the llm when an operator joins the channel
-        thread.llm_mute = data.llm_mute || false;
+        thread._parse_llm_data(data);
 
         return thread;
     },
@@ -92,12 +59,21 @@ patch(Thread.prototype, {
 
         assignDefined(this, data);
 
+        this._parse_llm_data(data);
+
+    },
+
+    _parse_llm_data(data){
         if ('create_uid' in data) {
             this.creator =  { id: data.create_uid[0], name: data.create_uid[1] };
         }
 
         if ('write_date' in data) {
             this.updatedAt = data.write_date;
+        }
+
+        if ('model' in data) {
+            this.res_model = data.model;
         }
 
         // llm data
