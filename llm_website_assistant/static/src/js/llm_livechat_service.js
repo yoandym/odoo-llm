@@ -1,6 +1,7 @@
 /* @odoo-module */
 
 import { LivechatService, livechatService } from "@im_livechat/embed/common/livechat_service";
+
 import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
 import { markup } from "@odoo/owl";
@@ -104,6 +105,7 @@ patch(LivechatService.prototype, {
                         } else if (data.type === "done") {
 
                             this.cleanupLLMResources(threadId);
+                            this.env.services["mail.thread"].fetchMessages(this.thread);
 
                         } else if (data.type === "message_create" || data.type === "message_chunk" || data.type === "message_update") {
 
@@ -162,7 +164,7 @@ patch(LivechatService.prototype, {
         setTimeout(() => {
             // Stop streaming
             this.stopLLMStreaming(channelId);
-            this.env.services["mail.thread"].fetchMessages(this.thread);
+            
         }, this.messageDelay);
 
         // Use the thread getter from parent LivechatService
@@ -293,7 +295,7 @@ patch(LivechatService.prototype, {
                 if (result.success) {
                     console.log("[muteAssistant] Result:", result);
                     // frontend mute - only update if backend was successful
-                    this.thread.update({ llm_mute: mute });
+                    this.store.Thread.insert({model:'discuss.channel', id:this.thread.id, llm_mute:mute});
                 } else {
                     console.error("[muteAssistant] Error:", result.error);
                 }
