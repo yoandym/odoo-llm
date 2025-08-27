@@ -43,7 +43,7 @@ patch(ChatBotService.prototype, {
             return;
         }
 
-        if (this.currentStep.isLlmStep && !this.livechatService.thread.llm_mute) {
+        if (this.currentStep.isLlmStep && this.livechatService.thread.llm_mute !== true) {
             await this._llmProcessUserAnswer(message);
         } else {
             await super._processUserAnswer(message);
