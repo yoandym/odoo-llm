@@ -1,6 +1,6 @@
 /* @odoo-module */
 
-import { ChatBotService, STEP_DELAY } from "@im_livechat/embed/common/chatbot/chatbot_service";
+import { ChatBotService } from "@im_livechat/embed/common/chatbot/chatbot_service";
 import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
 
@@ -86,14 +86,10 @@ patch(ChatBotService.prototype, {
     _handleLLMError() {
         const errorMessage = _t("I'm sorry, I encountered an issue. Let me connect you with a human operator.");
 
-        // setting expectAnswer to false will allow _getNextStep to ask the backend what's the next step
-        // lets hope the backend can provide a meaningful response .. like forwarding to an operator
-        this.currentStep.expectAnswer = false;
-
         // Trigger the forward to operator step
         setTimeout(() => {
             this._triggerNextStep();
-        }, STEP_DELAY);
+        }, this.stepDelay);
     },
 
 
@@ -131,9 +127,6 @@ patch(ChatBotService.prototype, {
         const action = eventData.flow_action;
         switch(action) {
             case 'forward_to_operator':
-                // setting expectAnswer to false will allow _getNextStep to ask the backed what's the next step
-                // at this point the chatbot current step is a forward_operator step
-                this.currentStep.expectAnswer = false;
 
                 // let the operator handle the conversation.
                 this.livechatService.muteAssistant(eventData.thread_id, true);
@@ -155,7 +148,7 @@ patch(ChatBotService.prototype, {
                                 
                 // Continue flow
                 this._triggerNextStep();
-            }, STEP_DELAY);
+            }, this.stepDelay);
         }
     },
 
