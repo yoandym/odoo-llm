@@ -129,12 +129,7 @@ patch(LivechatService.prototype, {
                 this.llmStreamSources.set(threadId, eventSource);
                 
                 // Update thread streaming status - using the store for reactivity
-                if (thread.update) {
-                    thread.update({ isStreaming: true });
-                } else {
-                    // Fallback if thread doesn't have update method
-                    thread.isStreaming = true;
-                }
+                thread.update({ isStreaming: true });
             }
             else {
                 throw new Error("No assistant available for thread_id: " + threadId);
@@ -172,13 +167,7 @@ patch(LivechatService.prototype, {
         
         // Reset thread streaming status
         if (thread && thread.id === channelId) {
-            if (thread.update) {
-                thread.update({ 
-                    isStreaming: false,
-                });
-            } else {
-                thread.isStreaming = false;
-            }
+            thread.update({isStreaming: false});
         }
         
     },
@@ -295,7 +284,7 @@ patch(LivechatService.prototype, {
                 if (result.success) {
                     console.log("[muteAssistant] Result:", result);
                     // frontend mute - only update if backend was successful
-                    this.store.Thread.insert({model:'discuss.channel', id:this.thread.id, llm_mute:mute});
+                    this.thread.update({ llm_mute: mute });
                 } else {
                     console.error("[muteAssistant] Error:", result.error);
                 }
@@ -324,11 +313,7 @@ patch(LivechatService.prototype, {
                 
                 // Reset thread streaming status if it matches
                 if (thread && thread.id === threadId) {
-                    if (thread.update) {
-                        thread.update({ isStreaming: false });
-                    } else {
-                        thread.isStreaming = false;
-                    }
+                    thread.update({ isStreaming: false });
                 }
                             }
             this.llmStreamSources.clear();
