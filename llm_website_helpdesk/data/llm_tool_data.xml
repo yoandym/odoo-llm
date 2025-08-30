@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Register the LLM Tool for Creating Helpdesk Tickets -->
+        <record id="llm_tool_helpdesk" model="llm.tool">
+            <field name="name">Create a helpdesk ticket</field>
+            <field name="implementation">website_helpdesk_ticket</field>
+            <field name="description"><![CDATA[Use `website_helpdesk_ticket` tool when:
+- The user explicitly asks to create a support or helpdesk ticket.
+- When the issue cannot be immediately resolved using other available tools.
+- It's out of business hours.
+- Conversation handover to a human agent is not available.
+
+**Important**
+- To use this tool some data/parameters are required:
+    - name: A concise title that summarizes the issue (required)
+    - description: A detailed description of the issue (if not provided the whole conversation history will be automatically feed)
+    - project_id: The project ID to assign the ticket to (the system will try to determine it from user, thread or set a default one)
+    - issue_type_id: The issue type ID (required). If not sure ask the user.
+    - severity_id: The severity level ID (required). If not sure ask the user
+- These are the known issue types:
+    - question: A request for information or clarification.
+    - incident: An unexpected disruption or degradation of service.
+    - feature_request: A request for a new feature or enhancement.
+    - improvement: A non-disruptive annoying issue that requires investigation and resolution.
+    - tracing: A request for tracking or monitoring a specific issue.
+- These are the known severities:
+    - critical: Requires immediate attention. It prevents system operation.
+    - high: Needs to be addressed soon. It impacts system performance.
+    - medium: Requires investigation and resolution. Causes cumbersome issues.
+    - low: A low-priority issue that does not require immediate attention.
+    - unknown: The severity level is not known or cannot be determined.
+- Dont make up data/parameters, always ask the user for them if not provided or not sure.
+
+**Examples**
+- "We are having a ValidationError error when confirming invoice #INV-2024-0012, can you create a support ticket for me?": 
+    name="Invoice Error", 
+    description="Error encountered during client invoicing process. System throws 'ValidationError' when confirming invoice #INV-2024-0012.", 
+    issue_type_id="incident", 
+    severity_id="high"
+
+- "I can't login to the website. I get Invalid credentials but the password is right. My email is john.doe@example.com. Please open a ticket for me.": 
+    name="Login Failure", 
+    description="User unable to log in to the website. Error message: 'Invalid credentials' despite correct password. Affects user john.doe@example.com.", 
+    issue_type_id="incident", 
+    severity_id="medium"
+
+- "The system is down since 09:15 AM UTC, nobody can't access anything. Please this is critical.": 
+    name="System Outage", 
+    description="Complete system outage reported. All users unable to access backend and frontend. Outage started at 09:15 AM UTC.", 
+    issue_type_id="incident", 
+    severity_id="critical"
+
+- "This Inventory synchronization problem keeps happening. I got it right now, can you file a ticket so someone can look into it?": 
+    name="Recurring Sync Issue", 
+    description="Inventory synchronization fails intermittently. Last occurred now (2024-06-10). Needs investigation.", 
+    issue_type_id="improvement", 
+    severity_id="medium"]]></field>
+            <field name="user_description">Create a helpdesk support ticket</field>
+            <field name="active" eval="True"/>
+            <field name="read_only_hint" eval="False"/>
+        </record>
+    </data>
+</odoo>
