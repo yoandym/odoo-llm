@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="llm_website_helpdesk_view_partner_form" model="ir.ui.view">
+        <field name="name">res.partner.form.llm.website.helpdesk</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="solt_helpdesk.view_partner_form_support" />
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='support_tags']" position="inside">
+                <group string="Access Token">
+                    <field name="access_token" readonly="1" />
+                    <button string="Generate Token" name="ensure_token" type="object" class="btn-primary" invisible="access_token"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

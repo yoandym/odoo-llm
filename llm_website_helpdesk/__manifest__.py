@@ -13,6 +13,7 @@
     ],
     "data": [
         "data/llm_tool_data.xml",
+        "views/res_partner_views.xml",
     ],
     "demo": [],
     "installable": True,
